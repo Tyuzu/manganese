@@ -14,6 +14,7 @@ export function createNavElement(): HTMLElement {
       a({ href: '/profile', 'data-link': '' }, 'Profile'),
       a({ href: '/images', 'data-link': '' }, 'Image Studio'),
       a({ href: '/videos', 'data-link': '' }, 'Video Editor'),
+      a({ href: '/scan', 'data-link': '' }, 'Scan'),
       a({ href: '/pdf', 'data-link': '' }, 'PDF Workspace')
     );
 
@@ -37,6 +38,7 @@ export function createNavElement(): HTMLElement {
     navChildren.push(
       a({ href: '/images', 'data-link': '' }, 'Image Studio'),
       a({ href: '/videos', 'data-link': '' }, 'Video Editor'),
+      a({ href: '/scan', 'data-link': '' }, 'Scan'),
       a({ href: '/pdf', 'data-link': '' }, 'PDF Workspace'),
       a({ href: '/login', 'data-link': '' }, 'Login'),
       a({ href: '/register', 'data-link': '' }, 'Register'),

@@ -5,6 +5,7 @@ import {
   createHomePage,
   createImageEditorPage,
   createVideoEditorPage,
+  createScanPage,
   createPdfScannerPage,
 } from '../pages/Home';
 import { createLoginPage } from '../pages/Login';
@@ -49,6 +50,11 @@ export function setupRouter() {
 
   router.add('/videos', async () => {
     const pageEl = await createVideoEditorPage();
+    wrap(pageEl);
+  }, true, ['user', 'admin']);
+
+  router.add('/scan', async () => {
+    const pageEl = await createScanPage();
     wrap(pageEl);
   }, true, ['user', 'admin']);
 

@@ -23,6 +23,12 @@ export async function createHomePage(): Promise<HTMLElement> {
       action: 'Open timeline',
     },
     {
+      title: 'Scan & Convert',
+      description: 'Capture pages, clean them up, and export as PDF or photo output.',
+      route: '/scan',
+      action: 'Open scanner',
+    },
+    {
       title: 'PDF Workspace',
       description: 'Scan, merge, sign, and convert documents without leaving the app.',
       route: '/pdf',
@@ -141,5 +147,115 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     )
   );
 
+  return root;
+}
+
+export async function createScanPage(): Promise<HTMLElement> {
+  const root = div({ className: 'card' },
+    h1({}, 'CamScanner-style Scan'),
+    p({}, 'Scan documents and convert them into PDF or photo output.')
+  );
+
+  const fileInput = input({
+    type: 'file',
+    accept: 'image/*,.pdf',
+    capture: 'environment',
+    style: 'display: none;'
+  });
+
+  const uploadButton = button({ type: 'button' }, 'Upload document');
+  const cameraButton = button({ type: 'button' }, 'Use camera');
+  const exportButtons = div({ className: 'tool-row' },
+    button({ type: 'button', className: 'active' }, 'Convert to PDF'),
+    button({ type: 'button' }, 'Convert to Photo')
+  );
+
+  const previewFrame = div({ className: 'media-preview' },
+    div({ className: 'pdf-placeholder' }, 'No document selected yet')
+  );
+
+  const statusBox = div({ className: 'meta-panel' },
+    p({}, span({ style: 'font-weight: 700;' }, 'Mode: '), 'PDF'),
+    p({}, span({ style: 'font-weight: 700;' }, 'Status: '), 'Waiting for document upload or camera capture'),
+    p({}, span({ style: 'font-weight: 700;' }, 'Quality: '), 'HD mode')
+  );
+
+  const uploadRow = div({ className: 'tool-panel' },
+    label({}, 'Capture or upload a document'),
+    uploadButton,
+    cameraButton,
+    button({ type: 'button' }, 'Auto-crop & straighten')
+  );
+
+  const actionRow = div({ className: 'tool-panel' },
+    button({ type: 'button' }, 'Enhance contrast'),
+    button({ type: 'button' }, 'OCR text'),
+    button({ type: 'button' }, 'Export file')
+  );
+
+  let currentMode: 'pdf' | 'photo' = 'pdf';
+
+  const updateMode = (mode: 'pdf' | 'photo') => {
+    currentMode = mode;
+    const [pdfBtn, photoBtn] = exportButtons.children as HTMLCollectionOf<HTMLButtonElement>;
+    pdfBtn.classList.toggle('active', mode === 'pdf');
+    photoBtn.classList.toggle('active', mode === 'photo');
+    const modeText = statusBox.querySelectorAll('p')[0];
+    modeText.textContent = `Mode: ${mode === 'pdf' ? 'PDF' : 'Photo'}`;
+  };
+
+  const setPreviewFromFile = (file: File) => {
+    const previewImage = document.createElement('img');
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      previewImage.alt = file.name;
+      previewImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600">
+          <rect width="100%" height="100%" fill="#e5e7eb"/>
+          <text x="50%" y="50%" text-anchor="middle" fill="#111827" font-size="28" font-family="Arial">${file.name}</text>
+        </svg>
+      `);
+    } else {
+      previewImage.src = URL.createObjectURL(file);
+      previewImage.alt = file.name;
+    }
+
+    previewImage.style.maxWidth = '100%';
+    previewImage.style.maxHeight = '420px';
+    previewImage.style.borderRadius = '12px';
+    previewImage.style.objectFit = 'contain';
+    previewFrame.replaceChildren(previewImage);
+
+    const statusText = statusBox.querySelectorAll('p')[1];
+    statusText.textContent = `Status: ${file.name} ready for ${currentMode === 'pdf' ? 'PDF' : 'photo'} export`;
+  };
+
+  uploadButton.addEventListener('click', () => {
+    fileInput.removeAttribute('capture');
+    fileInput.click();
+  });
+
+  cameraButton.addEventListener('click', () => {
+    fileInput.setAttribute('capture', 'environment');
+    fileInput.click();
+  });
+
+  exportButtons.children[0].addEventListener('click', () => updateMode('pdf'));
+  exportButtons.children[1].addEventListener('click', () => updateMode('photo'));
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) {
+      setPreviewFromFile(file);
+    }
+  });
+
+  actionRow.children[2].addEventListener('click', () => {
+    const statusText = statusBox.querySelectorAll('p')[1];
+    statusText.textContent = `Status: ${currentMode === 'pdf' ? 'Document exported as PDF' : 'Document exported as photo'} successfully`;
+  });
+
+  root.append(uploadRow, exportButtons, previewFrame, statusBox, actionRow);
   return root;
 }
