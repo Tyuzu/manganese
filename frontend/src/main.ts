@@ -1,3 +1,4 @@
+import '../css/style.css';
 import { setupRouter } from './routes';
 import { authActions } from './appState';
 

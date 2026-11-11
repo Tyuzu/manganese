@@ -1,13 +1,18 @@
 import { button, div, h1, h2, input, label, p, span } from '../components/ui/dom';
 import { router } from '../main';
 
+const cardShell = 'rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_38px_rgba(15,23,42,0.08)] backdrop-blur-sm';
+const panelShell = 'rounded-2xl border border-slate-200 bg-slate-50 p-4';
+const primaryButton = 'inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500';
+const secondaryButton = 'inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50';
+
 export async function createHomePage(): Promise<HTMLElement> {
-  const root = div({ className: 'card' },
-    h1({}, 'Creative Media Dashboard'),
-    p({}, 'Edit images, refine video, and transform PDFs from one streamlined workspace.')
+  const root = div({ className: `${cardShell} max-w-5xl` },
+    h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, 'Creative Media Dashboard'),
+    p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, 'Edit images, refine video, and transform PDFs from one streamlined workspace.')
   );
 
-  const grid = div({ className: 'dashboard-grid' });
+  const grid = div({ className: 'mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4' });
 
   const featureCards = [
     {
@@ -37,10 +42,10 @@ export async function createHomePage(): Promise<HTMLElement> {
   ];
 
   featureCards.forEach((feature) => {
-    const card = div({ className: 'media-card' },
-      h2({}, feature.title),
-      p({}, feature.description),
-      button({ type: 'button' }, feature.action)
+    const card = div({ className: 'flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5' },
+      h2({ className: 'm-0 text-xl font-bold text-slate-900' }, feature.title),
+      p({ className: 'm-0 text-sm leading-6 text-slate-600' }, feature.description),
+      button({ type: 'button', className: `${primaryButton} mt-auto w-full` }, feature.action)
     );
     card.lastElementChild?.addEventListener('click', () => router.navigate(feature.route));
     grid.appendChild(card);
@@ -51,31 +56,31 @@ export async function createHomePage(): Promise<HTMLElement> {
 }
 
 export async function createImageEditorPage(): Promise<HTMLElement> {
-  const root = div({ className: 'card' },
-    h1({}, 'Image Studio'),
-    p({}, 'Retouch photos and prepare assets for publishing.')
+  const root = div({ className: cardShell },
+    h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, 'Image Studio'),
+    p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, 'Retouch photos and prepare assets for publishing.')
   );
 
-  const toolbar = div({ className: 'tool-row' },
-    button({ type: 'button' }, 'Crop'),
-    button({ type: 'button' }, 'Filters'),
-    button({ type: 'button' }, 'Text Overlay'),
-    button({ type: 'button' }, 'AI Enhance')
+  const toolbar = div({ className: 'mt-6 flex flex-wrap gap-3' },
+    button({ type: 'button', className: secondaryButton }, 'Crop'),
+    button({ type: 'button', className: secondaryButton }, 'Filters'),
+    button({ type: 'button', className: secondaryButton }, 'Text Overlay'),
+    button({ type: 'button', className: secondaryButton }, 'AI Enhance')
   );
 
-  const preview = div({ className: 'media-preview' },
-    div({ className: 'image-placeholder' }, 'Preview: Poster image'),
-    div({ className: 'meta-panel' },
-      p({}, span({ style: 'font-weight: 700;' }, 'Resolution: '), '4K • 3840×2160'),
-      p({}, span({ style: 'font-weight: 700;' }, 'Format: '), 'PNG / JPG / WebP'),
-      p({}, span({ style: 'font-weight: 700;' }, 'Status: '), 'Ready for export')
+  const preview = div({ className: 'mt-6 grid gap-4 lg:grid-cols-[1.5fr_0.9fr]' },
+    div({ className: 'flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-gradient-to-br from-slate-100 to-slate-50 text-base font-semibold text-slate-600' }, 'Preview: Poster image'),
+    div({ className: `${panelShell} flex flex-col gap-3` },
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Resolution: '), '4K • 3840×2160'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Format: '), 'PNG / JPG / WebP'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Status: '), 'Ready for export')
     )
   );
 
-  const controls = div({ className: 'tool-panel' },
-    label({}, 'Upload image'),
-    input({ type: 'file', accept: 'image/*' }),
-    button({ type: 'button' }, 'Export image')
+  const controls = div({ className: 'mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center' },
+    label({ className: 'text-sm font-semibold text-slate-700' }, 'Upload image'),
+    input({ type: 'file', accept: 'image/*', className: 'block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700' }),
+    button({ type: 'button', className: primaryButton }, 'Export image')
   );
 
   root.append(toolbar, preview, controls);
@@ -83,33 +88,33 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 }
 
 export async function createVideoEditorPage(): Promise<HTMLElement> {
-  const root = div({ className: 'card' },
-    h1({}, 'Video Editor'),
-    p({}, 'Trim, sequence, and caption video content for release.')
+  const root = div({ className: cardShell },
+    h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, 'Video Editor'),
+    p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, 'Trim, sequence, and caption video content for release.')
   );
 
-  const timeline = div({ className: 'timeline' },
-    div({ className: 'timeline-segment', style: 'width: 30%;' }, 'Intro'),
-    div({ className: 'timeline-segment', style: 'width: 40%; background: #6d5efc;' }, 'Main cut'),
-    div({ className: 'timeline-segment', style: 'width: 30%; background: #36cfc9;' }, 'Outro')
+  const timeline = div({ className: 'mt-6 flex overflow-hidden rounded-2xl border border-slate-200 bg-slate-100' },
+    div({ className: 'flex items-center justify-center bg-slate-200 px-3 py-3 text-xs font-semibold text-slate-700', style: 'width: 30%;' }, 'Intro'),
+    div({ className: 'flex items-center justify-center bg-violet-500 px-3 py-3 text-xs font-semibold text-white', style: 'width: 40%;' }, 'Main cut'),
+    div({ className: 'flex items-center justify-center bg-cyan-400 px-3 py-3 text-xs font-semibold text-slate-900', style: 'width: 30%;' }, 'Outro')
   );
 
-  const preview = div({ className: 'media-preview' },
-    div({ className: 'video-placeholder' }, 'Preview: 00:32 • 1080p'),
-    div({ className: 'meta-panel' },
-      p({}, span({ style: 'font-weight: 700;' }, 'Aspect ratio: '), '16:9'),
-      p({}, span({ style: 'font-weight: 700;' }, 'Audio: '), 'Clean stereo mix'),
-      p({}, span({ style: 'font-weight: 700;' }, 'Export: '), 'MP4 / MOV')
+  const preview = div({ className: 'mt-6 grid gap-4 lg:grid-cols-[1.5fr_0.9fr]' },
+    div({ className: 'flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-900 text-base font-semibold text-slate-200' }, 'Preview: 00:32 • 1080p'),
+    div({ className: `${panelShell} flex flex-col gap-3` },
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Aspect ratio: '), '16:9'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Audio: '), 'Clean stereo mix'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Export: '), 'MP4 / MOV')
     )
   );
 
   root.append(
     timeline,
     preview,
-    div({ className: 'tool-panel' },
-      button({ type: 'button' }, 'Trim clip'),
-      button({ type: 'button' }, 'Add captions'),
-      button({ type: 'button' }, 'Render video')
+    div({ className: 'mt-6 flex flex-wrap gap-3' },
+      button({ type: 'button', className: secondaryButton }, 'Trim clip'),
+      button({ type: 'button', className: secondaryButton }, 'Add captions'),
+      button({ type: 'button', className: primaryButton }, 'Render video')
     )
   );
 
@@ -117,33 +122,33 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 }
 
 export async function createPdfScannerPage(): Promise<HTMLElement> {
-  const root = div({ className: 'card' },
-    h1({}, 'PDF Scanner & Editor'),
-    p({}, 'Turn paper input into polished, searchable digital documents.')
+  const root = div({ className: cardShell },
+    h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, 'PDF Scanner & Editor'),
+    p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, 'Turn paper input into polished, searchable digital documents.')
   );
 
-  const uploadRow = div({ className: 'tool-panel' },
-    label({}, 'Upload PDF or image scan'),
-    input({ type: 'file', accept: '.pdf,image/*' }),
-    button({ type: 'button' }, 'Scan document')
+  const uploadRow = div({ className: 'mt-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center' },
+    label({ className: 'text-sm font-semibold text-slate-700' }, 'Upload PDF or image scan'),
+    input({ type: 'file', accept: '.pdf,image/*', className: 'block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-700' }),
+    button({ type: 'button', className: primaryButton }, 'Scan document')
   );
 
-  const preview = div({ className: 'media-preview' },
-    div({ className: 'pdf-placeholder' }, 'Scan preview: invoice.pdf'),
-    div({ className: 'meta-panel' },
-      p({}, span({ style: 'font-weight: 700;' }, 'Pages: '), '4 pages'),
-      p({}, span({ style: 'font-weight: 700;' }, 'OCR: '), 'Enabled'),
-      p({}, span({ style: 'font-weight: 700;' }, 'Output: '), 'PDF / JPG / TXT')
+  const preview = div({ className: 'mt-6 grid gap-4 lg:grid-cols-[1.5fr_0.9fr]' },
+    div({ className: 'flex min-h-[220px] items-center justify-center rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-100 to-slate-50 text-lg font-semibold text-slate-700' }, 'Scan preview: invoice.pdf'),
+    div({ className: `${panelShell} flex flex-col gap-3` },
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Pages: '), '4 pages'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'OCR: '), 'Enabled'),
+      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Output: '), 'PDF / JPG / TXT')
     )
   );
 
   root.append(
     uploadRow,
     preview,
-    div({ className: 'tool-panel' },
-      button({ type: 'button' }, 'Deskew'),
-      button({ type: 'button' }, 'OCR text'),
-      button({ type: 'button' }, 'Merge PDFs')
+    div({ className: 'mt-6 flex flex-wrap gap-3' },
+      button({ type: 'button', className: secondaryButton }, 'Deskew'),
+      button({ type: 'button', className: secondaryButton }, 'OCR text'),
+      button({ type: 'button', className: primaryButton }, 'Merge PDFs')
     )
   );
 
@@ -151,9 +156,9 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 }
 
 export async function createScanPage(): Promise<HTMLElement> {
-  const root = div({ className: 'card' },
-    h1({}, 'CamScanner-style Scan'),
-    p({}, 'Scan documents and convert them into PDF or photo output.')
+  const root = div({ className: cardShell },
+    h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, 'CamScanner-style Scan'),
+    p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, 'Scan documents and convert them into PDF or photo output.')
   );
 
   const fileInput = input({
@@ -162,44 +167,40 @@ export async function createScanPage(): Promise<HTMLElement> {
     style: 'display: none;'
   });
 
-  const uploadButton = button({ type: 'button' }, 'Upload document');
-  const cameraButton = button({ type: 'button' }, 'Use camera');
-  const captureButton = button({ type: 'button' }, 'Capture');
-  const flashButton = button({ type: 'button' }, 'Flash off');
-  const retakeButton = button({ type: 'button' }, 'Retake');
+  const uploadButton = button({ type: 'button', className: secondaryButton }, 'Upload document');
+  const cameraButton = button({ type: 'button', className: secondaryButton }, 'Use camera');
+  const captureButton = button({ type: 'button', className: primaryButton }, 'Capture');
+  const flashButton = button({ type: 'button', className: secondaryButton }, 'Flash off');
+  const retakeButton = button({ type: 'button', className: secondaryButton }, 'Retake');
 
-  const exportButtons = div({ className: 'tool-row' },
-    button({ type: 'button', className: 'active' }, 'Convert to PDF'),
-    button({ type: 'button' }, 'Convert to Photo')
+  const exportButtons = div({ className: 'mt-6 flex flex-wrap gap-3' },
+    button({ type: 'button', className: 'inline-flex items-center justify-center rounded-full border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500' }, 'Convert to PDF'),
+    button({ type: 'button', className: 'inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50' }, 'Convert to Photo')
   );
 
-  const previewFrame = div({ className: 'media-preview' },
-    div({ className: 'pdf-placeholder' }, 'No document selected yet')
+  const previewFrame = div({ className: 'mt-6 min-h-[280px] rounded-[22px] border border-slate-200 bg-slate-100 p-3' },
+    div({ className: 'flex min-h-[250px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-lg font-semibold text-slate-500' }, 'No document selected yet')
   );
 
-  const statusBox = div({ className: 'meta-panel' },
-    p({}, span({ style: 'font-weight: 700;' }, 'Mode: '), 'PDF'),
-    p({}, span({ style: 'font-weight: 700;' }, 'Status: '), 'Waiting for document upload or camera capture'),
-    p({}, span({ style: 'font-weight: 700;' }, 'Quality: '), 'HD mode')
+  const statusBox = div({ className: `${panelShell} mt-6 flex flex-col gap-3` },
+    p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Mode: '), 'PDF'),
+    p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Status: '), 'Waiting for document upload or camera capture'),
+    p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, 'Quality: '), 'HD mode')
   );
 
-  const uploadRow = div({ className: 'tool-panel' },
-    label({}, 'Capture or upload a document'),
+  const uploadRow = div({ className: 'mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4' },
+    label({ className: 'text-sm font-semibold text-slate-700' }, 'Capture or upload a document'),
     uploadButton,
     cameraButton,
-    button({ type: 'button' }, 'Auto-crop & straighten')
+    button({ type: 'button', className: secondaryButton }, 'Auto-crop & straighten')
   );
 
-  const liveControls = div({ className: 'tool-panel' },
-    captureButton,
-    flashButton,
-    retakeButton
-  );
+  const liveControls = div({ className: 'mt-6 flex flex-wrap gap-3' }, captureButton, flashButton, retakeButton);
 
-  const actionRow = div({ className: 'tool-panel' },
-    button({ type: 'button' }, 'Enhance contrast'),
-    button({ type: 'button' }, 'OCR text'),
-    button({ type: 'button' }, 'Export file')
+  const actionRow = div({ className: 'mt-6 flex flex-wrap gap-3' },
+    button({ type: 'button', className: secondaryButton }, 'Enhance contrast'),
+    button({ type: 'button', className: secondaryButton }, 'OCR text'),
+    button({ type: 'button', className: primaryButton }, 'Export file')
   );
 
   let currentMode: 'pdf' | 'photo' = 'pdf';
@@ -224,8 +225,20 @@ export async function createScanPage(): Promise<HTMLElement> {
   const updateMode = (mode: 'pdf' | 'photo') => {
     currentMode = mode;
     const [pdfBtn, photoBtn] = exportButtons.children as HTMLCollectionOf<HTMLButtonElement>;
-    pdfBtn.classList.toggle('active', mode === 'pdf');
-    photoBtn.classList.toggle('active', mode === 'photo');
+    pdfBtn.classList.toggle('bg-blue-600', mode === 'pdf');
+    pdfBtn.classList.toggle('border-blue-600', mode === 'pdf');
+    pdfBtn.classList.toggle('text-white', mode === 'pdf');
+    pdfBtn.classList.toggle('bg-white', mode === 'photo');
+    pdfBtn.classList.toggle('text-slate-700', mode === 'photo');
+    pdfBtn.classList.toggle('border-slate-200', mode === 'photo');
+
+    photoBtn.classList.toggle('bg-blue-600', mode === 'photo');
+    photoBtn.classList.toggle('border-blue-600', mode === 'photo');
+    photoBtn.classList.toggle('text-white', mode === 'photo');
+    photoBtn.classList.toggle('bg-white', mode === 'pdf');
+    photoBtn.classList.toggle('text-slate-700', mode === 'pdf');
+    photoBtn.classList.toggle('border-slate-200', mode === 'pdf');
+
     const modeText = statusBox.querySelectorAll('p')[0];
     modeText.textContent = `Mode: ${mode === 'pdf' ? 'PDF' : 'Photo'}`;
   };
