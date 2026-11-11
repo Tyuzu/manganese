@@ -45,6 +45,35 @@ export function el<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+export function svgElement(
+  tagName: string,
+  attributes?: ElementAttributes,
+  ...children: (Node | string)[]
+): SVGElement {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+
+  if (attributes) {
+    for (const [key, value] of Object.entries(attributes)) {
+      if (key === 'className') {
+        element.setAttribute('class', String(value));
+      } else if (key.startsWith('on') && typeof value === 'function') {
+        const eventName = key.slice(2).toLowerCase();
+        element.addEventListener(eventName, value as EventListener);
+      } else if (value !== false && value != null) {
+        element.setAttribute(key, String(value));
+      }
+    }
+  }
+
+  for (const child of children) {
+    if (child != null) {
+      element.append(child);
+    }
+  }
+
+  return element;
+}
+
 export function createButton(
   variant: 'primary' | 'secondary' = 'primary',
   attributes?: ElementAttributes,
@@ -92,3 +121,5 @@ export const a = (attrs?: ElementAttributes, ...children: (Node | string)[]) => 
 export const img = (attrs?: ElementAttributes) => el('img', attrs);
 export const video = (attrs?: ElementAttributes) => el('video', attrs);
 export const canvas = (attrs?: ElementAttributes) => el('canvas', attrs);
+export const svg = (attrs?: ElementAttributes, ...children: (Node | string)[]) => svgElement('svg', attrs, ...children);
+export const path = (attrs?: ElementAttributes, ...children: (Node | string)[]) => svgElement('path', attrs, ...children);
