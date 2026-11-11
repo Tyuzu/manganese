@@ -1,4 +1,4 @@
-import { div, button as tabButtonFactory } from "./dom";
+import { article, div, button as tabButtonFactory } from "./dom";
 import { makeDraggableScroll } from "./dragnav";
 import { getState, setState } from "../../state/state";
 
@@ -105,12 +105,13 @@ export function createTabs(
     const panelId = `panel-${id}`;
     const buttonId = `tab-btn-${id}`;
 
-    const contentContainer = document.createElement("article");
-    contentContainer.id = panelId;
-    contentContainer.className = "hidden";
-    contentContainer.setAttribute("role", "tabpanel");
-    contentContainer.setAttribute("aria-labelledby", buttonId);
-    contentContainer.setAttribute("tabindex", "0");
+    const contentContainer = article({
+      id: panelId,
+      className: "hidden",
+      role: "tabpanel",
+      "aria-labelledby": buttonId,
+      tabindex: "0",
+    });
 
     const tabButton = tabButtonFactory({
       id: buttonId,
