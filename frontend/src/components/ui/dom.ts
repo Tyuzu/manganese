@@ -74,6 +74,8 @@ export function createErrorCard(title = 'Error', message = 'Failed to load page 
 
 // Convenient shorthand wrappers for common tags
 export const div = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('div', attrs, ...children);
+export const article = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('article', attrs, ...children);
+export const section = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('section', attrs, ...children);
 export const header = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('header', attrs, ...children);
 export const main = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('main', attrs, ...children);
 export const footer = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('footer', attrs, ...children);
@@ -87,3 +89,6 @@ export const label = (attrs?: ElementAttributes, ...children: (Node | string)[])
 export const span = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('span', attrs, ...children);
 export const nav = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('nav', attrs, ...children);
 export const a = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('a', attrs, ...children);
+export const img = (attrs?: ElementAttributes) => el('img', attrs);
+export const video = (attrs?: ElementAttributes) => el('video', attrs);
+export const canvas = (attrs?: ElementAttributes) => el('canvas', attrs);

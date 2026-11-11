@@ -1,10 +1,37 @@
-import { div } from '../../components/ui/dom';
+import { canvas, div, img, video } from '../../components/ui/dom';
 import type { ScanMode } from './controls';
 
 export interface ScanCameraControllerOptions {
   previewFrame: HTMLDivElement;
   getMode: () => ScanMode;
   setStatus: (message: string) => void;
+}
+
+function createLiveVideo(): HTMLVideoElement {
+  return video({
+    autoplay: true,
+    playsInline: true,
+    muted: true,
+    style: 'width: 100%; height: 420px; object-fit: cover; border-radius: 12px; background: #0f172a;'
+  });
+}
+
+function createCameraOverlay(): HTMLDivElement {
+  return div({
+    style: 'position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; pointer-events: none;'
+  });
+}
+
+function createDocumentPreview(fileName: string, src: string): HTMLImageElement {
+  return img({
+    src,
+    alt: fileName,
+    style: 'max-width: 100%; max-height: 420px; border-radius: 12px; object-fit: contain;'
+  });
+}
+
+function createCaptureCanvas(width: number, height: number): HTMLCanvasElement {
+  return canvas({ width, height });
 }
 
 export function createScanCameraController({
@@ -15,23 +42,12 @@ export function createScanCameraController({
   let stream: MediaStream | null = null;
   let cameraReady = false;
 
-  const video = document.createElement('video');
-  video.autoplay = true;
-  video.playsInline = true;
-  video.muted = true;
-  video.style.width = '100%';
-  video.style.height = '420px';
-  video.style.objectFit = 'cover';
-  video.style.borderRadius = '12px';
-  video.style.background = '#0f172a';
-
-  const cameraOverlay = div({
-    style: 'position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; pointer-events: none;'
-  });
+  const videoEl = createLiveVideo();
+  const cameraOverlay = createCameraOverlay();
 
   const showLivePreview = () => {
     const wrapper = div({ style: 'position: relative; width: 100%; height: 420px;' });
-    wrapper.append(video, cameraOverlay);
+    wrapper.append(videoEl, cameraOverlay);
     previewFrame.replaceChildren(wrapper);
     setStatus('Live camera preview active');
   };
@@ -55,8 +71,8 @@ export function createScanCameraController({
         video: { facingMode: 'environment' },
         audio: false,
       });
-      video.srcObject = stream;
-      await video.play();
+      videoEl.srcObject = stream;
+      await videoEl.play();
       cameraReady = true;
       showLivePreview();
     } catch (_err) {
@@ -68,26 +84,19 @@ export function createScanCameraController({
     stopCamera();
     cameraReady = false;
 
-    const previewImage = document.createElement('img');
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const previewImage = createDocumentPreview(
+      file.name,
+      isPdf
+        ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600">
+            <rect width="100%" height="100%" fill="#e5e7eb"/>
+            <text x="50%" y="50%" text-anchor="middle" fill="#111827" font-size="28" font-family="Arial">${file.name}</text>
+          </svg>
+        `)
+        : URL.createObjectURL(file)
+    );
 
-    if (isPdf) {
-      previewImage.alt = file.name;
-      previewImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600">
-          <rect width="100%" height="100%" fill="#e5e7eb"/>
-          <text x="50%" y="50%" text-anchor="middle" fill="#111827" font-size="28" font-family="Arial">${file.name}</text>
-        </svg>
-      `);
-    } else {
-      previewImage.src = URL.createObjectURL(file);
-      previewImage.alt = file.name;
-    }
-
-    previewImage.style.maxWidth = '100%';
-    previewImage.style.maxHeight = '420px';
-    previewImage.style.borderRadius = '12px';
-    previewImage.style.objectFit = 'contain';
     previewFrame.replaceChildren(previewImage);
 
     const modeLabel = getMode() === 'pdf' ? 'PDF' : 'photo';
@@ -100,28 +109,17 @@ export function createScanCameraController({
       return;
     }
 
-    const canvas = document.createElement('canvas');
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
-
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext('2d');
+    const width = videoEl.videoWidth || 1280;
+    const height = videoEl.videoHeight || 720;
+    const canvasEl = createCaptureCanvas(width, height);
+    const ctx = canvasEl.getContext('2d');
     if (!ctx) {
       return;
     }
 
-    ctx.drawImage(video, 0, 0, width, height);
+    ctx.drawImage(videoEl, 0, 0, width, height);
 
-    const image = document.createElement('img');
-    image.src = canvas.toDataURL('image/png');
-    image.alt = 'Captured document';
-    image.style.maxWidth = '100%';
-    image.style.maxHeight = '420px';
-    image.style.borderRadius = '12px';
-    image.style.objectFit = 'contain';
-
+    const image = createDocumentPreview('Captured document', canvasEl.toDataURL('image/png'));
     previewFrame.replaceChildren(image);
     const modeLabel = getMode() === 'pdf' ? 'PDF export' : 'photo export';
     setStatus(`Photo captured for ${modeLabel}`);
