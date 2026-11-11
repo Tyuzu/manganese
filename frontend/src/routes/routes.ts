@@ -1,13 +1,11 @@
 import { createRouter, type RouteDefinition } from './router';
 import { renderLayout, renderPageIntoLayout } from '../components/layout/AppLayout';
 
-import {
-  createHomePage,
-  createImageEditorPage,
-  createVideoEditorPage,
-  createScanPage,
-  createPdfScannerPage,
-} from '../pages/Home';
+import { createHomePage } from '../pages/Home';
+import { createImageEditorPage } from '../pages/ImageStudio';
+import { createVideoEditorPage } from '../pages/VideoEditor';
+import { createScanPage } from '../pages/ScanCapture';
+import { createPdfScannerPage } from '../pages/PdfWorkspace';
 import { createLoginPage } from '../pages/Login';
 import { createNotFoundPage } from '../pages/NotFound';
 
