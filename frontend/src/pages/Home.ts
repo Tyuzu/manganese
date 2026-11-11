@@ -159,12 +159,15 @@ export async function createScanPage(): Promise<HTMLElement> {
   const fileInput = input({
     type: 'file',
     accept: 'image/*,.pdf',
-    capture: 'environment',
     style: 'display: none;'
   });
 
   const uploadButton = button({ type: 'button' }, 'Upload document');
   const cameraButton = button({ type: 'button' }, 'Use camera');
+  const captureButton = button({ type: 'button' }, 'Capture');
+  const flashButton = button({ type: 'button' }, 'Flash off');
+  const retakeButton = button({ type: 'button' }, 'Retake');
+
   const exportButtons = div({ className: 'tool-row' },
     button({ type: 'button', className: 'active' }, 'Convert to PDF'),
     button({ type: 'button' }, 'Convert to Photo')
@@ -187,6 +190,12 @@ export async function createScanPage(): Promise<HTMLElement> {
     button({ type: 'button' }, 'Auto-crop & straighten')
   );
 
+  const liveControls = div({ className: 'tool-panel' },
+    captureButton,
+    flashButton,
+    retakeButton
+  );
+
   const actionRow = div({ className: 'tool-panel' },
     button({ type: 'button' }, 'Enhance contrast'),
     button({ type: 'button' }, 'OCR text'),
@@ -194,6 +203,23 @@ export async function createScanPage(): Promise<HTMLElement> {
   );
 
   let currentMode: 'pdf' | 'photo' = 'pdf';
+  let stream: MediaStream | null = null;
+  let flashEnabled = false;
+  let cameraReady = false;
+
+  const video = document.createElement('video');
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = true;
+  video.style.width = '100%';
+  video.style.height = '420px';
+  video.style.objectFit = 'cover';
+  video.style.borderRadius = '12px';
+  video.style.background = '#0f172a';
+
+  const cameraOverlay = div({
+    style: 'position: absolute; inset: 0; border: 2px solid rgba(255,255,255,0.8); border-radius: 12px; pointer-events: none;'
+  });
 
   const updateMode = (mode: 'pdf' | 'photo') => {
     currentMode = mode;
@@ -204,7 +230,48 @@ export async function createScanPage(): Promise<HTMLElement> {
     modeText.textContent = `Mode: ${mode === 'pdf' ? 'PDF' : 'Photo'}`;
   };
 
+  const showLivePreview = () => {
+    const wrapper = div({ style: 'position: relative; width: 100%; height: 420px;' });
+    wrapper.append(video, cameraOverlay);
+    previewFrame.replaceChildren(wrapper);
+    const statusText = statusBox.querySelectorAll('p')[1];
+    statusText.textContent = 'Status: Live camera preview active';
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      stream = null;
+    }
+  };
+
+  const startCamera = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const statusText = statusBox.querySelectorAll('p')[1];
+      statusText.textContent = 'Status: Camera access is not supported on this browser';
+      return;
+    }
+
+    try {
+      stopCamera();
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      cameraReady = true;
+      showLivePreview();
+    } catch (err) {
+      const statusText = statusBox.querySelectorAll('p')[1];
+      statusText.textContent = 'Status: Unable to access camera. Please upload a file instead.';
+    }
+  };
+
   const setPreviewFromFile = (file: File) => {
+    stopCamera();
+    cameraReady = false;
+
     const previewImage = document.createElement('img');
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
@@ -231,24 +298,84 @@ export async function createScanPage(): Promise<HTMLElement> {
     statusText.textContent = `Status: ${file.name} ready for ${currentMode === 'pdf' ? 'PDF' : 'photo'} export`;
   };
 
+  const capturePhoto = () => {
+    if (!cameraReady || !stream) {
+      const statusText = statusBox.querySelectorAll('p')[1];
+      statusText.textContent = 'Status: Start the camera before capturing';
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const width = video.videoWidth || 1280;
+    const height = video.videoHeight || 720;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const image = document.createElement('img');
+    image.src = canvas.toDataURL('image/png');
+    image.alt = 'Captured document';
+    image.style.maxWidth = '100%';
+    image.style.maxHeight = '420px';
+    image.style.borderRadius = '12px';
+    image.style.objectFit = 'contain';
+
+    if (flashEnabled) {
+      previewFrame.style.boxShadow = '0 0 0 9999px rgba(255,255,255,0.55)';
+    }
+
+    previewFrame.replaceChildren(image);
+    const statusText = statusBox.querySelectorAll('p')[1];
+    statusText.textContent = `Status: Photo captured for ${currentMode === 'pdf' ? 'PDF export' : 'photo export'}`;
+    stopCamera();
+    cameraReady = false;
+    previewFrame.style.boxShadow = 'none';
+  };
+
   uploadButton.addEventListener('click', () => {
-    fileInput.removeAttribute('capture');
     fileInput.click();
   });
 
   cameraButton.addEventListener('click', () => {
-    fileInput.setAttribute('capture', 'environment');
-    fileInput.click();
+    void startCamera();
+  });
+
+  captureButton.addEventListener('click', () => {
+    capturePhoto();
+  });
+
+  flashButton.addEventListener('click', () => {
+    flashEnabled = !flashEnabled;
+    flashButton.textContent = flashEnabled ? 'Flash on' : 'Flash off';
+    const statusText = statusBox.querySelectorAll('p')[1];
+    statusText.textContent = flashEnabled
+      ? 'Status: Flash enabled for next capture'
+      : 'Status: Flash disabled';
+  });
+
+  retakeButton.addEventListener('click', () => {
+    void startCamera();
   });
 
   exportButtons.children[0].addEventListener('click', () => updateMode('pdf'));
   exportButtons.children[1].addEventListener('click', () => updateMode('photo'));
 
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files?.[0];
-    if (file) {
-      setPreviewFromFile(file);
+  const handleSelectedFile = (file: File | undefined) => {
+    if (!file) {
+      return;
     }
+    setPreviewFromFile(file);
+  };
+
+  fileInput.addEventListener('change', () => {
+    handleSelectedFile(fileInput.files?.[0]);
   });
 
   actionRow.children[2].addEventListener('click', () => {
@@ -256,6 +383,6 @@ export async function createScanPage(): Promise<HTMLElement> {
     statusText.textContent = `Status: ${currentMode === 'pdf' ? 'Document exported as PDF' : 'Document exported as photo'} successfully`;
   });
 
-  root.append(uploadRow, exportButtons, previewFrame, statusBox, actionRow);
+  root.append(uploadRow, liveControls, exportButtons, previewFrame, statusBox, actionRow);
   return root;
 }

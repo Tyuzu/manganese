@@ -12,5 +12,9 @@
     "terser": "^5.51.2",
     "typescript": "^7.0.2",
     "vite": "^8.3.4"
+  },
+  "devDependencies": {
+    "mkcert": "^3.2.0",
+    "vite-plugin-mkcert": "^2.1.0"
   }
 }
