@@ -11,18 +11,11 @@ export function createNavElement(): HTMLElement {
 
   if (state.token) {
     navChildren.push(
-      a({ href: '/profile', 'data-link': '' }, 'Profile'),
       a({ href: '/images', 'data-link': '' }, 'Image Studio'),
       a({ href: '/videos', 'data-link': '' }, 'Video Editor'),
       a({ href: '/scan', 'data-link': '' }, 'Scan'),
       a({ href: '/pdf', 'data-link': '' }, 'PDF Workspace')
     );
-
-    if (state.roles.includes('admin')) {
-      const adminLink = a({ href: '/admin/settings', 'data-link': '' }, 'Admin');
-      adminLink.classList.add('nav-admin-link');
-      navChildren.push(adminLink);
-    }
 
     navChildren.push(
       span({ className: 'nav-user-pill' }, `Hello, ${state.handle || 'Creator'}`),
@@ -41,7 +34,6 @@ export function createNavElement(): HTMLElement {
       a({ href: '/scan', 'data-link': '' }, 'Scan'),
       a({ href: '/pdf', 'data-link': '' }, 'PDF Workspace'),
       a({ href: '/login', 'data-link': '' }, 'Login'),
-      a({ href: '/register', 'data-link': '' }, 'Register'),
       button({
         className: 'nav-logout',
         onClick: () => {

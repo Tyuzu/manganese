@@ -9,10 +9,6 @@ import {
   createPdfScannerPage,
 } from '../pages/Home';
 import { createLoginPage } from '../pages/Login';
-import { createRegisterPage } from '../pages/Register';
-import { createProfilePage } from '../pages/Profile';
-import { createAdminSettingsPage } from '../pages/AdminSettings';
-import { createUnauthorizedPage } from '../pages/Unauthorized';
 import { createNotFoundPage } from '../pages/NotFound';
 
 export function setupRouter() {
@@ -38,11 +34,6 @@ export function setupRouter() {
     wrap(pageEl);
   }, true, ['user', 'admin']);
 
-  router.add('/dashboard', async () => {
-    const pageEl = await createHomePage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
-
   router.add('/images', async () => {
     const pageEl = await createImageEditorPage();
     wrap(pageEl);
@@ -63,16 +54,7 @@ export function setupRouter() {
     wrap(pageEl);
   }, true, ['user', 'admin']);
 
-  router.add('/scanner', async () => {
-    const pageEl = await createPdfScannerPage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
-
   router.add('/login', () => wrap(createLoginPage()));
-  router.add('/register', () => wrap(createRegisterPage()));
-  router.add('/profile', () => wrap(createProfilePage()), true, ['user', 'admin']);
-  router.add('/admin/settings', () => wrap(createAdminSettingsPage()), true, ['admin']);
-  router.add('/unauthorized', () => wrap(createUnauthorizedPage()));
   router.add('/404', () => wrap(createNotFoundPage()));
 
   return router;
