@@ -39,7 +39,14 @@ export function createNavElement(): HTMLElement {
       a({ href: '/videos', 'data-link': '' }, 'Video Editor'),
       a({ href: '/pdf', 'data-link': '' }, 'PDF Workspace'),
       a({ href: '/login', 'data-link': '' }, 'Login'),
-      a({ href: '/register', 'data-link': '' }, 'Register')
+      a({ href: '/register', 'data-link': '' }, 'Register'),
+      button({
+        className: 'nav-logout',
+        onClick: () => {
+          authActions.guest();
+          router.navigate('/');
+        }
+      }, 'Guest Mode')
     );
   }
 

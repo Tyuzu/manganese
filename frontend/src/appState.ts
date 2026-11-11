@@ -41,6 +41,9 @@ export const authActions = {
   login: (token: string, handle: string, roles: string[]) => {
     appStore.setState({ token, handle, roles });
   },
+  guest: () => {
+    appStore.setState({ token: 'guest', handle: 'Guest', roles: ['user'] });
+  },
   logout: () => {
     appStore.setState({ token: null, handle: null, roles: [] });
   },

@@ -11,6 +11,11 @@ export function createLoginPage(): HTMLElement {
   const usernameInput = input({ type: 'text', required: true, value: 'admin' });
   const passwordInput = input({ type: 'password', required: true, value: 'secret' });
 
+  const guestButton = button({
+    type: 'button',
+    style: 'margin-top: 10px; background: #1f2937; color: white;'
+  }, 'Continue as Guest');
+
   const loginForm = form({
     onSubmit: async (e: Event) => {
       e.preventDefault();
@@ -37,8 +42,15 @@ export function createLoginPage(): HTMLElement {
     div({ className: 'form-group' }, label({}, 'Username (try "admin")'), usernameInput),
     div({ className: 'form-group' }, label({}, 'Password (try "secret")'), passwordInput),
     button({ type: 'submit' }, 'Sign In'),
+    guestButton,
     errorDiv
   );
+
+  guestButton.addEventListener('click', () => {
+    authActions.guest();
+    const destination = redirectTarget ? decodeURIComponent(redirectTarget) : '/';
+    router.navigate(destination);
+  });
 
   return div({ className: 'card' }, h2({}, 'Login'), loginForm);
 }
