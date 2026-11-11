@@ -1,4 +1,4 @@
-import { appStore, authSelectors } from '../appState';
+import { appStore, authSelectors, routeStateActions, routeStateSelectors } from '../appState';
 import { a as createAnchor, createErrorCard, div, h2 } from '../components/ui/dom';
 
 export type RouteHandler = (params: Record<string, string>) => void | Promise<void>;
@@ -80,6 +80,15 @@ export function createRouter() {
       const params: Record<string, string> = {};
       route.paramNames.forEach((name, index) => {
         params[name] = match[index + 1];
+      });
+
+      const routeKey = route.path;
+      const currentRouteState = routeStateSelectors.getRouteState(state, routeKey);
+      routeStateActions.set(routeKey, {
+        ...currentRouteState,
+        lastPath: currentPath,
+        params,
+        search: window.location.search,
       });
 
       const app = document.getElementById('app');
