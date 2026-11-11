@@ -8,11 +8,11 @@ export interface DashboardFeature {
 }
 
 export function createFeatureCard(feature: DashboardFeature, onNavigate: (route: string) => void): HTMLElement {
-  const card = div({ className: 'flex h-full flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5' });
+  const card = div({ className: 'flex h-full flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-[0_18px_36px_rgba(15,23,42,0.22)]' });
 
   card.append(
-    h2({ className: 'm-0 text-xl font-bold text-slate-900' }, feature.title),
-    p({ className: 'm-0 text-sm leading-6 text-slate-600' }, feature.description),
+    h2({ className: 'm-0 text-xl font-bold text-white' }, feature.title),
+    p({ className: 'm-0 text-sm leading-6 text-slate-400' }, feature.description),
   );
 
   const actionButton = createButton('primary', { type: 'button', className: 'mt-auto w-full' }, feature.action);
@@ -37,13 +37,13 @@ export function createDetailPanel(title: string, details: Array<{ label: string;
 
   details.forEach(({ label, value }) => {
     panel.append(
-      p({ className: 'm-0 text-sm text-slate-600' }, span({ className: 'font-bold text-slate-800' }, `${label}: `), value)
+      p({ className: 'm-0 text-sm text-slate-400' }, span({ className: 'font-bold text-slate-200' }, `${label}: `), value)
     );
   });
 
   if (title) {
     panel.prepend(
-      h2({ className: 'm-0 text-lg font-bold text-slate-900' }, title)
+      h2({ className: 'm-0 text-lg font-bold text-white' }, title)
     );
   }
 

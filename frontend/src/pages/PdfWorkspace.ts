@@ -1,4 +1,4 @@
-import { button, createButton, div, h1, input, label, p, span, svgElement } from '../components/ui/dom';
+import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
 import { createDetailPanel } from './shared';
 
 export async function createPdfScannerPage(): Promise<HTMLElement> {
@@ -16,31 +16,23 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     className: 'flex flex-col h-[calc(100vh-2rem)] w-full bg-slate-950 text-slate-100 rounded-3xl overflow-hidden border border-slate-800/80 shadow-2xl' 
   });
 
-  // 1. Header Toolbar
-  const header = div({ className: 'flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-900/90 px-6 backdrop-blur-md' },
-    div({ className: 'flex items-center gap-3' },
-      div({ className: 'flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-600/20 text-cyan-400 border border-cyan-500/30 font-extrabold text-sm' }, 'PS'),
-      div({},
-        h1({ className: 'text-sm font-bold tracking-tight text-white' }, 'PDF Scanner & Editor Studio'),
-        p({ className: 'text-[11px] text-slate-400' }, 'Deskew, OCR extraction, multi-page manipulation & digital export')
-      )
+  const fileInput = input({
+    type: 'file',
+    accept: '.pdf,image/*',
+    className: 'sr-only',
+    onchange: (e: Event) => handlePdfUpload(e)
+  });
+
+  const quickActions = div({ className: 'flex justify-end gap-3 p-3 pb-0' },
+    label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
+      'Upload PDF/Scan',
+      fileInput
     ),
-    div({ className: 'flex items-center gap-3' },
-      label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
-        'Upload PDF/Scan',
-        input({
-          type: 'file',
-          accept: '.pdf,image/*',
-          className: 'sr-only',
-          onchange: (e: Event) => handlePdfUpload(e)
-        })
-      ),
-      createButton('primary', {
-        type: 'button',
-        className: 'bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-cyan-600/20',
-        onclick: () => triggerExport('pdf')
-      }, 'Export PDF')
-    )
+    createButton('primary', {
+      type: 'button',
+      className: 'bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-cyan-600/20',
+      onclick: () => triggerExport('pdf')
+    }, 'Export PDF')
   );
 
   // 2. Main Workspace Layout
@@ -83,7 +75,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     ocrRunBtn
   );
 
-  stage.append(previewContainer, stageHud);
+  stage.append(quickActions, previewContainer, stageHud);
 
   // 3. Side Inspector Panel Navigation
   const sidePanelNav = div({ className: 'flex shrink-0 border-b border-slate-800 bg-slate-900 px-2 overflow-x-auto' });
@@ -298,7 +290,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
   // Initialize
   workspace.append(stage, sidePanel);
-  root.append(header, workspace);
+  root.append(workspace);
   renderToolControls();
 
   return root;

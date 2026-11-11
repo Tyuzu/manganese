@@ -1,4 +1,4 @@
-import { button, createButton, div, h1, input, label, p, span, svgElement } from '../components/ui/dom';
+import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
 import { createDetailPanel } from './shared';
 import { createScanCameraController } from './scan/camera';
 import type { ScanMode } from './scan/controls';
@@ -27,39 +27,28 @@ export async function createScanPage(): Promise<HTMLElement> {
     className: 'flex flex-col h-[calc(100vh-2rem)] w-full bg-slate-950 text-slate-100 rounded-3xl overflow-hidden border border-slate-800/80 shadow-2xl' 
   });
 
-  // 1. Header Toolbar
-  const header = div({ className: 'flex h-16 shrink-0 items-center justify-between border-b border-slate-800/80 bg-slate-900/90 px-6 backdrop-blur-md' },
-    div({ className: 'flex items-center gap-3' },
-      div({ className: 'flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 font-extrabold text-sm' }, 'CS'),
-      div({},
-        h1({ className: 'text-sm font-bold tracking-tight text-white' }, 'Document Studio'),
-        p({ className: 'text-[11px] text-slate-400' }, 'CamScanner-style edge detection, filters & PDF exporter')
-      )
+  const fileInput = input({
+    type: 'file',
+    accept: 'image/*,.pdf',
+    className: 'sr-only',
+    onchange: handleFileUpload
+  });
+
+  const quickActions = div({ className: 'flex justify-end gap-3 p-3 pb-0' },
+    label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
+      'Upload File',
+      fileInput
     ),
-    div({ className: 'flex items-center gap-3' },
-      label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
-        'Upload File',
-        input({
-          type: 'file',
-          accept: 'image/*,.pdf',
-          className: 'sr-only',
-          onchange: handleFileUpload
-        })
-      ),
-      createButton('primary', {
-        type: 'button',
-        className: 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/20',
-        onclick: () => triggerExport()
-      }, 'Export PDF')
-    )
+    createButton('primary', {
+      type: 'button',
+      className: 'bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-emerald-600/20',
+      onclick: () => triggerExport()
+    }, 'Export PDF')
   );
 
   // 2. Main Workspace Layout
   const workspace = div({ className: 'grid flex-1 grid-cols-1 lg:grid-cols-[1fr_340px] overflow-hidden min-h-0' });
   const stage = div({ className: 'flex flex-col flex-1 overflow-hidden bg-slate-950 min-h-0' });
-
-  // Hidden File Input
-  const fileInput = input({ type: 'file', accept: 'image/*,.pdf', style: 'display: none;' });
 
   // Document Preview Stage
   const uploadIcon = svgElement(
@@ -108,7 +97,7 @@ export async function createScanPage(): Promise<HTMLElement> {
     retakeButton
   );
 
-  stage.append(previewFrame, stageHud);
+  stage.append(quickActions, previewFrame, stageHud);
 
   // 3. Side Inspector Panel Navigation
   const sidePanelNav = div({ className: 'flex shrink-0 border-b border-slate-800 bg-slate-900 px-2 overflow-x-auto' });
@@ -270,7 +259,7 @@ export async function createScanPage(): Promise<HTMLElement> {
 
   // Initialize
   workspace.append(stage, sidePanel);
-  root.append(header, workspace);
+  root.append(workspace);
   renderToolControls();
 
   return root;

@@ -186,15 +186,15 @@ export function svgElement(
 }
 
 export const uiClasses = {
-  card: 'rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_38px_rgba(15,23,42,0.08)] backdrop-blur-sm',
-  panel: 'rounded-2xl border border-slate-200 bg-slate-50 p-4',
+  card: 'rounded-[28px] border border-slate-800 bg-slate-950/80 p-6 shadow-[0_18px_40px_rgba(15,23,42,0.40)] backdrop-blur-sm',
+  panel: 'rounded-2xl border border-slate-800 bg-slate-900/70 p-4',
   primaryButton:
-    'inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500',
+    'inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(59,130,246,0.35)] transition hover:brightness-110',
   secondaryButton:
-    'inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50',
+    'inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:bg-slate-800',
   linkButton:
-    'inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500',
-  textMuted: 'text-sm leading-6 text-slate-600',
+    'inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110',
+  textMuted: 'text-sm leading-6 text-slate-400',
 };
 
 export function createButton(
@@ -208,10 +208,10 @@ export function createButton(
 
 export function createPageHeader(title: string, description?: string, className = 'max-w-5xl'): HTMLElement {
   const root = div({ className: cn(uiClasses.card, className) });
-  root.append(h1({ className: 'm-0 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl' }, title));
+  root.append(h1({ className: 'm-0 text-3xl font-black tracking-tight text-white sm:text-4xl' }, title));
 
   if (description) {
-    root.append(p({ className: 'mt-3 text-sm leading-6 text-slate-600' }, description));
+    root.append(p({ className: 'mt-3 text-sm leading-6 text-slate-400' }, description));
   }
 
   return root;
@@ -219,8 +219,8 @@ export function createPageHeader(title: string, description?: string, className 
 
 export function createErrorCard(title = 'Error', message = 'Failed to load page component.'): HTMLElement {
   return div({ className: 'card mx-auto max-w-xl text-center' },
-    h2({ className: 'text-xl font-semibold text-slate-900' }, title),
-    p({ className: 'mt-3 text-sm text-slate-600' }, message)
+    h2({ className: 'text-xl font-semibold text-white' }, title),
+    p({ className: 'mt-3 text-sm text-slate-400' }, message)
   );
 }
 
