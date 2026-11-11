@@ -1,4 +1,4 @@
-import { createRouter } from './router';
+import { createRouter, type RouteDefinition } from './router';
 import { renderLayout, renderPageIntoLayout } from '../components/layout/AppLayout';
 
 import {
@@ -10,6 +10,10 @@ import {
 } from '../pages/Home';
 import { createLoginPage } from '../pages/Login';
 import { createNotFoundPage } from '../pages/NotFound';
+
+interface PageRouteDefinition extends Omit<RouteDefinition, 'handler'> {
+  handler: () => Promise<HTMLElement> | HTMLElement;
+}
 
 export function setupRouter() {
   const router = createRouter();
@@ -29,33 +33,62 @@ export function setupRouter() {
     renderPageIntoLayout(shell, el);
   };
 
-  router.add('/', async () => {
-    const pageEl = await createHomePage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
+  const registerPageRoute = ({ path, handler, protected: protectedRoute = false, roles = [] }: PageRouteDefinition) => {
+    router.addRoute({
+      path,
+      protected: protectedRoute,
+      roles,
+      handler: async () => {
+        const pageElement = await handler();
+        wrap(pageElement);
+      },
+    });
+  };
 
-  router.add('/images', async () => {
-    const pageEl = await createImageEditorPage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
+  registerPageRoute({
+    path: '/',
+    handler: createHomePage,
+    protected: true,
+    roles: ['user', 'admin'],
+  });
 
-  router.add('/videos', async () => {
-    const pageEl = await createVideoEditorPage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
+  registerPageRoute({
+    path: '/images',
+    handler: createImageEditorPage,
+    protected: true,
+    roles: ['user', 'admin'],
+  });
 
-  router.add('/scan', async () => {
-    const pageEl = await createScanPage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
+  registerPageRoute({
+    path: '/videos',
+    handler: createVideoEditorPage,
+    protected: true,
+    roles: ['user', 'admin'],
+  });
 
-  router.add('/pdf', async () => {
-    const pageEl = await createPdfScannerPage();
-    wrap(pageEl);
-  }, true, ['user', 'admin']);
+  registerPageRoute({
+    path: '/scan',
+    handler: createScanPage,
+    protected: true,
+    roles: ['user', 'admin'],
+  });
 
-  router.add('/login', () => wrap(createLoginPage()));
-  router.add('/404', () => wrap(createNotFoundPage()));
+  registerPageRoute({
+    path: '/pdf',
+    handler: createPdfScannerPage,
+    protected: true,
+    roles: ['user', 'admin'],
+  });
+
+  registerPageRoute({
+    path: '/login',
+    handler: () => createLoginPage(),
+  });
+
+  registerPageRoute({
+    path: '/404',
+    handler: createNotFoundPage,
+  });
 
   return router;
 }

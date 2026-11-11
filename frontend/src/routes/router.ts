@@ -1,19 +1,22 @@
-import { appStore } from '../appState';
-import { div, h2, a as createAnchor } from '../components/ui/dom';
+import { appStore, authSelectors } from '../appState';
+import { a as createAnchor, createErrorCard, div, h2 } from '../components/ui/dom';
 
-// Route handlers can return either void or a Promise for lazy loading
 export type RouteHandler = (params: Record<string, string>) => void | Promise<void>;
 
-interface Route {
-  pattern: RegExp;
-  paramNames: string[];
+export interface RouteDefinition {
+  path: string;
   handler: RouteHandler;
   protected?: boolean;
   roles?: string[];
 }
 
+interface RouteRecord extends RouteDefinition {
+  pattern: RegExp;
+  paramNames: string[];
+}
+
 export function createRouter() {
-  const routes: Route[] = [];
+  const routes: RouteRecord[] = [];
 
   window.addEventListener('popstate', () => handleRoute());
 
@@ -26,89 +29,90 @@ export function createRouter() {
     }
   });
 
-  function add(path: string, handler: RouteHandler, protectedRoute = false, roles: string[] = []): void {
+  function addRoute(route: RouteDefinition): void {
     const paramNames: string[] = [];
-    const regexPath = path.replace(/:([a-zA-Z0-9_]+)/g, (_, paramName) => {
+    const regexPath = route.path.replace(/:([a-zA-Z0-9_]+)/g, (_, paramName) => {
       paramNames.push(paramName);
       return '([^/]+)';
     });
 
-    const pattern = new RegExp(`^${regexPath}$`);
-    routes.push({ pattern, paramNames, handler, protected: protectedRoute, roles });
+    routes.push({
+      ...route,
+      pattern: new RegExp(`^${regexPath}$`),
+      paramNames,
+    });
+  }
+
+  function add(path: string, handler: RouteHandler, protectedRoute = false, roles: string[] = []): void {
+    addRoute({ path, handler, protected: protectedRoute, roles });
   }
 
   function navigate(path: string): void {
     window.history.pushState(null, '', path);
-    handleRoute();
+    void handleRoute();
   }
 
   async function handleRoute(): Promise<void> {
     const currentPath = window.location.pathname;
     const state = appStore.getState();
-    const isAuthenticated = !!state.token;
+    const isAuthenticated = authSelectors.isAuthenticated(state);
 
     for (const route of routes) {
       const match = currentPath.match(route.pattern);
-      if (match) {
-        if (route.protected && !isAuthenticated) {
-          const encoded = encodeURIComponent(currentPath + window.location.search);
-          navigate(`/login?redirect=${encoded}`);
-          return;
-        }
+      if (!match) {
+        continue;
+      }
 
-        if (route.roles && route.roles.length > 0) {
-          const hasRequiredRole = route.roles.some((role) => state.roles.includes(role));
-          if (!hasRequiredRole) {
-            navigate('/unauthorized');
-            return;
-          }
-        }
-
-        const params: Record<string, string> = {};
-        route.paramNames.forEach((name, index) => {
-          params[name] = match[index + 1];
-        });
-
-        const app = document.getElementById('app');
-
-        try {
-          const potentialPromise = route.handler(params);
-          if (potentialPromise instanceof Promise && app) {
-            const loadingCard = div({ className: 'card mx-auto max-w-xl text-center' },
-              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Loading module...')
-            );
-            app.replaceChildren(loadingCard);
-            await potentialPromise;
-          }
-        } catch (err) {
-          console.error('Failed to load route chunk or handler:', err);
-          if (app) {
-            const errorCard = div({ className: 'card mx-auto max-w-xl' },
-              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Error'),
-              pText('Failed to load page component.')
-            );
-            app.replaceChildren(errorCard);
-          }
-        }
+      if (route.protected && !isAuthenticated) {
+        const encoded = encodeURIComponent(currentPath + window.location.search);
+        navigate(`/login?redirect=${encoded}`);
         return;
       }
+
+      if (route.roles && route.roles.length > 0) {
+        const hasRequiredRole = authSelectors.hasAnyRole(state, route.roles);
+        if (!hasRequiredRole) {
+          navigate('/404');
+          return;
+        }
+      }
+
+      const params: Record<string, string> = {};
+      route.paramNames.forEach((name, index) => {
+        params[name] = match[index + 1];
+      });
+
+      const app = document.getElementById('app');
+
+      try {
+        const viewResult = route.handler(params);
+        if (viewResult instanceof Promise && app) {
+          app.replaceChildren(
+            div({ className: 'card mx-auto max-w-xl text-center' },
+              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Loading module...')
+            )
+          );
+          await viewResult;
+        }
+      } catch (err) {
+        console.error('Failed to load route chunk or handler:', err);
+        if (app) {
+          app.replaceChildren(createErrorCard('Error', 'Failed to load page component.'));
+        }
+      }
+      return;
     }
 
     const app = document.getElementById('app');
     if (app) {
-      const notFoundCard = div({ className: 'card mx-auto max-w-xl text-center' },
-        h2({ className: 'text-2xl font-bold tracking-tight text-slate-900' }, '404 - Page Not Found'),
-        createAnchor({ href: '/', className: 'mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500', 'data-link': '' }, 'Go Home')
+      app.replaceChildren(
+        div({ className: 'card mx-auto max-w-xl text-center' },
+          h2({ className: 'text-2xl font-bold tracking-tight text-slate-900' }, '404 - Page Not Found'),
+          createAnchor({ href: '/', className: 'mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500', 'data-link': '' }, 'Go Home')
+        )
       );
-      app.replaceChildren(notFoundCard);
     }
   }
 
-  return { add, navigate, handleRoute };
-}
-
-function pText(text: string) {
-  const p = document.createElement('p');
-  p.textContent = text;
-  return p;
+  return { add, addRoute, navigate, handleRoute };
 }
