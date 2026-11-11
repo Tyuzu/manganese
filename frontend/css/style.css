@@ -37,3 +37,9 @@ a {
     box-sizing: border-box;
   }
 }
+
+@layer utilities {
+  .card {
+    @apply rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_18px_38px_rgba(15,23,42,0.08)] backdrop-blur-sm;
+  }
+}

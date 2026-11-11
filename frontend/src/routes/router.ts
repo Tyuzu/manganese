@@ -74,8 +74,8 @@ export function createRouter() {
         try {
           const potentialPromise = route.handler(params);
           if (potentialPromise instanceof Promise && app) {
-            const loadingCard = div({ className: 'card', style: 'text-align: center;' },
-              h2({}, 'Loading module...')
+            const loadingCard = div({ className: 'card mx-auto max-w-xl text-center' },
+              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Loading module...')
             );
             app.replaceChildren(loadingCard);
             await potentialPromise;
@@ -83,8 +83,8 @@ export function createRouter() {
         } catch (err) {
           console.error('Failed to load route chunk or handler:', err);
           if (app) {
-            const errorCard = div({ className: 'card error' },
-              h2({}, 'Error'),
+            const errorCard = div({ className: 'card mx-auto max-w-xl' },
+              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Error'),
               pText('Failed to load page component.')
             );
             app.replaceChildren(errorCard);
@@ -96,9 +96,9 @@ export function createRouter() {
 
     const app = document.getElementById('app');
     if (app) {
-      const notFoundCard = div({ className: 'card' },
-        h2({}, '404 - Page Not Found'),
-        createAnchor({ href: '/', 'data-link': '' }, 'Go Home')
+      const notFoundCard = div({ className: 'card mx-auto max-w-xl text-center' },
+        h2({ className: 'text-2xl font-bold tracking-tight text-slate-900' }, '404 - Page Not Found'),
+        createAnchor({ href: '/', className: 'mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500', 'data-link': '' }, 'Go Home')
       );
       app.replaceChildren(notFoundCard);
     }

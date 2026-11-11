@@ -86,16 +86,16 @@ export function createTabs(
   onTabChange: OnTabChangeCallback | null = null
 ): HTMLDivElement {
   if (!Array.isArray(tabs) || tabs.length === 0) {
-    return div({ className: "tabs-empty" });
+    return div({ className: "flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500" });
   }
 
-  const tabContainer = div({ className: "tabs-container" });
+  const tabContainer = div({ className: "flex flex-col gap-3" });
   const tabButtons = div({
-    className: "tab-buttons",
+    className: "flex flex-wrap gap-2 overflow-x-auto pb-1",
     role: "tablist",
     "aria-label": "Content Navigation Tabs",
   });
-  const tabContents = div({ className: "tab-contents" });
+  const tabContents = div({ className: "mt-1" });
 
   const tabContentMap = new Map<string, HTMLElement>();
   const buttonMap = new Map<string, HTMLElement>();
@@ -107,14 +107,14 @@ export function createTabs(
 
     const contentContainer = document.createElement("article");
     contentContainer.id = panelId;
-    contentContainer.className = "tab-content";
+    contentContainer.className = "hidden";
     contentContainer.setAttribute("role", "tabpanel");
     contentContainer.setAttribute("aria-labelledby", buttonId);
     contentContainer.setAttribute("tabindex", "0");
 
     const tabButton = tabButtonFactory({
       id: buttonId,
-      className: "tab-button",
+      className: "rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-blue-100 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-200",
       role: "tab",
       "aria-controls": panelId,
       "aria-selected": "false",
@@ -153,9 +153,13 @@ export function createTabs(
       const isActive = id === tabId;
 
       if (btn && content) {
-        btn.classList.toggle("active", isActive);
+        btn.classList.toggle("bg-blue-50", isActive);
+        btn.classList.toggle("text-blue-700", isActive);
+        btn.classList.toggle("border-blue-200", isActive);
+        btn.classList.toggle("bg-white", !isActive);
         btn.setAttribute("aria-selected", isActive ? "true" : "false");
-        content.classList.toggle("active", isActive);
+        content.classList.toggle("hidden", !isActive);
+        content.classList.toggle("block", isActive);
 
         // Lazy Rendering Verification Block
         if (isActive && !content.dataset.rendered) {
