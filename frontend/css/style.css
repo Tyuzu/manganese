@@ -49,7 +49,6 @@ a {
   width: 100%;
   max-width: 1500px;
   margin: 0 auto;
-  padding: clamp(0.25rem, 1vw, 1rem);
 }
 
 .app-shell {
@@ -194,10 +193,7 @@ select {
 }
 
 @media (max-width: 640px) {
-  #app {
-    padding: 0.25rem;
-  }
-
+ 
   .app-shell {
     border-radius: 16px;
   }
