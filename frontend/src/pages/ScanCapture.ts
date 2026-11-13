@@ -68,7 +68,7 @@ export async function createScanPage(): Promise<HTMLElement> {
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      className: `editor-tab inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
         activeTab === tab.id
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
@@ -78,7 +78,7 @@ export async function createScanPage(): Promise<HTMLElement> {
     sidePanelNav.append(btn);
   });
 
-  const sidePanel = div({ className: 'w-[270px] shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 md:w-[270px]' },
     toolContainer
   );
 
