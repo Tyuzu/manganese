@@ -40,7 +40,7 @@ function createHeaderActions(): HTMLElement {
 export function renderLayout(): HTMLElement {
   const container = div({ className: 'app-shell w-full min-h-screen bg-[#edf0f1] text-slate-100 font-sans' });
 
-  const contentPane = div({ className: 'app-content-panel flex min-w-0 flex-col gap-5' });
+  const contentPane = div({ className: 'app-content-panel flex min-w-0 w-full flex-col gap-5' });
 
   const brandRow = div({ className: 'brand-row flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between' },
     div({ className: 'brand-block flex items-center gap-3.5 sm:justify-start' },
@@ -66,7 +66,7 @@ export function renderLayout(): HTMLElement {
     navWrap
   );
 
-  const pageHost = div({ className: 'page-content min-h-[18rem]' });
+  const pageHost = div({ className: 'page-content w-full min-h-[18rem]' });
   const mainEl = main({ className: 'app-main block' }, pageHost);
 
   const footerEl = footer({
