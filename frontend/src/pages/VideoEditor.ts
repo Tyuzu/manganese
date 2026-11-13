@@ -31,7 +31,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-2 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({

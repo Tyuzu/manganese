@@ -33,6 +33,8 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     sepia: 0,
   };
 
+  const filterOrder: Array<keyof typeof filters> = ['brightness', 'contrast', 'saturate', 'grayscale', 'sepia', 'blur'];
+
   const textOverlay = {
     content: '',
     fontSize: 32,
@@ -40,7 +42,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-2 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -64,9 +66,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ImageStudioTab; label: string }[] = [
-    { id: 'crop', label: 'RESIZE' },
-    { id: 'adjust', label: 'CROP' },
+    { id: 'crop', label: 'CROP' },
+    { id: 'adjust', label: 'ADJUST' },
     { id: 'transform', label: 'TRANSFORM' },
+    { id: 'filters', label: 'FILTERS' },
+    { id: 'text', label: 'TEXT' },
   ];
 
   tabs.forEach((tab) => {
@@ -186,8 +190,10 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
         createSliderControl('Saturation', filters.saturate, 0, 200, (v) => { filters.saturate = v; applyCanvasFilters(); }),
         createSliderControl('Temperature', filters.temperature, -50, 50, (v) => { filters.temperature = v; applyCanvasFilters(); }),
         createSliderControl('Vignette', filters.vignette, 0, 100, (v) => { filters.vignette = v; applyCanvasFilters(); }),
+        createSliderControl('Grain', filters.grain, 0, 100, (v) => { filters.grain = v; applyCanvasFilters(); }),
         createSliderControl('Blur', filters.blur, 0, 20, (v) => { filters.blur = v; applyCanvasFilters(); }),
-        createSliderControl('Grayscale', filters.grayscale, 0, 100, (v) => { filters.grayscale = v; applyCanvasFilters(); })
+        createSliderControl('Grayscale', filters.grayscale, 0, 100, (v) => { filters.grayscale = v; applyCanvasFilters(); }),
+        createSliderControl('Sepia', filters.sepia, 0, 100, (v) => { filters.sepia = v; applyCanvasFilters(); })
       );
     } else if (activeTab === 'transform') {
       const transformGrid = div({ className: 'grid grid-cols-2 gap-2.5' },
@@ -202,10 +208,10 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       );
     } else if (activeTab === 'filters') {
       const presetGrid = div({ className: 'grid grid-cols-2 gap-2.5' },
-        createPresetButton('Normal', () => applyPreset({ brightness: 100, contrast: 100, saturate: 100, temperature: 0, vignette: 0, grayscale: 0 })),
-        createPresetButton('Cinematic', () => applyPreset({ brightness: 95, contrast: 125, saturate: 110, temperature: 15, vignette: 40, grayscale: 0 })),
-        createPresetButton('Mono Noir', () => applyPreset({ brightness: 105, contrast: 135, saturate: 0, temperature: 0, vignette: 50, grayscale: 100 })),
-        createPresetButton('Warm Sunset', () => applyPreset({ brightness: 105, contrast: 110, saturate: 130, temperature: 35, vignette: 20, grayscale: 0 }))
+        createPresetButton('Normal', () => applyPreset({ brightness: 100, contrast: 100, saturate: 100, temperature: 0, vignette: 0, grain: 0, blur: 0, grayscale: 0, sepia: 0 })),
+        createPresetButton('Cinematic', () => applyPreset({ brightness: 95, contrast: 125, saturate: 110, temperature: 15, vignette: 40, grain: 0, blur: 0, grayscale: 0, sepia: 0 })),
+        createPresetButton('Mono Noir', () => applyPreset({ brightness: 105, contrast: 135, saturate: 0, temperature: 0, vignette: 50, grain: 0, blur: 0, grayscale: 100, sepia: 0 })),
+        createPresetButton('Warm Sunset', () => applyPreset({ brightness: 105, contrast: 110, saturate: 130, temperature: 35, vignette: 20, grain: 0, blur: 0, grayscale: 0, sepia: 10 }))
       );
       toolContainer.append(presetGrid);
     } else if (activeTab === 'text') {
@@ -337,22 +343,43 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     }
   }
 
+  function getFilterString() {
+    const temperatureHue = Math.round((filters.temperature / 50) * 180);
+    return filterOrder
+      .map((key) => {
+        switch (key) {
+          case 'brightness':
+            return `brightness(${filters.brightness}%)`;
+          case 'contrast':
+            return `contrast(${filters.contrast}%)`;
+          case 'saturate':
+            return `saturate(${filters.saturate}%)`;
+          case 'grayscale':
+            return `grayscale(${filters.grayscale}%)`;
+          case 'sepia':
+            return `sepia(${filters.sepia}%)`;
+          case 'blur':
+            return `blur(${filters.blur}px)`;
+          default:
+            return '';
+        }
+      })
+      .concat(`hue-rotate(${temperatureHue}deg)`)
+      .filter(Boolean)
+      .join(' ');
+  }
+
   function applyCanvasFilters() {
     const container = viewport.querySelector('.cropper-container img');
-    const target = (container ?? imageElement) as HTMLElement;
+    const target = (container ?? imageElement) as HTMLElement | null;
     if (target) {
-      target.style.filter = `
-        brightness(${filters.brightness}%)
-        contrast(${filters.contrast}%)
-        saturate(${filters.saturate}%)
-        blur(${filters.blur}px)
-        grayscale(${filters.grayscale}%)
-      `.trim();
+      target.style.filter = getFilterString();
     }
 
-    if (textOverlay.content) {
-      const overlayTarget = viewport.querySelector('.cropper-crop-box') as HTMLElement | null;
-      const existingText = overlayTarget?.querySelector('[data-watermark="studio-text"]') as HTMLElement | null;
+    const overlayTarget = viewport.querySelector('.cropper-crop-box') as HTMLElement | null;
+    const existingText = overlayTarget?.querySelector('[data-watermark="studio-text"]') as HTMLElement | null;
+
+    if (textOverlay.content && overlayTarget) {
       const watermark = existingText ?? document.createElement('div');
       watermark.dataset.watermark = 'studio-text';
       watermark.textContent = textOverlay.content;
@@ -365,9 +392,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       watermark.style.textShadow = '0 2px 10px rgba(15, 23, 42, 0.9)';
       watermark.style.pointerEvents = 'none';
       watermark.style.zIndex = '20';
-      if (!existingText && overlayTarget) {
+      if (!existingText) {
         overlayTarget.appendChild(watermark);
       }
+    } else if (existingText) {
+      existingText.remove();
     }
   }
 
@@ -386,8 +415,10 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     filters.saturate = 100;
     filters.temperature = 0;
     filters.vignette = 0;
+    filters.grain = 0;
     filters.blur = 0;
     filters.grayscale = 0;
+    filters.sepia = 0;
     rotation = 0;
     flipH = false;
     flipV = false;
@@ -419,14 +450,67 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     renderToolControls();
   }
 
+  function drawVignette(ctx: CanvasRenderingContext2D, width: number, height: number, strength: number) {
+    const gradient = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      Math.min(width, height) * 0.2,
+      width / 2,
+      height / 2,
+      Math.max(width, height) * 0.75
+    );
+    gradient.addColorStop(0, `rgba(0, 0, 0, 0)`);
+    gradient.addColorStop(1, `rgba(0, 0, 0, ${Math.min(strength / 100, 0.9)})`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function drawGrain(ctx: CanvasRenderingContext2D, width: number, height: number, amount: number) {
+    if (amount <= 0) return;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+    const grainStrength = Math.max(0, Math.min(amount, 100)) / 100;
+    for (let i = 0; i < data.length; i += 4) {
+      const noise = (Math.random() - 0.5) * 255 * grainStrength;
+      data[i] = Math.min(255, Math.max(0, data[i] + noise));
+      data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+      data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
   function exportImage(format: 'png' | 'jpeg' = 'png') {
     if (!cropperInstance) return;
-    const finalCanvas = cropperInstance.getCroppedCanvas();
-    if (!finalCanvas) return;
+    const baseCanvas = cropperInstance.getCroppedCanvas();
+    if (!baseCanvas) return;
+
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = baseCanvas.width;
+    exportCanvas.height = baseCanvas.height;
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) return;
+
+    exportCtx.filter = getFilterString();
+    exportCtx.drawImage(baseCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+    exportCtx.filter = 'none';
+
+    if (filters.vignette > 0) {
+      drawVignette(exportCtx, exportCanvas.width, exportCanvas.height, filters.vignette);
+    }
+    if (filters.grain > 0) {
+      drawGrain(exportCtx, exportCanvas.width, exportCanvas.height, filters.grain);
+    }
+
+    if (textOverlay.content) {
+      exportCtx.font = `700 ${textOverlay.fontSize}px sans-serif`;
+      exportCtx.fillStyle = textOverlay.color;
+      exportCtx.textBaseline = 'bottom';
+      exportCtx.fillText(textOverlay.content, 24, exportCanvas.height - 24);
+    }
 
     const link = document.createElement('a');
     link.download = `cropped-export-${Date.now()}.${format}`;
-    link.href = finalCanvas.toDataURL(`image/${format}`, 0.92);
+    link.href = exportCanvas.toDataURL(`image/${format}`, 0.92);
     link.click();
   }
 

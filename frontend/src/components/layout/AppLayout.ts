@@ -38,7 +38,7 @@ function createHeaderActions(): HTMLElement {
 }
 
 export function renderLayout(): HTMLElement {
-  const container = div({ className: 'app-shell w-full min-h-screen bg-[#edf0f1] text-slate-100 font-sans' });
+  const container = div({ className: 'app-shell w-full min-h-screen text-slate-100 font-sans' });
 
   const contentPane = div({ className: 'app-content-panel flex min-w-0 w-full flex-col gap-5' });
 
