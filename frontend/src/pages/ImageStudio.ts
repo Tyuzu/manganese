@@ -3,6 +3,25 @@ import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './s
 
 type ImageStudioTab = 'crop' | 'adjust' | 'transform' | 'filters' | 'text';
 
+interface EditorState {
+  filters: {
+    brightness: number;
+    contrast: number;
+    saturate: number;
+    temperature: number;
+    vignette: number;
+    grain: number;
+    blur: number;
+    grayscale: number;
+    sepia: number;
+  };
+  rotation: number;
+  flipH: boolean;
+  flipV: boolean;
+  cropBox: { x: number; y: number; width: number; height: number };
+  textOverlay: { content: string; fontSize: number; color: string };
+}
+
 export async function createImageEditorPage(): Promise<HTMLElement> {
   let originalImage: HTMLImageElement | null = null;
   let activeTab: ImageStudioTab = 'adjust';
@@ -13,9 +32,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   let flipV = false;
 
   // Crop state (normalized 0 to 1 relative to image dimensions)
-  const cropBox = { x: 0, y: 0, width: 1, height: 1 };
+  const cropBox = { x: 0.1, y: 0.1, width: 0.8, height: 0.8 };
   let isDraggingCrop = false;
-  let dragStart = { x: 0, y: 0 };
+  let cropHandle: 'move' | 'nw' | 'ne' | 'sw' | 'se' | null = null;
+  let dragStart = { x: 0, y: 0, boxX: 0, boxY: 0, boxW: 0, boxH: 0 };
+  let aspectRatioLock: number | null = null; // null = freeform
 
   const filters = {
     brightness: 100,
@@ -34,6 +55,50 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     fontSize: 32,
     color: '#ffffff',
   };
+
+  // History Stack for Undo / Redo
+  let history: EditorState[] = [];
+  let historyIndex = -1;
+
+  function pushState() {
+    const currentState: EditorState = {
+      filters: { ...filters },
+      rotation,
+      flipH,
+      flipV,
+      cropBox: { ...cropBox },
+      textOverlay: { ...textOverlay }
+    };
+    // Trim any future states if we branched
+    history = history.slice(0, historyIndex + 1);
+    history.push(currentState);
+    historyIndex = history.length - 1;
+  }
+
+  function restoreState(state: EditorState) {
+    Object.assign(filters, state.filters);
+    rotation = state.rotation;
+    flipH = state.flipH;
+    flipV = state.flipV;
+    Object.assign(cropBox, state.cropBox);
+    Object.assign(textOverlay, state.textOverlay);
+    renderComposedImage();
+    renderToolControls();
+  }
+
+  function undo() {
+    if (historyIndex > 0) {
+      historyIndex--;
+      restoreState(history[historyIndex]);
+    }
+  }
+
+  function redo() {
+    if (historyIndex < history.length - 1) {
+      historyIndex++;
+      restoreState(history[historyIndex]);
+    }
+  }
 
   const root = div({
     className: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center'
@@ -56,7 +121,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3 items-center justify-between' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ImageStudioTab; label: string }[] = [
@@ -67,18 +132,37 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     { id: 'text', label: 'TEXT' },
   ];
 
+  const tabButtonsContainer = div({ className: 'flex flex-wrap gap-2 flex-1' });
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `editor-tab inline-flex min-w-[80px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[100px] sm:px-3 sm:text-[11px] ${
+      className: `editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
         activeTab === tab.id
           ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
       }`,
       onclick: () => switchTab(tab.id)
     }, tab.label);
-    sidePanelNav.append(btn);
+    tabButtonsContainer.append(btn);
   });
+
+  // Undo / Redo buttons in top nav bar
+  const undoRedoGroup = div({ className: 'flex items-center gap-1.5 ml-2' },
+    button({
+      type: 'button',
+      className: 'p-2 rounded-xl bg-slate-900/50 hover:bg-slate-900 text-slate-300 hover:text-white border border-slate-700/50 text-xs font-bold transition-all',
+      title: 'Undo (Ctrl+Z)',
+      onclick: () => undo()
+    }, '↶'),
+    button({
+      type: 'button',
+      className: 'p-2 rounded-xl bg-slate-900/50 hover:bg-slate-900 text-slate-300 hover:text-white border border-slate-700/50 text-xs font-bold transition-all',
+      title: 'Redo (Ctrl+Y)',
+      onclick: () => redo()
+    }, '↷')
+  );
+
+  sidePanelNav.append(tabButtonsContainer, undoRedoGroup);
 
   const previewCanvas = document.createElement('canvas');
   previewCanvas.className = 'max-h-full max-w-full object-contain block cursor-crosshair rounded-lg shadow-md';
@@ -116,34 +200,101 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   );
   viewport.append(canvasOverlayControls);
 
-  // Crop interaction events on preview canvas
+  // Enhanced Crop Interaction on Preview Canvas
   previewCanvas.addEventListener('mousedown', (e) => {
     if (activeTab !== 'crop' || !originalImage) return;
-    isDraggingCrop = true;
     const rect = previewCanvas.getBoundingClientRect();
-    dragStart = { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+    const clickX = (e.clientX - rect.left) / rect.width;
+    const clickY = (e.clientY - rect.top) / rect.height;
+
+    const bx = cropBox.x;
+    const by = cropBox.y;
+    const bw = cropBox.width;
+    const bh = cropBox.height;
+
+    // Check corners / handles (threshold 0.05)
+    const handleThreshold = 0.06;
+    if (Math.abs(clickX - bx) < handleThreshold && Math.abs(clickY - by) < handleThreshold) {
+      cropHandle = 'nw';
+    } else if (Math.abs(clickX - (bx + bw)) < handleThreshold && Math.abs(clickY - by) < handleThreshold) {
+      cropHandle = 'ne';
+    } else if (Math.abs(clickX - bx) < handleThreshold && Math.abs(clickY - (by + bh)) < handleThreshold) {
+      cropHandle = 'sw';
+    } else if (Math.abs(clickX - (bx + bw)) < handleThreshold && Math.abs(clickY - (by + bh)) < handleThreshold) {
+      cropHandle = 'se';
+    } else if (clickX >= bx && clickX <= bx + bw && clickY >= by && clickY <= by + bh) {
+      cropHandle = 'move';
+    } else {
+      // Start a new crop box
+      cropHandle = 'se';
+      cropBox.x = clickX;
+      cropBox.y = clickY;
+      cropBox.width = 0.1;
+      cropBox.height = 0.1;
+    }
+
+    isDraggingCrop = true;
+    dragStart = { x: clickX, y: clickY, boxX: bx, boxY: by, boxW: bw, boxH: bh };
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!isDraggingCrop || activeTab !== 'crop' || !originalImage) return;
     const rect = previewCanvas.getBoundingClientRect();
-    const currentX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const currentY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    const curX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const curY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+    const dx = curX - dragStart.x;
+    const dy = curY - dragStart.y;
 
-    cropBox.x = Math.min(dragStart.x, currentX);
-    cropBox.y = Math.min(dragStart.y, currentY);
-    cropBox.width = Math.abs(currentX - dragStart.x);
-    cropBox.height = Math.abs(currentY - dragStart.y);
-    if (cropBox.width < 0.05) cropBox.width = 0.05;
-    if (cropBox.height < 0.05) cropBox.height = 0.05;
+    if (cropHandle === 'move') {
+      cropBox.x = Math.max(0, Math.min(1 - cropBox.width, dragStart.boxX + dx));
+      cropBox.y = Math.max(0, Math.min(1 - cropBox.height, dragStart.boxY + dy));
+    } else if (cropHandle === 'se') {
+      let newW = Math.max(0.05, dragStart.boxW + dx);
+      let newH = aspectRatioLock ? newW / aspectRatioLock : Math.max(0.05, dragStart.boxH + dy);
+      if (cropBox.x + newW > 1) newW = 1 - cropBox.x;
+      if (cropBox.y + newH > 1) newH = 1 - cropBox.y;
+      cropBox.width = newW;
+      cropBox.height = newH;
+    } else if (cropHandle === 'nw') {
+      const right = dragStart.boxX + dragStart.boxW;
+      const bottom = dragStart.boxY + dragStart.boxH;
+      const newX = Math.max(0, Math.min(right - 0.05, dragStart.boxX + dx));
+      const newY = Math.max(0, Math.min(bottom - 0.05, dragStart.boxY + dy));
+      cropBox.x = newX;
+      cropBox.y = newY;
+      cropBox.width = right - newX;
+      cropBox.height = bottom - newY;
+    } else if (cropHandle === 'ne') {
+      const left = dragStart.boxX;
+      const bottom = dragStart.boxY + dragStart.boxH;
+      const newRight = Math.max(left + 0.05, Math.min(1, left + dragStart.boxW + dx));
+      const newY = Math.max(0, Math.min(bottom - 0.05, dragStart.boxY + dy));
+      cropBox.x = left;
+      cropBox.y = newY;
+      cropBox.width = newRight - left;
+      cropBox.height = bottom - newY;
+    } else if (cropHandle === 'sw') {
+      const right = dragStart.boxX + dragStart.boxW;
+      const top = dragStart.boxY;
+      const newLeft = Math.max(0, Math.min(right - 0.05, dragStart.boxX + dx));
+      const newBottom = Math.max(top + 0.05, Math.min(1, top + dragStart.boxH + dy));
+      cropBox.x = newLeft;
+      cropBox.y = top;
+      cropBox.width = right - newLeft;
+      cropBox.height = newBottom - top;
+    }
+
     renderComposedImage();
   });
 
   window.addEventListener('mouseup', () => {
-    isDraggingCrop = false;
+    if (isDraggingCrop) {
+      isDraggingCrop = false;
+      pushState();
+    }
   });
 
-  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[300px] flex flex-col justify-between overflow-y-auto max-h-[520px]' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[310px] flex flex-col justify-between overflow-y-auto max-h-[520px]' },
     toolContainer
   );
 
@@ -200,39 +351,39 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       );
     } else if (activeTab === 'crop') {
       const cropRatios = div({ className: 'grid grid-cols-2 gap-2.5' },
-        createPresetButton('Freeform', () => setCropRatio(0, 0, 1, 1)),
-        createPresetButton('Square (1:1)', () => setCropRatio(0.2, 0.2, 0.6, 0.6)),
-        createPresetButton('Landscape (16:9)', () => setCropRatio(0.1, 0.2, 0.8, 0.6)),
-        createPresetButton('Portrait (4:5)', () => setCropRatio(0.2, 0.1, 0.6, 0.8))
+        createPresetButton('Freeform', () => { aspectRatioLock = null; cropBox.x = 0.1; cropBox.y = 0.1; cropBox.width = 0.8; cropBox.height = 0.8; renderComposedImage(); pushState(); }),
+        createPresetButton('Square (1:1)', () => { aspectRatioLock = 1; cropBox.x = 0.2; cropBox.y = 0.2; cropBox.width = 0.6; cropBox.height = 0.6; renderComposedImage(); pushState(); }),
+        createPresetButton('Landscape (16:9)', () => { aspectRatioLock = 16 / 9; cropBox.x = 0.1; cropBox.y = 0.25; cropBox.width = 0.8; cropBox.height = 0.45; renderComposedImage(); pushState(); }),
+        createPresetButton('Portrait (4:5)', () => { aspectRatioLock = 4 / 5; cropBox.x = 0.25; cropBox.y = 0.1; cropBox.width = 0.5; cropBox.height = 0.625; renderComposedImage(); pushState(); })
       );
       toolContainer.append(
-        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Crop Ratios & Drag Box'),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Smart Crop & Ratios'),
         cropRatios,
         div({ className: 'pt-3 space-y-2' },
           createButton('primary', {
             type: 'button',
             className: 'w-full text-xs py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-all shadow-lg',
             onclick: () => applyCropCommit()
-          }, 'Crop & Apply Canvas'),
+          }, 'Crop & Commit Canvas'),
           createButton('secondary', {
             type: 'button',
             className: 'w-full text-xs py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700',
-            onclick: () => { cropBox.x = 0; cropBox.y = 0; cropBox.width = 1; cropBox.height = 1; renderComposedImage(); }
-          }, 'Reset Crop Area')
+            onclick: () => { aspectRatioLock = null; cropBox.x = 0.1; cropBox.y = 0.1; cropBox.width = 0.8; cropBox.height = 0.8; renderComposedImage(); pushState(); }
+          }, 'Reset Crop Box')
         )
       );
     } else if (activeTab === 'transform') {
       const transformGrid = div({ className: 'grid grid-cols-2 gap-2.5' },
-        createPresetButton('Rotate 90° CW', () => { rotation = (rotation + 90) % 360; renderComposedImage(); }),
-        createPresetButton('Rotate 90° CCW', () => { rotation = (rotation - 90 + 360) % 360; renderComposedImage(); }),
-        createPresetButton('Flip Horizontal', () => { flipH = !flipH; renderComposedImage(); }),
-        createPresetButton('Flip Vertical', () => { flipV = !flipV; renderComposedImage(); })
+        createPresetButton('Rotate 90° CW', () => { rotation = (rotation + 90) % 360; renderComposedImage(); pushState(); }),
+        createPresetButton('Rotate 90° CCW', () => { rotation = (rotation - 90 + 360) % 360; renderComposedImage(); pushState(); }),
+        createPresetButton('Flip Horizontal', () => { flipH = !flipH; renderComposedImage(); pushState(); }),
+        createPresetButton('Flip Vertical', () => { flipV = !flipV; renderComposedImage(); pushState(); })
       );
       toolContainer.append(
         p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Orientation & Rotation'),
         transformGrid
       );
-    } else if (activeTab === 'text' ) {
+    } else if (activeTab === 'text') {
       const watermarkInput = input({
         type: 'text',
         placeholder: 'Enter watermark text...',
@@ -241,7 +392,8 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
         oninput: (e: Event) => {
           textOverlay.content = (e.target as HTMLInputElement).value;
           renderComposedImage();
-        }
+        },
+        onchange: () => pushState()
       });
 
       toolContainer.append(
@@ -261,9 +413,9 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
     toolContainer.append(
       div({ className: 'mt-6 border-t border-slate-700/60 pt-4' },
-        createDetailPanel('Image Info', [
+        createDetailPanel('Studio Info', [
           { label: 'Dimensions', value: originalImage ? `${originalImage.naturalWidth} × ${originalImage.naturalHeight}` : '—' },
-          { label: 'Zoom', value: `${Math.round(zoomLevel * 100)}%` },
+          { label: 'History Stack', value: `${historyIndex + 1} / ${history.length}` },
           { label: 'Status', value: originalImage ? 'Ready' : 'Waiting for asset' },
         ])
       )
@@ -280,22 +432,21 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       const img = new Image();
       img.onload = () => {
         originalImage = img;
-        cropBox.x = 0; cropBox.y = 0; cropBox.width = 1; cropBox.height = 1;
+        cropBox.x = 0.1; cropBox.y = 0.1; cropBox.width = 0.8; cropBox.height = 0.8;
         viewport.innerHTML = '';
         viewport.append(previewCanvas, canvasOverlayControls);
         canvasOverlayControls.classList.remove('hidden');
         canvasOverlayControls.classList.add('flex');
+        
+        history = [];
+        historyIndex = -1;
+        pushState();
         renderComposedImage();
         renderToolControls();
       };
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
-  }
-
-  function setCropRatio(x: number, y: number, w: number, h: number) {
-    cropBox.x = x; cropBox.y = y; cropBox.width = w; cropBox.height = h;
-    renderComposedImage();
   }
 
   function applyCropCommit() {
@@ -315,7 +466,8 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     const croppedImg = new Image();
     croppedImg.onload = () => {
       originalImage = croppedImg;
-      cropBox.x = 0; cropBox.y = 0; cropBox.width = 1; cropBox.height = 1;
+      cropBox.x = 0.1; cropBox.y = 0.1; cropBox.width = 0.8; cropBox.height = 0.8;
+      pushState();
       renderComposedImage();
       renderToolControls();
     };
@@ -325,13 +477,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   function renderComposedImage() {
     if (!originalImage) return;
 
-    // 1. Calculate cropped source region
     const sx = cropBox.x * originalImage.naturalWidth;
     const sy = cropBox.y * originalImage.naturalHeight;
     const sw = cropBox.width * originalImage.naturalWidth;
     const sh = cropBox.height * originalImage.naturalHeight;
 
-    // 2. Setup offscreen render canvas
     const workCanvas = document.createElement('canvas');
     const isRotated90 = rotation === 90 || rotation === 270;
     workCanvas.width = isRotated90 ? sh : sw;
@@ -346,7 +496,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     ctx.drawImage(originalImage, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh);
     ctx.restore();
 
-    // 3. Apply CSS Filters & Effects via Canvas filter string or pixel manipulation
     const tempHue = Math.round((filters.temperature / 50) * 180);
     ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) grayscale(${filters.grayscale}%) sepia(${filters.sepia}%) blur(${filters.blur}px) hue-rotate(${tempHue}deg)`;
     
@@ -360,7 +509,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     ctx.drawImage(filteredCanvas, 0, 0);
     ctx.filter = 'none';
 
-    // 4. Apply Vignette & Grain if active
     if (filters.vignette > 0) {
       drawVignette(ctx, workCanvas.width, workCanvas.height, filters.vignette);
     }
@@ -368,7 +516,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       drawGrain(ctx, workCanvas.width, workCanvas.height, filters.grain);
     }
 
-    // 5. Apply Text Watermark Overlay
     if (textOverlay.content) {
       ctx.font = `700 ${textOverlay.fontSize}px sans-serif`;
       ctx.fillStyle = textOverlay.color;
@@ -379,7 +526,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
       ctx.shadowBlur = 0;
     }
 
-    // 6. Draw to preview viewport canvas
     previewCanvas.width = workCanvas.width;
     previewCanvas.height = workCanvas.height;
     previewCanvas.style.transform = `scale(${zoomLevel})`;
@@ -388,18 +534,41 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     pCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
     pCtx.drawImage(workCanvas, 0, 0);
 
-    // Draw interactive crop selection overlay if crop tab is active
+    // Enhanced Crop Overlay with Rule of Thirds Grid & Corner Handles
     if (activeTab === 'crop') {
-      pCtx.strokeStyle = '#6366f1';
+      const cx = cropBox.x * previewCanvas.width;
+      const cy = cropBox.y * previewCanvas.height;
+      const cw = cropBox.width * previewCanvas.width;
+      const ch = cropBox.height * previewCanvas.height;
+
+      // Darken outside crop area
+      pCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      pCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+      pCtx.clearRect(cx, cy, cw, ch);
+      pCtx.drawImage(workCanvas, cx, cy, cw, ch, cx, cy, cw, ch);
+
+      // Crop Border
+      pCtx.strokeStyle = '#ffffff';
       pCtx.lineWidth = 2;
-      pCtx.setLineDash([6, 6]);
-      pCtx.strokeRect(
-        cropBox.x * previewCanvas.width,
-        cropBox.y * previewCanvas.height,
-        cropBox.width * previewCanvas.width,
-        cropBox.height * previewCanvas.height
-      );
-      pCtx.setLineDash([]);
+      pCtx.strokeRect(cx, cy, cw, ch);
+
+      // Rule of Thirds Grid Lines
+      pCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      pCtx.lineWidth = 1;
+      pCtx.beginPath();
+      pCtx.moveTo(cx + cw / 3, cy); pCtx.lineTo(cx + cw / 3, cy + ch);
+      pCtx.moveTo(cx + (2 * cw) / 3, cy); pCtx.lineTo(cx + (2 * cw) / 3, cy + ch);
+      pCtx.moveTo(cx, cy + ch / 3); pCtx.lineTo(cx + cw, cy + ch / 3);
+      pCtx.moveTo(cx, cy + (2 * ch) / 3); pCtx.lineTo(cx + cw, cy + (2 * ch) / 3);
+      pCtx.stroke();
+
+      // Corner handles
+      const handleSize = 10;
+      pCtx.fillStyle = '#6366f1';
+      pCtx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+      pCtx.fillRect(cx + cw - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+      pCtx.fillRect(cx - handleSize/2, cy + ch - handleSize/2, handleSize, handleSize);
+      pCtx.fillRect(cx + cw - handleSize/2, cy + ch - handleSize/2, handleSize, handleSize);
     }
   }
 
@@ -444,18 +613,19 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     rotation = 0;
     flipH = false;
     flipV = false;
-    cropBox.x = 0; cropBox.y = 0; cropBox.width = 1; cropBox.height = 1;
+    cropBox.x = 0.1; cropBox.y = 0.1; cropBox.width = 0.8; cropBox.height = 0.8;
     textOverlay.content = '';
     setZoom(1);
+    pushState();
     renderComposedImage();
     renderToolControls();
   }
 
   function switchTab(tab: ImageStudioTab) {
     activeTab = tab;
-    sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
+    tabButtonsContainer.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `editor-tab inline-flex min-w-[80px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[100px] sm:px-3 sm:text-[11px] ${
+      btn.className = `editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
         isSelected
           ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
@@ -467,8 +637,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   function exportImage(format: 'png' | 'jpeg' = 'png') {
     if (!originalImage) return;
-    
-    // Render final high-res output without crop helper borders
     const prevTab = activeTab;
     activeTab = 'adjust';
     renderComposedImage();
@@ -499,7 +667,8 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
           const v = parseFloat((e.target as HTMLInputElement).value);
           valDisplay.textContent = v.toString();
           onChange(v);
-        }
+        },
+        onchange: () => pushState()
       })
     );
   }
@@ -522,6 +691,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
     card.onclick = () => {
       Object.assign(filters, presetValues);
+      pushState();
       renderComposedImage();
     };
 
