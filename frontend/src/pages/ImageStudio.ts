@@ -1,5 +1,5 @@
 import { button, createButton, div, input, label, p, path, svg } from '../components/ui/dom';
-import { createDetailPanel } from './shared';
+import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './shared';
 
 declare global {
   interface Window {
@@ -54,22 +54,10 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handleFileUpload(e)
   });
 
-  const fullscreenButton = button({
-    type: 'button',
-    className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-xl leading-none text-slate-100 transition hover:bg-slate-800/70',
-    title: 'Toggle fullscreen editor view',
-    onclick: () => toggleEditorFullscreen()
-  }, '⤢');
-
-  const closeButton = button({
-    type: 'button',
-    className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-2xl leading-none text-slate-100 transition hover:bg-slate-800/70',
-    onclick: () => resetEditor()
-  }, '×');
-
-  const titleRow = div({ className: 'flex items-center justify-between px-6 pt-6 pb-4' },
-    div({ className: 'text-[2rem] leading-none font-medium tracking-tight text-slate-50' }, 'Edit your image'),
-    div({ className: 'flex items-center gap-2' }, fullscreenButton, closeButton)
+  const { titleRow, fullscreenButton } = createEditorTitleRow(
+    'Edit your image',
+    () => resetEditor(),
+    () => toggleEditorFullscreen()
   );
 
   const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
@@ -136,18 +124,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   const workspace = div({ className: 'flex gap-5 px-5 pb-5' }, sidePanel, viewport);
 
-  const modalFooter = div({ className: 'flex items-center justify-end gap-3 px-5 pb-5' },
-    button({
-      type: 'button',
-      className: 'rounded-xl border border-slate-400/50 bg-transparent px-6 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-slate-300 hover:text-white',
-      onclick: () => resetEditor()
-    }, 'Cancel'),
-    button({
-      type: 'button',
-      className: 'rounded-xl bg-[#4ec7a6] px-6 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-950 shadow-[0_12px_24px_rgba(78,199,166,0.35)] transition hover:bg-[#5fdcb3]',
-      onclick: () => exportImage('png')
-    }, 'Save changes')
-  );
+  const modalFooter = createEditorFooter(() => resetEditor(), () => exportImage('png'));
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
 
