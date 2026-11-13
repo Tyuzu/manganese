@@ -3,6 +3,23 @@ import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './s
 
 type VideoTab = 'timeline' | 'filters' | 'transform' | 'audio' | 'captions' | 'export';
 
+interface VideoEditorState {
+  trimStart: number;
+  trimEnd: number;
+  playbackRate: number;
+  volume: number;
+  aspectRatio: '16:9' | '9:16' | '1:1' | '4:5';
+  captionText: string;
+  filters: {
+    brightness: number;
+    contrast: number;
+    saturate: number;
+    blur: number;
+    grayscale: number;
+    sepia: number;
+  };
+}
+
 export async function createVideoEditorPage(): Promise<HTMLElement> {
   // State Management
   let videoFile: File | null = null;
@@ -30,12 +47,64 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     sepia: 0,
   };
 
+  // Undo / Redo History Stack
+  let history: VideoEditorState[] = [];
+  let historyIndex = -1;
+
+  function pushState() {
+    const currentState: VideoEditorState = {
+      trimStart,
+      trimEnd,
+      playbackRate,
+      volume,
+      aspectRatio,
+      captionText,
+      filters: { ...filters }
+    };
+    history = history.slice(0, historyIndex + 1);
+    history.push(currentState);
+    historyIndex = history.length - 1;
+  }
+
+  function restoreState(state: VideoEditorState) {
+    trimStart = state.trimStart;
+    trimEnd = state.trimEnd;
+    playbackRate = state.playbackRate;
+    volume = state.volume;
+    aspectRatio = state.aspectRatio;
+    captionText = state.captionText;
+    Object.assign(filters, state.filters);
+
+    videoElement.playbackRate = playbackRate;
+    videoElement.volume = volume;
+    volumeSlider.value = volume.toString();
+    setAspectRatio(aspectRatio);
+    updateCaptions();
+    updateTrimMarkers();
+    applyVideoFilters();
+    renderToolControls();
+  }
+
+  function undo() {
+    if (historyIndex > 0) {
+      historyIndex--;
+      restoreState(history[historyIndex]);
+    }
+  }
+
+  function redo() {
+    if (historyIndex < history.length - 1) {
+      historyIndex++;
+      restoreState(history[historyIndex]);
+    }
+  }
+
   const root = div({
     className: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
-    className: 'w-full max-w-[980px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.2)] overflow-hidden'
+    className: 'w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
   });
 
   const fileInput = input({
@@ -45,7 +114,22 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handleVideoUpload(e)
   });
 
-  const quickActions = div({ className: 'flex flex-wrap justify-end gap-2 sm:gap-3' },
+  const quickActions = div({ className: 'flex flex-wrap justify-end gap-2 sm:gap-3 items-center' },
+    // Undo / Redo Group
+    div({ className: 'flex items-center gap-1.5 mr-2' },
+      button({
+        type: 'button',
+        className: 'p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all',
+        title: 'Undo',
+        onclick: () => undo()
+      }, '↶'),
+      button({
+        type: 'button',
+        className: 'p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all',
+        title: 'Redo',
+        onclick: () => redo()
+      }, '↷')
+    ),
     label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
       'Import Video',
       fileInput
@@ -58,12 +142,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   );
 
   const { titleRow, fullscreenButton } = createEditorTitleRow(
-    'Edit your video',
+    'Video Studio Pro',
     () => resetEditor(),
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: VideoTab; label: string }[] = [
@@ -78,9 +162,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `editor-tab inline-flex min-w-[78px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
+      className: `editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[100px] sm:px-3 sm:text-[11px] ${
         activeTab === tab.id
-          ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
+          ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
       }`,
       onclick: () => switchTab(tab.id)
@@ -88,11 +172,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     sidePanelNav.append(btn);
   });
 
-  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 md:w-[270px]' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[310px] flex flex-col justify-between overflow-y-auto max-h-[520px]' },
     toolContainer
   );
 
-  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-2 min-h-0 sm:p-4' },
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-700/40 bg-[#2c3e50] p-3 min-h-0 sm:p-4' },
     div({ className: 'mb-2 flex justify-end sm:mb-3' }, quickActions)
   );
 
@@ -101,7 +185,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   videoElement.className = 'max-h-full max-w-full object-contain rounded-lg shadow-2xl block transition-all duration-75';
   videoElement.playsInline = true;
 
-  const captionOverlay = div({ className: 'absolute bottom-8 left-1/2 -translate-x-1/2 text-center pointer-events-none transition-all px-4 py-1 rounded bg-black/50 backdrop-blur-xs hidden z-10' });
+  const captionOverlay = div({ className: 'absolute bottom-8 left-1/2 -translate-x-1/2 text-center pointer-events-none transition-all px-4 py-1.5 rounded-lg bg-black/60 backdrop-blur-md text-white font-bold text-lg hidden z-10 shadow-xl' });
 
   const uploadIcon = svgElement('svg', {
     class: 'w-8 h-8',
@@ -117,17 +201,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     })
   );
 
-  const emptyState = div({ className: 'flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 transition-all cursor-pointer' },
+  const emptyState = div({ className: 'flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 transition-all cursor-pointer w-full max-w-md' },
     div({ className: 'mb-3 rounded-2xl bg-slate-800/80 p-4 text-violet-400 border border-slate-700/50' },
       uploadIcon
     ),
     p({ className: 'text-sm font-semibold text-slate-200' }, 'Drop video clip here or click to import'),
-    p({ className: 'mt-1 text-xs text-slate-500' }, 'Supports MP4, WebM, MOV, AVI')
+    p({ className: 'mt-1 text-xs text-slate-400' }, 'Supports MP4, WebM, MOV, AVI')
   );
 
   emptyState.onclick = () => fileInput.click();
 
-  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-2 overflow-hidden min-h-0 sm:p-6' },
+  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-2 overflow-hidden min-h-0 sm:p-6 rounded-xl border border-slate-800/60 shadow-inner' },
     emptyState
   );
 
@@ -166,10 +250,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       const val = parseFloat((e.target as HTMLInputElement).value);
       volume = val;
       videoElement.volume = val;
+      pushState();
     }
   });
 
-  const playerHud = div({ className: 'flex flex-col gap-2 border-t border-slate-800/80 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-5' },
+  const playerHud = div({ className: 'flex flex-col gap-2 border-t border-slate-700/50 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-5 rounded-xl' },
     div({ className: 'flex items-center gap-2' },
       playPauseBtn,
       timeDisplay
@@ -238,14 +323,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     audioTrackSegment
   );
 
-  const timelineContainer = div({ className: 'h-48 shrink-0 flex flex-col border-t border-slate-800/80 bg-slate-900/80 overflow-hidden' },
+  const timelineContainer = div({ className: 'h-44 shrink-0 flex flex-col border-t border-slate-700/50 bg-slate-900/80 overflow-hidden rounded-xl' },
     timelineRuler,
     timelineTrackArea
   );
 
   stage.append(videoContainer, playerHud, timelineContainer);
 
-  const workspace = div({ className: 'flex flex-col gap-3 px-2 pb-3 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, stage);
+  const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5 sm:p-6' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerRenderExport());
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
@@ -261,12 +346,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function toggleEditorFullscreen() {
     if (!document.fullscreenEnabled) return;
-
     if (document.fullscreenElement === modal) {
       void document.exitFullscreen();
       return;
     }
-
     void modal.requestFullscreen();
   }
 
@@ -276,13 +359,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     if (activeTab === 'timeline') {
       toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-300 mb-2' }, 'Timeline Trim Markers (Sec)'),
-        createSliderControl('Start Marker', trimStart, 0, Math.max(1, duration), (v) => {
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Timeline Trim & Speed'),
+        createSliderControl('Start Marker (s)', trimStart, 0, Math.max(1, duration), (v) => {
           trimStart = Math.min(v, (trimEnd || duration) - 0.5);
           updateTrimMarkers();
           if (videoElement.currentTime < trimStart) videoElement.currentTime = trimStart;
         }),
-        createSliderControl('End Marker', trimEnd || duration, 0, Math.max(1, duration), (v) => {
+        createSliderControl('End Marker (s)', trimEnd || duration, 0, Math.max(1, duration), (v) => {
           trimEnd = Math.max(v, trimStart + 0.5);
           updateTrimMarkers();
         }),
@@ -294,60 +377,49 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           createPresetButton('Set Start Here', () => {
             trimStart = videoElement.currentTime;
             updateTrimMarkers();
+            pushState();
             renderToolControls();
           }),
           createPresetButton('Set End Here', () => {
             trimEnd = videoElement.currentTime;
             updateTrimMarkers();
-            renderToolControls();
-          }),
-          createPresetButton('Reset Markers', () => {
-            trimStart = 0;
-            trimEnd = duration;
-            playbackRate = 1;
-            videoElement.playbackRate = 1;
-            updateTrimMarkers();
+            pushState();
             renderToolControls();
           })
         )
       );
     } else if (activeTab === 'filters') {
+      const presetGrid = div({ className: 'grid grid-cols-2 gap-3 mb-4' },
+        createThumbnailPresetCard('Normal', { brightness: 100, contrast: 100, saturate: 100, blur: 0, grayscale: 0, sepia: 0 }, '✨'),
+        createThumbnailPresetCard('Cinematic', { brightness: 90, contrast: 130, saturate: 115, blur: 0, grayscale: 0, sepia: 0 }, '🎬'),
+        createThumbnailPresetCard('Mono Noir', { brightness: 105, contrast: 140, saturate: 0, blur: 0, grayscale: 100, sepia: 0 }, '🎞️'),
+        createThumbnailPresetCard('Warm Vintage', { brightness: 105, contrast: 105, saturate: 120, blur: 0, grayscale: 0, sepia: 25 }, '🌅')
+      );
+
       toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-300 mb-2' }, 'Video Color & Visual Effects'),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'One-Click Filter Presets'),
+        presetGrid,
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Custom Color Adjustments'),
         createSliderControl('Brightness', filters.brightness, 0, 200, (v) => { filters.brightness = v; applyVideoFilters(); }),
         createSliderControl('Contrast', filters.contrast, 0, 200, (v) => { filters.contrast = v; applyVideoFilters(); }),
         createSliderControl('Saturation', filters.saturate, 0, 200, (v) => { filters.saturate = v; applyVideoFilters(); }),
-        createSliderControl('Blur', filters.blur, 0, 20, (v) => { filters.blur = v; applyVideoFilters(); }),
-        createSliderControl('Grayscale', filters.grayscale, 0, 100, (v) => { filters.grayscale = v; applyVideoFilters(); }),
-        createSliderControl('Sepia', filters.sepia, 0, 100, (v) => { filters.sepia = v; applyVideoFilters(); }),
-        div({ className: 'pt-2' },
-          createPresetButton('Reset All Filters', () => {
-            filters.brightness = 100;
-            filters.contrast = 100;
-            filters.saturate = 100;
-            filters.blur = 0;
-            filters.grayscale = 0;
-            filters.sepia = 0;
-            applyVideoFilters();
-            renderToolControls();
-          })
-        )
+        createSliderControl('Blur', filters.blur, 0, 20, (v) => { filters.blur = v; applyVideoFilters(); })
       );
     } else if (activeTab === 'transform') {
       const ratioGrid = div({ className: 'grid grid-cols-2 gap-2.5' },
-        createPresetButton('16:9 Widescreen', () => setAspectRatio('16:9')),
-        createPresetButton('9:16 Vertical/Reels', () => setAspectRatio('9:16')),
-        createPresetButton('1:1 Square', () => setAspectRatio('1:1')),
-        createPresetButton('4:5 Social Feed', () => setAspectRatio('4:5'))
+        createPresetButton('16:9 Widescreen', () => { setAspectRatio('16:9'); pushState(); }),
+        createPresetButton('9:16 Vertical/Reels', () => { setAspectRatio('9:16'); pushState(); }),
+        createPresetButton('1:1 Square', () => { setAspectRatio('1:1'); pushState(); }),
+        createPresetButton('4:5 Social Feed', () => { setAspectRatio('4:5'); pushState(); })
       );
       toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-300 mb-2' }, 'Video Aspect Ratio Presets'),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Video Aspect Ratio Presets'),
         ratioGrid
       );
     } else if (activeTab === 'audio') {
       toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-300 mb-2' }, 'Audio Controls'),
-        createSliderControl('Master Volume', volume * 100, 0, 100, (v) => {
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Master Audio Controls'),
+        createSliderControl('Volume (%)', volume * 100, 0, 100, (v) => {
           volume = v / 100;
           videoElement.volume = volume;
           volumeSlider.value = volume.toString();
@@ -357,11 +429,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             volume = 0;
             videoElement.volume = 0;
             volumeSlider.value = '0';
+            pushState();
           }),
           createPresetButton('Full Volume', () => {
             volume = 1;
             videoElement.volume = 1;
             volumeSlider.value = '1';
+            pushState();
           })
         )
       );
@@ -374,22 +448,24 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         oninput: (e: Event) => {
           captionText = (e.target as HTMLInputElement).value;
           updateCaptions();
-        }
+        },
+        onchange: () => pushState()
       });
 
       toolContainer.append(
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Subtitles & Overlay Text'),
         div({ className: 'space-y-4' },
           div({},
-            label({ className: 'block text-xs font-medium text-slate-400 mb-1' }, 'Subtitles Overlay'),
+            label({ className: 'block text-xs font-medium text-slate-400 mb-1' }, 'Caption Content'),
             textInput
           )
         )
       );
     } else if (activeTab === 'export') {
       toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-300 mb-2' }, 'Export Settings'),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Export Settings'),
         div({ className: 'space-y-3' },
-          div({ className: 'rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs space-y-2' },
+          div({ className: 'rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-xs space-y-2' },
             div({ className: 'flex justify-between' }, span('Format'), span('MP4 (H.264 / AAC)')),
             div({ className: 'flex justify-between' }, span('Resolution'), span(getResolutionByAspect(aspectRatio))),
             div({ className: 'flex justify-between' }, span('Trim Duration'), span(`${(trimEnd - trimStart).toFixed(1)}s`))
@@ -404,17 +480,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }
 
     toolContainer.append(
-      div({ className: 'mt-6 border-t border-slate-800 pt-5' },
-        createDetailPanel('Project summary', [
-          { label: 'Aspect ratio', value: aspectRatio },
+      div({ className: 'mt-6 border-t border-slate-700/60 pt-4' },
+        createDetailPanel('Project Summary', [
+          { label: 'Aspect Ratio', value: aspectRatio },
           { label: 'Active Region', value: duration ? `${trimStart.toFixed(1)}s – ${trimEnd.toFixed(1)}s` : '—' },
-          { label: 'Filters', value: filters.grayscale > 0 || filters.blur > 0 ? 'Active' : 'Normal' },
+          { label: 'History Stack', value: `${historyIndex + 1} / ${history.length}` },
         ])
       )
     );
   }
 
-  // File Upload
   function handleVideoUpload(e: Event) {
     const target = e.target as HTMLInputElement;
     if (!target.files || !target.files[0]) return;
@@ -433,6 +508,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       videoContainer.innerHTML = '';
       videoContainer.append(videoElement, captionOverlay);
 
+      history = [];
+      historyIndex = -1;
+      pushState();
       updateTrimMarkers();
       applyVideoFilters();
       renderToolControls();
@@ -451,7 +529,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     };
   }
 
-  // Update Visual Crop/Trim Markers on Timeline Track
   function updateTrimMarkers() {
     if (!duration) return;
     const startPct = (trimStart / duration) * 100;
@@ -463,7 +540,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     trimActiveZone.style.right = `${100 - endPct}%`;
   }
 
-  // CSS Filter Pipeline applied dynamically to <video>
   function applyVideoFilters() {
     videoElement.style.filter = `
       brightness(${filters.brightness}%)
@@ -475,7 +551,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     `.trim();
   }
 
-  // Media Controls
   function togglePlay() {
     if (!videoElement.src) return;
     if (isPlaying) {
@@ -516,20 +591,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[78px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
+      btn.className = `inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[100px] sm:px-3 sm:text-[11px] ${
         isSelected
-          ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
+          ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
       }`;
     });
     renderToolControls();
   }
 
-  // Helpers
   function createSliderControl(title: string, value: number, min: number, max: number, onChange: (val: number) => void) {
-    const valDisplay = div({ className: 'text-xs font-mono text-violet-400' }, Math.round(value).toString());
+    const valDisplay = div({ className: 'text-xs font-mono text-violet-400 font-bold' }, Math.round(value).toString());
     
-    return div({ className: 'space-y-1.5' },
+    return div({ className: 'space-y-1' },
       div({ className: 'flex justify-between items-center' },
         label({ className: 'text-xs font-medium text-slate-300' }, title),
         valDisplay
@@ -545,7 +619,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           const v = parseFloat((e.target as HTMLInputElement).value);
           valDisplay.textContent = v.toFixed(1);
           onChange(v);
-        }
+        },
+        onchange: () => pushState()
       })
     );
   }
@@ -553,9 +628,27 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function createPresetButton(name: string, onClick: () => void) {
     return button({
       type: 'button',
-      className: 'rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-left text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white transition-all shadow-sm',
+      className: 'rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-left text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white transition-all shadow-sm',
       onclick: onClick
     }, name);
+  }
+
+  function createThumbnailPresetCard(name: string, presetValues: Partial<typeof filters>, icon: string) {
+    const card = div({
+      className: 'flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900/70 hover:border-violet-500 hover:bg-slate-900 cursor-pointer transition-all shadow-sm text-center group'
+    },
+      div({ className: 'text-2xl mb-1 group-hover:scale-110 transition-transform' }, icon),
+      p({ className: 'text-xs font-semibold text-slate-200' }, name)
+    );
+
+    card.onclick = () => {
+      Object.assign(filters, presetValues);
+      applyVideoFilters();
+      pushState();
+      renderToolControls();
+    };
+
+    return card;
   }
 
   function formatTime(seconds: number): string {
@@ -584,13 +677,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     trimStart = 0;
     trimEnd = duration || 0;
     playbackRate = 1;
-    if (videoElement) videoElement.playbackRate = 1;
+    videoElement.playbackRate = 1;
     volume = 1;
-    if (videoElement) videoElement.volume = 1;
+    videoElement.volume = 1;
+    volumeSlider.value = '1';
     captionText = '';
-    captionColor = '#ffffff';
     updateCaptions();
     if (duration) updateTrimMarkers();
+    pushState();
     renderToolControls();
   }
 
