@@ -107,6 +107,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     velocityY: 0,
   };
 
+  let interactionModeEnabled = false;
+
+  function setInteractionMode(enabled: boolean) {
+    interactionModeEnabled = enabled;
+    interactionToggleButton.textContent = enabled ? 'Preview Controls: ON' : 'Preview Controls: OFF';
+    interactionToggleButton.className = enabled
+      ? 'rounded-xl border border-violet-500/70 bg-violet-600/20 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-100 transition hover:bg-violet-500/20'
+      : 'rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 transition hover:border-slate-500 hover:text-white';
+    if (!enabled) {
+      viewportZoom.isDragging = false;
+    }
+  }
+
   // Undo / Redo History Stack
   let history: VideoEditorState[] = [];
   let historyIndex = -1;
@@ -195,6 +208,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handleVideoUpload(e)
   });
 
+  const interactionToggleButton = button({
+    type: 'button',
+    className: 'rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 transition hover:border-slate-500 hover:text-white',
+    title: 'Toggle preview interaction mode',
+    onclick: () => setInteractionMode(!interactionModeEnabled)
+  }, 'Preview Controls: OFF');
+
   const quickActions = div({ className: 'flex flex-wrap justify-end gap-2 sm:gap-3 items-center' },
     div({ className: 'flex items-center gap-1.5 mr-2' },
       button({
@@ -210,6 +230,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         onclick: () => redo()
       }, '↷')
     ),
+    interactionToggleButton,
     label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
       'Import Video',
       fileInput
@@ -256,7 +277,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     toolContainer
   );
 
-  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-700/40 bg-[#2c3e50] p-3 min-h-0 sm:p-4' },
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-[18px] border border-slate-700/40 bg-[#2c3e50] p-3 min-h-0 sm:p-4' },
     div({ className: 'mb-2 flex justify-end sm:mb-3' }, quickActions)
   );
 
@@ -305,7 +326,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   });
 
   videoContainer.onwheel = (e: WheelEvent) => {
-    if (!videoElement.src) return;
+    if (!videoElement.src || !interactionModeEnabled) return;
     e.preventDefault();
 
     const previousZoom = viewportZoom.zoomLevel;
@@ -328,7 +349,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   };
 
   videoContainer.onmousedown = (e: MouseEvent) => {
-    if (!videoElement.src || viewportZoom.zoomLevel <= 1) return;
+    if (!videoElement.src || !interactionModeEnabled || viewportZoom.zoomLevel <= 1) return;
     e.preventDefault();
     viewportZoom.isDragging = true;
     viewportZoom.startX = e.clientX - viewportZoom.panX;
@@ -338,7 +359,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   };
 
   window.addEventListener('mousemove', (e: MouseEvent) => {
-    if (!viewportZoom.isDragging || !videoElement.src || viewportZoom.zoomLevel <= 1) return;
+    if (!interactionModeEnabled || !viewportZoom.isDragging || !videoElement.src || viewportZoom.zoomLevel <= 1) return;
     viewportZoom.panX = e.clientX - viewportZoom.startX;
     viewportZoom.panY = e.clientY - viewportZoom.startY;
     clampViewportZoom();
@@ -380,9 +401,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   videoContainer.append(emptyState);
 
   // Playback HUD Bar
+  const syncPlaybackUI = () => {
+    const isActive = !!videoElement.src && !videoElement.paused && !videoElement.ended;
+    isPlaying = isActive;
+    playPauseBtn.textContent = isPlaying ? '❚❚' : '▶';
+    playPauseBtn.title = isPlaying ? 'Pause playback' : 'Play playback';
+    playPauseBtn.setAttribute('aria-label', isPlaying ? 'Pause video' : 'Play video');
+  };
+
   const playPauseBtn = button({
     type: 'button',
-    className: 'text-white hover:text-violet-400 font-bold px-2 py-1',
+    className: 'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/80 text-base font-bold text-white transition hover:border-violet-500 hover:text-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500/60',
+    title: 'Play playback',
+    ariaLabel: 'Play video',
     onclick: togglePlay
   }, '▶');
 
@@ -432,16 +463,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }
   });
 
-  const playerHud = div({ className: 'flex flex-col gap-2 border-t border-slate-700/50 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-5 rounded-xl' },
-    div({ className: 'flex items-center gap-1.5' },
+  const playerHud = div({ className: 'flex flex-col gap-2 rounded-xl border border-slate-700/50 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:min-h-[56px] sm:flex-row sm:items-center sm:gap-3 sm:px-5' },
+    div({ className: 'flex items-center gap-2' },
       stepBackwardBtn,
       playPauseBtn,
       stepForwardBtn,
       timeDisplay
     ),
     seekSlider,
-    div({ className: 'flex items-center gap-1.5 text-xs text-slate-400 sm:ml-2' },
-      '🔊',
+    div({ className: 'flex items-center gap-2 text-xs text-slate-400 sm:ml-2' },
+      span({ className: 'inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800/90 text-sm' }, '🔊'),
       volumeSlider
     )
   );
@@ -566,8 +597,61 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   modal.append(modalWrap);
   root.append(modal);
 
+  const syncFullscreenLayout = () => {
+    const isFullscreen = document.fullscreenElement === modal;
+
+    modal.style.maxWidth = isFullscreen ? '100vw' : '';
+    modal.style.width = isFullscreen ? '100vw' : '';
+    modal.style.height = isFullscreen ? '100vh' : '';
+    modal.style.borderRadius = isFullscreen ? '0px' : '';
+
+    sidePanel.style.minHeight = isFullscreen ? '0' : '';
+    sidePanel.style.height = isFullscreen ? 'calc(100vh - 180px)' : '';
+    sidePanel.style.maxHeight = isFullscreen ? 'calc(100vh - 180px)' : '540px';
+    sidePanel.style.overflowY = 'auto';
+    sidePanel.style.overflowX = 'hidden';
+    sidePanel.style.display = 'flex';
+    sidePanel.style.flexDirection = 'column';
+
+    stage.style.minHeight = isFullscreen ? 'calc(100vh - 180px)' : '';
+    stage.style.height = isFullscreen ? 'calc(100vh - 180px)' : '';
+    stage.style.maxHeight = isFullscreen ? 'calc(100vh - 180px)' : '';
+    stage.style.overflowY = 'auto';
+    stage.style.overflowX = 'hidden';
+    stage.style.display = 'flex';
+    stage.style.flexDirection = 'column';
+    videoContainer.style.minHeight = isFullscreen ? 'min(68vh, 70vh)' : '';
+    videoContainer.style.height = isFullscreen ? 'calc(100vh - 235px)' : '';
+    videoContainer.style.maxHeight = isFullscreen ? '100%' : '';
+    videoContainer.style.width = isFullscreen ? '100%' : '';
+    videoContainer.style.overflow = 'hidden';
+    videoContainer.style.display = 'flex';
+    videoContainer.style.alignItems = 'center';
+    videoContainer.style.justifyContent = 'center';
+
+    if (isFullscreen) {
+      videoElement.style.maxWidth = '100%';
+      videoElement.style.maxHeight = '100%';
+      videoElement.style.width = 'auto';
+      videoElement.style.height = '100%';
+      videoElement.style.objectFit = 'contain';
+      videoElement.style.margin = '0 auto';
+      videoElement.style.display = 'block';
+    } else {
+      videoElement.style.maxWidth = '';
+      videoElement.style.maxHeight = '';
+      videoElement.style.width = '';
+      videoElement.style.height = '';
+      videoElement.style.objectFit = '';
+      videoElement.style.margin = '';
+      videoElement.style.display = '';
+    }
+  };
+
   const updateFullscreenButton = () => {
-    fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
+    const isFullscreen = document.fullscreenElement === modal;
+    fullscreenButton.textContent = isFullscreen ? '⤡' : '⤢';
+    syncFullscreenLayout();
   };
 
   document.addEventListener('fullscreenchange', updateFullscreenButton);
@@ -576,6 +660,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // Keyboard Shortcuts
   const handleKeyDown = (e: KeyboardEvent) => {
     if (['input', 'textarea'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())) {
+      return;
+    }
+
+    if (!interactionModeEnabled) {
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+        e.preventDefault();
+        if (e.key.toLowerCase() === 'y' || e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
       return;
     }
 
@@ -629,7 +725,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       void document.exitFullscreen();
       return;
     }
-    void modal.requestFullscreen();
+    void modal.requestFullscreen().catch(() => {
+      // Ignore fullscreen failures and keep the editor usable in standard layout.
+    });
   }
 
   // Dynamic Inspector Panels
@@ -876,6 +974,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       renderToolControls();
     };
 
+    videoElement.onplay = () => syncPlaybackUI();
+    videoElement.onpause = () => syncPlaybackUI();
+    videoElement.onended = () => syncPlaybackUI();
+
     videoElement.ontimeupdate = () => {
       if (isRendering) return;
       currentTime = videoElement.currentTime;
@@ -968,21 +1070,26 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function togglePlay() {
     if (!videoElement.src) return;
+
     if (isPlaying) {
       videoElement.pause();
-      playPauseBtn.textContent = '▶';
-    } else {
-      videoElement.play();
-      playPauseBtn.textContent = '⏸';
+      syncPlaybackUI();
+      return;
     }
-    isPlaying = !isPlaying;
+
+    const playPromise = videoElement.play();
+    if (playPromise) {
+      void playPromise.catch(() => {
+        syncPlaybackUI();
+      });
+    }
+    syncPlaybackUI();
   }
 
   function stepFrames(delta: number) {
     if (!videoElement.src) return;
     videoElement.pause();
-    isPlaying = false;
-    playPauseBtn.textContent = '▶';
+    syncPlaybackUI();
     const frameDuration = 1 / 30;
     videoElement.currentTime = Math.max(0, Math.min(duration, videoElement.currentTime + delta * frameDuration));
   }
@@ -1221,8 +1328,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function resetEditor() {
     videoElement.pause();
-    isPlaying = false;
-    playPauseBtn.textContent = '▶';
+    syncPlaybackUI();
     trimStart = 0;
     trimEnd = duration || 0;
     playbackRate = 1;
