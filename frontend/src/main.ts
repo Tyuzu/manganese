@@ -1,16 +1,7 @@
 import '../css/style.css';
-import { setupRouter } from './routes';
-import { authActions } from './appState';
+import { bootstrapDolomite } from './export';
 
-// 1. Initialize router
-const router = setupRouter();
-export { router };
+const dolomiteApp = bootstrapDolomite();
 
-// 2. Global unauthorized event listener
-window.addEventListener('auth:unauthorized', () => {
-  authActions.logout();
-  router.navigate('/login');
-});
-
-// 3. Initial route resolution on app load
-router.handleRoute();
+export const router = dolomiteApp.router;
+export default dolomiteApp;

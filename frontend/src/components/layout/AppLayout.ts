@@ -38,35 +38,9 @@ function createHeaderActions(): HTMLElement {
 }
 
 export function renderLayout(): HTMLElement {
-  const container = div({ className: 'app-shell flex items-start gap-5 p-4 md:p-6 bg-slate-950 min-h-screen text-slate-100 font-sans' });
+  const container = div({ className: 'app-shell w-full p-4 md:p-6 bg-slate-950 min-h-screen text-slate-100 font-sans' });
 
-  const sidebar = div({ 
-    className: 'app-sidebar hidden w-[260px] shrink-0 flex-col gap-4 rounded-3xl border border-slate-800/60 bg-slate-900/40 p-4 shadow-xl backdrop-blur-2xl lg:flex sticky top-6' 
-  },
-    div({ className: 'sidebar-title px-3 pt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400' }, 'Studio Modules'),
-    div({ className: 'sidebar-stack flex flex-col gap-1.5' },
-      div({ 
-        className: 'sidebar-item flex items-center justify-between rounded-2xl border border-blue-500/20 bg-blue-500/10 px-3.5 py-2.5 text-sm font-medium text-blue-200 transition-colors' 
-      },
-        div({ className: 'flex items-center gap-2.5' },
-          span({ className: 'h-2 w-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]' }),
-          'Studio'
-        ),
-        span({ className: 'text-[10px] uppercase font-semibold tracking-wider text-blue-300 bg-blue-500/20 px-2 py-0.5 rounded-md' }, 'Active')
-      ),
-      div({ 
-        className: 'sidebar-item flex items-center justify-between rounded-2xl border border-transparent hover:border-slate-800 hover:bg-slate-900/60 px-3.5 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 transition-all' 
-      },
-        div({ className: 'flex items-center gap-2.5' },
-          span({ className: 'h-2 w-2 rounded-full bg-emerald-500' }),
-          'Live'
-        ),
-        span({ className: 'text-[10px] uppercase tracking-wider text-slate-500' }, 'Ready')
-      )
-    )
-  );
-
-  const contentPane = div({ className: 'app-content-panel flex-1 min-w-0 flex flex-col gap-5' });
+  const contentPane = div({ className: 'app-content-panel flex min-w-0 flex-col gap-5' });
 
   const brandRow = div({ className: 'flex w-full items-center justify-between gap-4' },
     div({ className: 'brand-block flex items-center gap-3.5' },
@@ -104,7 +78,7 @@ export function renderLayout(): HTMLElement {
   );
 
   contentPane.append(headerEl, mainEl, footerEl);
-  container.append(sidebar, contentPane);
+  container.append(contentPane);
 
   const unsubscribe = appStore.subscribe(() => {
     const nextHeaderActions = createHeaderActions();
