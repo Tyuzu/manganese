@@ -43,14 +43,12 @@ a {
 #app {
   max-width: 1500px;
   margin: 0 auto;
-  padding: 1rem 1rem 1.5rem;
 }
 
 .app-shell {
   max-width: 1500px;
   margin: 0 auto;
   display: block;
-  padding: 1.1rem;
   border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 32px;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.94));

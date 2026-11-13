@@ -38,13 +38,22 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     }, 'Export PDF')
   );
 
+  const fullscreenButton = button({
+    type: 'button',
+    className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-xl leading-none text-slate-100 transition hover:bg-slate-800/70',
+    title: 'Toggle fullscreen editor view',
+    onclick: () => toggleEditorFullscreen()
+  }, '⤢');
+
+  const closeButton = button({
+    type: 'button',
+    className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-2xl leading-none text-slate-100 transition hover:bg-slate-800/70',
+    onclick: () => resetEditor()
+  }, '×');
+
   const titleRow = div({ className: 'flex items-center justify-between px-6 pt-6 pb-4' },
     div({ className: 'text-[2rem] leading-none font-medium tracking-tight text-slate-50' }, 'Edit your PDF'),
-    button({
-      type: 'button',
-      className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-2xl leading-none text-slate-100 transition hover:bg-slate-800/70',
-      onclick: () => resetEditor()
-    }, '×')
+    div({ className: 'flex items-center gap-2' }, fullscreenButton, closeButton)
   );
 
   const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
@@ -134,6 +143,24 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
   modal.append(modalWrap);
   root.append(modal);
+
+  const updateFullscreenButton = () => {
+    fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
+  };
+
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
+  updateFullscreenButton();
+
+  function toggleEditorFullscreen() {
+    if (!document.fullscreenEnabled) return;
+
+    if (document.fullscreenElement === modal) {
+      void document.exitFullscreen();
+      return;
+    }
+
+    void modal.requestFullscreen();
+  }
 
   // Render Tool Controls
   function renderToolControls() {

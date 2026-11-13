@@ -9,14 +9,14 @@ function createHeaderActions(): HTMLElement {
   const userName = isLoggedIn ? (state.handle || 'Creator') : 'Guest';
 
   return div({ className: 'header-meta flex items-center gap-3' },
-    span({ 
-      className: 'header-user-label hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/50 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md' 
-    }, 
+    span({
+      className: 'header-user-label hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/50 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md'
+    },
       span({ className: 'h-1.5 w-1.5 rounded-full bg-blue-400' }),
       `Guest Creator • ${userName}`
     ),
-    span({ 
-      className: 'hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 xl:inline-flex' 
+    span({
+      className: 'hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-300 xl:inline-flex'
     },
       span({ className: 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse' }),
       'Active'
@@ -38,14 +38,14 @@ function createHeaderActions(): HTMLElement {
 }
 
 export function renderLayout(): HTMLElement {
-  const container = div({ className: 'app-shell w-full p-4 md:p-6 bg-slate-950 min-h-screen text-slate-100 font-sans' });
+  const container = div({ className: 'app-shell w-full min-h-screen bg-[#edf0f1] text-slate-100 font-sans' });
 
   const contentPane = div({ className: 'app-content-panel flex min-w-0 flex-col gap-5' });
 
   const brandRow = div({ className: 'flex w-full items-center justify-between gap-4' },
     div({ className: 'brand-block flex items-center gap-3.5' },
-      div({ 
-        className: 'brand-mark grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 text-lg font-black text-white shadow-lg shadow-blue-600/25 ring-1 ring-white/20' 
+      div({
+        className: 'brand-mark grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 text-lg font-black text-white shadow-lg shadow-blue-600/25 ring-1 ring-white/20'
       }, 'P'),
       div({ className: 'brand-copy flex flex-col' },
         h1({ className: 'm-0 text-xl font-bold tracking-tight text-white sm:text-2xl' }, 'PixelForge'),
@@ -60,7 +60,7 @@ export function renderLayout(): HTMLElement {
 
   const headerEl = header({
     className:
-      'app-header sticky top-4 z-20 flex flex-col gap-4 rounded-3xl border border-slate-800/80 bg-slate-900/75 px-5 py-4 shadow-2xl shadow-slate-950/50 backdrop-blur-2xl',
+      'app-header sticky top-4 z-20 flex flex-col gap-4 rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.2)] backdrop-blur-2xl',
   },
     brandRow,
     navWrap
@@ -71,10 +71,10 @@ export function renderLayout(): HTMLElement {
 
   const footerEl = footer({
     className:
-      'app-footer mt-auto flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-800/60 bg-slate-900/40 px-6 py-4 text-xs text-slate-400 backdrop-blur-md',
+      'app-footer mt-auto flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-slate-700/60 bg-[#536d7b]/80 px-6 py-4 text-xs text-slate-300 backdrop-blur-md',
   },
-    p({ className: 'm-0 font-medium text-slate-300' }, 'PixelForge © 2026'),
-    p({ className: 'm-0 text-slate-500' }, 'Edit images, polish video, and process PDFs in one unified workspace')
+    p({ className: 'm-0 font-medium text-slate-200' }, 'PixelForge © 2026'),
+    p({ className: 'm-0 text-slate-300/80' }, 'Edit images, polish video, and process PDFs in one unified workspace')
   );
 
   contentPane.append(headerEl, mainEl, footerEl);
