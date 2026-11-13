@@ -11,9 +11,12 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   let deskewAngle = 0;
   let extractedText = 'Select OCR text tab to inspect extracted document text...';
 
-  // Screen-fittable Studio Root Container
-  const root = div({ 
-    className: 'flex flex-col h-[calc(100vh-2rem)] w-full bg-slate-950 text-slate-100 rounded-3xl overflow-hidden border border-slate-800/80 shadow-2xl' 
+  const root = div({
+    className: 'min-h-screen bg-[#edf0f1] p-4 sm:p-8 lg:p-10 flex items-center justify-center'
+  });
+
+  const modal = div({
+    className: 'w-full max-w-[980px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.2)] overflow-hidden'
   });
 
   const fileInput = input({
@@ -23,7 +26,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handlePdfUpload(e)
   });
 
-  const quickActions = div({ className: 'flex justify-end gap-3 p-3 pb-0' },
+  const quickActions = div({ className: 'flex justify-end gap-3' },
     label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
       'Upload PDF/Scan',
       fileInput
@@ -35,9 +38,46 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     }, 'Export PDF')
   );
 
-  // 2. Main Workspace Layout
-  const workspace = div({ className: 'grid flex-1 grid-cols-1 lg:grid-cols-[1fr_340px] overflow-hidden min-h-0' });
-  const stage = div({ className: 'flex flex-col flex-1 overflow-hidden bg-slate-950 min-h-0' });
+  const titleRow = div({ className: 'flex items-center justify-between px-6 pt-6 pb-4' },
+    div({ className: 'text-[2rem] leading-none font-medium tracking-tight text-slate-50' }, 'Edit your PDF'),
+    button({
+      type: 'button',
+      className: 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-500/40 bg-slate-900/35 text-2xl leading-none text-slate-100 transition hover:bg-slate-800/70',
+      onclick: () => resetEditor()
+    }, '×')
+  );
+
+  const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
+  const toolContainer = div({ className: 'space-y-4' });
+
+  const tabs: { id: ScanTab; label: string }[] = [
+    { id: 'pages', label: 'PAGES' },
+    { id: 'ocr', label: 'OCR' },
+    { id: 'deskew', label: 'DESKEW' },
+    { id: 'merge', label: 'MERGE' },
+    { id: 'export', label: 'EXPORT' },
+  ];
+
+  tabs.forEach((tab) => {
+    const btn = button({
+      type: 'button',
+      className: `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+        activeTab === tab.id
+          ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
+          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
+      }`,
+      onclick: () => switchTab(tab.id)
+    }, tab.label);
+    sidePanelNav.append(btn);
+  });
+
+  const sidePanel = div({ className: 'w-[270px] shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3' },
+    toolContainer
+  );
+
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-4 min-h-0' },
+    div({ className: 'mb-3 flex justify-end' }, quickActions)
+  );
 
   const uploadIcon = svgElement(
     'svg',
@@ -77,35 +117,23 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
   stage.append(quickActions, previewContainer, stageHud);
 
-  // 3. Side Inspector Panel Navigation
-  const sidePanelNav = div({ className: 'flex shrink-0 border-b border-slate-800 bg-slate-900 px-2 overflow-x-auto' });
-  const toolContainer = div({ className: 'p-5 space-y-5 overflow-y-auto flex-1 min-h-0' });
-
-  const tabs: { id: ScanTab; label: string }[] = [
-    { id: 'pages', label: 'Pages' },
-    { id: 'ocr', label: 'OCR Text' },
-    { id: 'deskew', label: 'Deskew' },
-    { id: 'merge', label: 'Merge' },
-    { id: 'export', label: 'Export' },
-  ];
-
-  tabs.forEach((tab) => {
-    const btn = button({
+  const workspace = div({ className: 'flex gap-5 px-5 pb-5' }, sidePanel, stage);
+  const modalFooter = div({ className: 'flex items-center justify-end gap-3 px-5 pb-5' },
+    button({
       type: 'button',
-      className: `px-3 py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors ${
-        activeTab === tab.id
-          ? 'border-cyan-500 text-cyan-400'
-          : 'border-transparent text-slate-400 hover:text-slate-200'
-      }`,
-      onclick: () => switchTab(tab.id)
-    }, tab.label);
-    sidePanelNav.append(btn);
-  });
-
-  const sidePanel = div({ className: 'flex flex-col border-l border-slate-800/80 bg-slate-900/70 overflow-hidden min-h-0' },
-    sidePanelNav,
-    toolContainer
+      className: 'rounded-xl border border-slate-400/50 bg-transparent px-6 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-slate-300 hover:text-white',
+      onclick: () => resetEditor()
+    }, 'Cancel'),
+    button({
+      type: 'button',
+      className: 'rounded-xl bg-[#4ec7a6] px-6 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-950 shadow-[0_12px_24px_rgba(78,199,166,0.35)] transition hover:bg-[#5fdcb3]',
+      onclick: () => triggerExport('pdf')
+    }, 'Save changes')
   );
+
+  const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
+  modal.append(modalWrap);
+  root.append(modal);
 
   // Render Tool Controls
   function renderToolControls() {
@@ -224,10 +252,10 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `px-3 py-3 text-xs font-semibold border-b-2 whitespace-nowrap transition-colors ${
+      btn.className = `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
         isSelected
-          ? 'border-cyan-500 text-cyan-400'
-          : 'border-transparent text-slate-400 hover:text-slate-200'
+          ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
+          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
       }`;
     });
     renderToolControls();
@@ -288,9 +316,13 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     );
   }
 
-  // Initialize
-  workspace.append(stage, sidePanel);
-  root.append(workspace);
+  function resetEditor() {
+    deskewAngle = 0;
+    applyDeskewTransform();
+    ocrEnabled = true;
+    renderToolControls();
+  }
+
   renderToolControls();
 
   return root;
