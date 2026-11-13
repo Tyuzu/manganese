@@ -80,8 +80,8 @@ export function createEditorTitleRow(
     onclick: onReset,
   }, '×');
 
-  const titleRow = div({ className: 'flex flex-col gap-3 px-4 pt-5 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-4' },
-    div({ className: 'text-[1.6rem] leading-none font-medium tracking-tight text-slate-50 sm:text-[2rem]' }, title),
+  const titleRow = div({ className: 'flex flex-col gap-2 px-3 pt-4 pb-2 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-4' },
+    div({ className: 'text-[1.5rem] leading-none font-medium tracking-tight text-slate-50 sm:text-[2rem]' }, title),
     div({ className: 'flex items-center gap-2 self-end sm:self-auto' }, fullscreenButton, closeButton)
   );
 

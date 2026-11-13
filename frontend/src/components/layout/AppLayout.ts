@@ -60,7 +60,7 @@ export function renderLayout(): HTMLElement {
 
   const headerEl = header({
     className:
-      'app-header sticky top-4 z-20 flex flex-col gap-3 rounded-[28px] border border-slate-700/70 bg-[#536d7b] p-3 shadow-[0_25px_60px_rgba(15,23,42,0.2)] backdrop-blur-2xl sm:gap-4 sm:p-4',
+      'app-header sticky top-4 z-20 flex flex-col gap-2 rounded-[28px] border border-slate-700/70 bg-[#536d7b] p-2.5 shadow-[0_25px_60px_rgba(15,23,42,0.2)] backdrop-blur-2xl sm:gap-4 sm:p-4',
   },
     brandRow,
     navWrap

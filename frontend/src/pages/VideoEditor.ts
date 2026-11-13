@@ -31,7 +31,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-3 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen bg-[#edf0f1] p-2 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -92,8 +92,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     toolContainer
   );
 
-  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-3 min-h-0 sm:p-4' },
-    div({ className: 'mb-3 flex justify-end' }, quickActions)
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-2 min-h-0 sm:p-4' },
+    div({ className: 'mb-2 flex justify-end sm:mb-3' }, quickActions)
   );
 
   // HTML5 Video Element & Overlay
@@ -127,7 +127,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   emptyState.onclick = () => fileInput.click();
 
-  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-3 overflow-hidden min-h-0 sm:p-6' },
+  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-2 overflow-hidden min-h-0 sm:p-6' },
     emptyState
   );
 
@@ -245,7 +245,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   stage.append(videoContainer, playerHud, timelineContainer);
 
-  const workspace = div({ className: 'flex flex-col gap-4 px-3 pb-4 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, stage);
+  const workspace = div({ className: 'flex flex-col gap-3 px-2 pb-3 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerRenderExport());
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);

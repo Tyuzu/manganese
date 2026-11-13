@@ -40,7 +40,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-3 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen bg-[#edf0f1] p-2 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -107,7 +107,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   emptyState.onclick = () => fileInput.click();
 
-  const viewport = div({ className: 'relative flex h-[300px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-3 sm:h-[480px] sm:p-4', }, emptyState);
+  const viewport = div({ className: 'relative flex h-[300px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-2 sm:h-[480px] sm:p-4', }, emptyState);
 
   const canvasOverlayControls = div({ className: 'absolute bottom-4 left-1/2 -translate-x-1/2 hidden items-center gap-2 rounded-full border border-slate-700/80 bg-slate-900/90 px-4 py-1.5 backdrop-blur-md text-xs text-slate-300 z-20 shadow-lg' },
     button({ type: 'button', className: 'hover:text-white px-2 py-1 font-bold', onclick: () => setZoom(zoomLevel - 0.1) }, '−'),
@@ -122,7 +122,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     toolContainer
   );
 
-  const workspace = div({ className: 'flex flex-col gap-4 px-3 pb-4 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, viewport);
+  const workspace = div({ className: 'flex flex-col gap-3 px-2 pb-3 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, viewport);
 
   const modalFooter = createEditorFooter(() => resetEditor(), () => exportImage('png'));
 
