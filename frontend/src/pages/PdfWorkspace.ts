@@ -12,7 +12,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   let extractedText = 'Select OCR text tab to inspect extracted document text...';
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-4 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen bg-[#edf0f1] p-3 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -26,7 +26,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handlePdfUpload(e)
   });
 
-  const quickActions = div({ className: 'flex justify-end gap-3' },
+  const quickActions = div({ className: 'flex flex-wrap justify-end gap-2 sm:gap-3' },
     label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
       'Upload PDF/Scan',
       fileInput
@@ -44,7 +44,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ScanTab; label: string }[] = [
@@ -58,7 +58,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      className: `inline-flex min-w-[80px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         activeTab === tab.id
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
@@ -68,11 +68,11 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     sidePanelNav.append(btn);
   });
 
-  const sidePanel = div({ className: 'w-[270px] shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 sm:w-[270px]' },
     toolContainer
   );
 
-  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-4 min-h-0' },
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-3 min-h-0 sm:p-4' },
     div({ className: 'mb-3 flex justify-end' }, quickActions)
   );
 
@@ -93,8 +93,8 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   );
 
   // Document Viewport Stage
-  const previewContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-6 overflow-hidden min-h-0' },
-    div({ className: 'flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 transition-all cursor-pointer w-full h-full' },
+  const previewContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-3 overflow-hidden min-h-0 sm:p-6' },
+    div({ className: 'flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 transition-all cursor-pointer w-full h-full sm:p-8' },
       div({ className: 'mb-3 rounded-2xl bg-slate-800/80 p-4 text-cyan-400 border border-slate-700/50' }, uploadIcon),
       p({ className: 'text-sm font-semibold text-slate-200' }, 'No document loaded'),
       p({ className: 'mt-1 text-xs text-slate-500' }, 'Drop PDF or image scan here, or click to upload')
@@ -102,11 +102,11 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   );
 
   // Stage Bottom HUD Bar
-  const deskewLeftBtn = button({ type: 'button', className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-slate-700' }, '📐 Deskew -1°');
-  const deskewRightBtn = button({ type: 'button', className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs border border-slate-700' }, '📐 Deskew +1°');
-  const ocrRunBtn = button({ type: 'button', className: 'bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-cyan-600/30 transition-all' }, '🔍 Run OCR');
+  const deskewLeftBtn = button({ type: 'button', className: 'w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2.5 rounded-xl text-[11px] border border-slate-700 sm:w-auto sm:px-4' }, '📐 Deskew -1°');
+  const deskewRightBtn = button({ type: 'button', className: 'w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2.5 rounded-xl text-[11px] border border-slate-700 sm:w-auto sm:px-4' }, '📐 Deskew +1°');
+  const ocrRunBtn = button({ type: 'button', className: 'w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2.5 rounded-xl text-[11px] shadow-lg shadow-cyan-600/30 transition-all sm:w-auto sm:px-5' }, '🔍 Run OCR');
 
-  const stageHud = div({ className: 'flex h-14 shrink-0 items-center justify-center gap-3 border-t border-slate-800/80 bg-slate-900/90 px-6 backdrop-blur-md z-10' },
+  const stageHud = div({ className: 'flex flex-col shrink-0 gap-2 border-t border-slate-800/80 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:h-14 sm:flex-row sm:items-center sm:justify-center sm:gap-3 sm:px-6' },
     deskewLeftBtn,
     deskewRightBtn,
     ocrRunBtn
@@ -114,7 +114,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
   stage.append(quickActions, previewContainer, stageHud);
 
-  const workspace = div({ className: 'flex gap-5 px-5 pb-5' }, sidePanel, stage);
+  const workspace = div({ className: 'flex flex-col gap-4 px-3 pb-4 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerExport('pdf'));
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
@@ -256,7 +256,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      btn.className = `inline-flex min-w-[80px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         isSelected
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'

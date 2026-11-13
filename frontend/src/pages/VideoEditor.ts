@@ -31,7 +31,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-4 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen bg-[#edf0f1] p-3 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -45,7 +45,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     onchange: (e: Event) => handleVideoUpload(e)
   });
 
-  const quickActions = div({ className: 'flex justify-end gap-3' },
+  const quickActions = div({ className: 'flex flex-wrap justify-end gap-2 sm:gap-3' },
     label({ className: 'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60' },
       'Import Video',
       fileInput
@@ -63,7 +63,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: VideoTab; label: string }[] = [
@@ -78,7 +78,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      className: `inline-flex min-w-[78px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         activeTab === tab.id
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
@@ -88,11 +88,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     sidePanelNav.append(btn);
   });
 
-  const sidePanel = div({ className: 'w-[270px] shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 sm:w-[270px]' },
     toolContainer
   );
 
-  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-4 min-h-0' },
+  const stage = div({ className: 'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-3 min-h-0 sm:p-4' },
     div({ className: 'mb-3 flex justify-end' }, quickActions)
   );
 
@@ -127,7 +127,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   emptyState.onclick = () => fileInput.click();
 
-  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-6 overflow-hidden min-h-0' },
+  const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-3 overflow-hidden min-h-0 sm:p-6' },
     emptyState
   );
 
@@ -138,7 +138,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     onclick: togglePlay
   }, '▶');
 
-  const timeDisplay = div({ className: 'font-mono text-[11px] text-slate-300 min-w-[90px] text-center' }, '00:00 / 00:00');
+  const timeDisplay = div({ className: 'min-w-0 flex-shrink-0 font-mono text-[11px] text-slate-300 text-center sm:min-w-[90px]' }, '00:00 / 00:00');
 
   const seekSlider = input({
     type: 'range',
@@ -146,7 +146,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     max: '100',
     value: '0',
     step: '0.1',
-    className: 'flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+    className: 'h-1.5 w-full flex-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
     oninput: (e: Event) => {
       const target = e.target as HTMLInputElement;
       if (videoElement.duration) {
@@ -161,7 +161,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     max: '1',
     step: '0.05',
     value: '1',
-    className: 'w-16 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+    className: 'h-1.5 w-16 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
     oninput: (e: Event) => {
       const val = parseFloat((e.target as HTMLInputElement).value);
       volume = val;
@@ -169,11 +169,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }
   });
 
-  const playerHud = div({ className: 'flex h-12 shrink-0 items-center gap-3 border-t border-slate-800/80 bg-slate-900/90 px-5 backdrop-blur-md z-10' },
-    playPauseBtn,
-    timeDisplay,
+  const playerHud = div({ className: 'flex flex-col gap-2 border-t border-slate-800/80 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:h-12 sm:flex-row sm:items-center sm:gap-3 sm:px-5' },
+    div({ className: 'flex items-center gap-2' },
+      playPauseBtn,
+      timeDisplay
+    ),
     seekSlider,
-    div({ className: 'flex items-center gap-1.5 text-xs text-slate-400 ml-2' },
+    div({ className: 'flex items-center gap-1.5 text-xs text-slate-400 sm:ml-2' },
       '🔊',
       volumeSlider
     )
@@ -212,7 +214,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     div({ className: 'truncate text-[11px]' }, 'Audio Track • Stereo Mix')
   );
 
-  const timelineRuler = div({ className: 'h-6 border-b border-slate-800/80 bg-slate-950 flex items-center px-4 justify-between text-[10px] font-mono text-slate-500 select-none' },
+  const timelineRuler = div({ className: 'h-6 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between gap-2 px-3 text-[10px] font-mono text-slate-500 select-none sm:px-4' },
     div({}, '00:00'),
     div({}, '00:15'),
     div({}, '00:30'),
@@ -243,7 +245,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   stage.append(videoContainer, playerHud, timelineContainer);
 
-  const workspace = div({ className: 'flex gap-5 px-5 pb-5' }, sidePanel, stage);
+  const workspace = div({ className: 'flex flex-col gap-4 px-3 pb-4 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerRenderExport());
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
@@ -514,7 +516,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      btn.className = `inline-flex min-w-[78px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         isSelected
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'

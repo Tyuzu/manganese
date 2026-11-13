@@ -150,3 +150,69 @@ a {
     box-sizing: border-box;
   }
 }
+
+.card {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+}
+
+input[type='text'],
+input[type='password'],
+input[type='email'],
+input[type='search'],
+textarea,
+select {
+  font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  #app {
+    padding: 0.5rem;
+  }
+
+  .app-shell {
+    border-radius: 20px;
+  }
+
+  .brand-block {
+    justify-content: center;
+  }
+
+  .brand-copy {
+    min-width: 0;
+  }
+
+  .nav-bar {
+    gap: 0.5rem;
+    padding: 0.625rem;
+  }
+
+  .nav-link {
+    min-height: 2.5rem;
+  }
+
+  .app-header {
+    top: 0.5rem;
+    border-radius: 22px;
+  }
+
+  .app-footer {
+    width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  button,
+  input,
+  label,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+}

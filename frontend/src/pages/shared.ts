@@ -80,9 +80,9 @@ export function createEditorTitleRow(
     onclick: onReset,
   }, '×');
 
-  const titleRow = div({ className: 'flex items-center justify-between px-6 pt-6 pb-4' },
-    div({ className: 'text-[2rem] leading-none font-medium tracking-tight text-slate-50' }, title),
-    div({ className: 'flex items-center gap-2' }, fullscreenButton, closeButton)
+  const titleRow = div({ className: 'flex flex-col gap-3 px-4 pt-5 pb-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-4' },
+    div({ className: 'text-[1.6rem] leading-none font-medium tracking-tight text-slate-50 sm:text-[2rem]' }, title),
+    div({ className: 'flex items-center gap-2 self-end sm:self-auto' }, fullscreenButton, closeButton)
   );
 
   return { titleRow, fullscreenButton, closeButton };

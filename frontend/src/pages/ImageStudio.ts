@@ -40,7 +40,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   };
 
   const root = div({
-    className: 'min-h-screen bg-[#edf0f1] p-4 sm:p-8 lg:p-10 flex items-center justify-center'
+    className: 'min-h-screen bg-[#edf0f1] p-3 sm:p-8 lg:p-10 flex items-center justify-center'
   });
 
   const modal = div({
@@ -60,7 +60,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex gap-3 px-5 pb-2' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ImageStudioTab; label: string }[] = [
@@ -72,7 +72,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   tabs.forEach((tab) => {
     const btn = button({
       type: 'button',
-      className: `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      className: `inline-flex min-w-[90px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         activeTab === tab.id
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
@@ -107,7 +107,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   emptyState.onclick = () => fileInput.click();
 
-  const viewport = div({ className: 'relative flex h-[480px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-4', }, emptyState);
+  const viewport = div({ className: 'relative flex h-[300px] flex-1 items-center justify-center overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-3 sm:h-[480px] sm:p-4', }, emptyState);
 
   const canvasOverlayControls = div({ className: 'absolute bottom-4 left-1/2 -translate-x-1/2 hidden items-center gap-2 rounded-full border border-slate-700/80 bg-slate-900/90 px-4 py-1.5 backdrop-blur-md text-xs text-slate-300 z-20 shadow-lg' },
     button({ type: 'button', className: 'hover:text-white px-2 py-1 font-bold', onclick: () => setZoom(zoomLevel - 0.1) }, '−'),
@@ -118,11 +118,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   );
   viewport.append(canvasOverlayControls);
 
-  const sidePanel = div({ className: 'w-[270px] shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3' },
+  const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 sm:w-[270px]' },
     toolContainer
   );
 
-  const workspace = div({ className: 'flex gap-5 px-5 pb-5' }, sidePanel, viewport);
+  const workspace = div({ className: 'flex flex-col gap-4 px-3 pb-4 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' }, sidePanel, viewport);
 
   const modalFooter = createEditorFooter(() => resetEditor(), () => exportImage('png'));
 
@@ -404,7 +404,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      btn.className = `inline-flex min-w-[90px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         isSelected
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'

@@ -273,7 +273,7 @@ export async function createScanPage(): Promise<HTMLElement> {
     activeTab = tab;
     sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[120px] items-center justify-center rounded-xl border px-3 py-2 text-[11px] font-bold uppercase tracking-[0.12em] transition-colors ${
+      btn.className = `inline-flex min-w-[90px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[120px] sm:px-3 sm:text-[11px] ${
         isSelected
           ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
           : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'

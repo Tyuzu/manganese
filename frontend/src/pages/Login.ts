@@ -70,8 +70,8 @@ export function createLoginPage(): HTMLElement {
     router.navigate(destination);
   });
 
-  return div({ className: 'card mx-auto max-w-xl' },
-    h2({ className: 'text-2xl font-bold tracking-tight text-slate-900' }, 'Login'),
+  return div({ className: 'card mx-auto w-full max-w-xl rounded-[28px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)] backdrop-blur-sm sm:p-7' },
+    h2({ className: 'text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl' }, 'Login'),
     loginForm
   );
 }
