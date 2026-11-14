@@ -1198,7 +1198,7 @@ export async function createScanPage(): Promise<HTMLElement> {
     onReset: () => resetEditor(),
     onToggleFullscreen: () => toggleEditorFullscreen(),
     rootClassName: 'min-h-screen p-4 sm:p-8 lg:p-10 flex items-center justify-center select-none',
-    modalClassName: 'w-full max-w-[1060px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col'
+    modalClassName: 'editor-surface w-full max-w-[1060px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col'
   });
 
   const updateFullscreenButton = () => {

@@ -7,10 +7,37 @@ function createHeaderActions(): HTMLElement {
   const state = appStore.getState();
   const isLoggedIn = Boolean(state.token);
   const userName = isLoggedIn ? (state.handle || 'Creator') : 'Guest';
+  const themeOptions = ['dark', 'light', 'midnight', 'aurora', 'sunset', 'forest'] as const;
+  const selectedTheme = themeOptions.includes(state.theme as (typeof themeOptions)[number])
+    ? state.theme
+    : state.editorTheme;
 
-  return div({ className: 'header-meta flex w-full items-center justify-end gap-3 sm:w-auto' },
+  const themeSelect = document.createElement('select');
+  themeSelect.className = 'header-theme-select';
+  themeSelect.setAttribute('aria-label', 'Theme');
+  themeSelect.value = selectedTheme;
+  themeSelect.onchange = (event) => {
+    const value = (event.target as HTMLSelectElement).value as (typeof themeOptions)[number];
+    authActions.setTheme(value);
+
+    if (value === 'dark' || value === 'light') {
+      authActions.setEditorTheme(state.editorTheme);
+      return;
+    }
+
+    authActions.setEditorTheme(value);
+  };
+
+  themeOptions.forEach((theme) => {
+    const option = document.createElement('option');
+    option.value = theme;
+    option.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+    themeSelect.appendChild(option);
+  });
+
+  return div({ className: 'header-meta flex w-full items-center justify-end gap-2 sm:w-auto' },
     span({
-      className: 'header-user-label hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-700/60 bg-slate-900/50 px-3.5 py-1.5 text-xs font-medium text-slate-300 backdrop-blur-md'
+      className: 'header-user-label hidden sm:inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium backdrop-blur-md'
     },
       span({ className: 'h-1.5 w-1.5 rounded-full bg-blue-400' }),
       `Guest Creator • ${userName}`
@@ -21,8 +48,11 @@ function createHeaderActions(): HTMLElement {
       span({ className: 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse' }),
       'Active'
     ),
+    div({ className: 'header-theme-select-wrap inline-flex items-center rounded-xl border border-slate-700/50 bg-slate-900/35 p-1' },
+      themeSelect
+    ),
     button({
-      className: 'header-action-btn inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-blue-500/20 transition-all duration-150 hover:bg-blue-500 hover:shadow-md hover:shadow-blue-500/30 active:scale-95 sm:w-auto',
+      className: 'header-action-btn header-action-primary inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-150 active:scale-95 sm:w-auto',
       onClick: () => {
         if (isLoggedIn) {
           authActions.logout();
@@ -38,7 +68,7 @@ function createHeaderActions(): HTMLElement {
 }
 
 export function renderLayout(): HTMLElement {
-  const container = div({ className: 'app-shell w-full min-h-screen text-slate-100 font-sans' });
+  const container = div({ className: 'app-shell w-full min-h-screen font-sans' });
 
   const contentPane = div({ className: 'app-content-panel flex min-w-0 w-full flex-col gap-5' });
 
@@ -60,7 +90,7 @@ export function renderLayout(): HTMLElement {
 
   const headerEl = header({
     className:
-      'app-header sticky top-4 z-20 flex flex-col gap-2 rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.2)] backdrop-blur-2xl',
+      'app-header sticky top-4 z-20 flex flex-col gap-2 rounded-[28px] border border-slate-700/70 backdrop-blur-2xl',
   },
     brandRow,
     navWrap
@@ -71,10 +101,10 @@ export function renderLayout(): HTMLElement {
 
   const footerEl = footer({
     className:
-      'app-footer mt-auto flex flex-col items-start justify-between gap-2 rounded-[24px] border border-slate-700/60 bg-[#536d7b]/80 px-4 py-3 text-xs text-slate-300 backdrop-blur-md sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-4',
+      'app-footer mt-auto flex flex-col items-start justify-between gap-2 rounded-[24px] px-4 py-3 text-xs backdrop-blur-md sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-4',
   },
-    p({ className: 'm-0 font-medium text-slate-200' }, 'PixelForge © 2026'),
-    p({ className: 'm-0 text-slate-300/80' }, 'Edit images, polish video, and process PDFs in one unified workspace')
+    p({ className: 'm-0 font-medium' }, 'PixelForge © 2026'),
+    p({ className: 'm-0 opacity-80' }, 'Edit images, polish video, and process PDFs in one unified workspace')
   );
 
   contentPane.append(headerEl, mainEl, footerEl);

@@ -105,7 +105,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
   });
 
   const modal = div({
-    className: 'w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
+    className: 'editor-surface w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
   });
 
   const fileInput = input({

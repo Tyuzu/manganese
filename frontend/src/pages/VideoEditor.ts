@@ -731,7 +731,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   });
 
   const modal = div({
-    className: 'w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
+    className: 'editor-surface w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
   });
 
   const fileInput = input({
@@ -781,7 +781,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3' });
+  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3 items-center justify-between' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: VideoTab; label: string }[] = [

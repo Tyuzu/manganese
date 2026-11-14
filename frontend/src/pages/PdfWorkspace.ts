@@ -302,12 +302,13 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerExport('pdf'));
 
   const { root, modal, fullscreenButton } = createEditorShell({
-    title: 'Edit your PDF & Scan',
+    title: 'Edit your PDF',
     nav: sidePanelNav,
     workspace,
     footer: modalFooter,
     onReset: () => resetEditor(),
     onToggleFullscreen: () => toggleEditorFullscreen(),
+    modalClassName: 'editor-surface w-full max-w-[1100px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col',
   });
 
   // Fullscreen Handling

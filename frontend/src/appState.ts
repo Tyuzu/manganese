@@ -1,7 +1,6 @@
 import { createStore } from './state/store';
 import { withPersistence } from './state/persistence';
-
-export type AppTheme = 'light' | 'dark';
+import { applyEditorTheme, applyTheme, normalizeEditorTheme, normalizeTheme, type AppTheme, type EditorThemeName } from './theme';
 
 export interface RouteStateMap {
   [routeKey: string]: Record<string, unknown>;
@@ -12,6 +11,7 @@ export interface AppState {
   handle: string | null;
   roles: string[];
   theme: AppTheme;
+  editorTheme: EditorThemeName;
   isAuthenticated: boolean;
   routeState: RouteStateMap;
 }
@@ -41,7 +41,8 @@ export const normalizeAppState = (state: Partial<AppState> = {}): AppState => {
     token,
     handle,
     roles,
-    theme: state.theme === 'dark' ? 'dark' : 'light',
+    theme: normalizeTheme(state.theme),
+    editorTheme: normalizeEditorTheme(state.editorTheme),
     isAuthenticated,
     routeState:
       state.routeState && typeof state.routeState === 'object' && !Array.isArray(state.routeState)
@@ -54,7 +55,8 @@ export const DEFAULT_APP_STATE: AppState = normalizeAppState({
   token: null,
   handle: null,
   roles: [],
-  theme: 'light',
+  theme: 'dark',
+  editorTheme: 'midnight',
   isAuthenticated: false,
   routeState: {},
 });
@@ -80,15 +82,16 @@ const baseStore = createStore<AppState>(DEFAULT_APP_STATE);
 
 export const appStore = withPersistence(baseStore, {
   key: 'my_spa_app_state',
-  version: 4,
-  debounceMs: 300,
+  version: 5,
+  debounceMs: 0,
   migrations: {
-    4: (oldState: any) =>
+    5: (oldState: any) =>
       normalizeAppState({
         token: oldState?.token ?? null,
         handle: oldState?.handle ?? null,
         roles: Array.isArray(oldState?.roles) ? oldState.roles : oldState?.token ? ['user'] : [],
-        theme: oldState?.theme === 'dark' ? 'dark' : 'light',
+        theme: normalizeTheme(oldState?.theme),
+        editorTheme: normalizeEditorTheme(oldState?.editorTheme),
         isAuthenticated: Boolean(oldState?.token || oldState?.isAuthenticated),
         routeState: oldState?.routeState ?? {},
       }),
@@ -98,10 +101,18 @@ export const appStore = withPersistence(baseStore, {
     handle: state.handle,
     roles: state.roles,
     theme: state.theme,
+    editorTheme: state.editorTheme,
     isAuthenticated: state.isAuthenticated,
     routeState: state.routeState,
   }),
 });
+
+appStore.subscribe((state) => {
+  applyTheme(state.theme);
+  applyEditorTheme(state.editorTheme);
+});
+applyTheme(appStore.getState().theme);
+applyEditorTheme(appStore.getState().editorTheme);
 
 export const routeStateActions = {
   set: (routeKey: string, value: Record<string, unknown>) => {
@@ -161,9 +172,21 @@ export const authActions = {
     );
   },
   setTheme: (theme: AppTheme) => {
+    const nextTheme = normalizeTheme(theme);
+
     appStore.setState((currentState) => ({
       ...currentState,
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: nextTheme,
     }));
+    applyTheme(nextTheme);
+  },
+  setEditorTheme: (theme: EditorThemeName) => {
+    const nextTheme = normalizeEditorTheme(theme);
+
+    appStore.setState((currentState) => ({
+      ...currentState,
+      editorTheme: nextTheme,
+    }));
+    applyEditorTheme(nextTheme);
   },
 };
