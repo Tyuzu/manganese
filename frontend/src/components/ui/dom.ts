@@ -9,6 +9,7 @@ export type ChildInput =
   | NodeList
   | HTMLCollection;
 
+export type ElementChild = Node | string | number | boolean | null | undefined;
 export type ElementAttributes = Record<string, any>;
 
 export function cn(...values: Array<string | false | null | undefined>): string {
@@ -200,7 +201,7 @@ export const uiClasses = {
 export function createButton(
   variant: 'primary' | 'secondary' = 'primary',
   attributes?: ElementAttributes,
-  ...children: (Node | string)[]
+  ...children: ElementChild[]
 ): HTMLButtonElement {
   const variantClass = variant === 'primary' ? uiClasses.primaryButton : uiClasses.secondaryButton;
   return button({ ...attributes, className: cn(variantClass, attributes?.className) }, ...children);
@@ -225,24 +226,24 @@ export function createErrorCard(title = 'Error', message = 'Failed to load page 
 }
 
 // Convenient shorthand wrappers for common tags
-export const div = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('div', attrs, ...children);
-export const article = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('article', attrs, ...children);
-export const section = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('section', attrs, ...children);
-export const header = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('header', attrs, ...children);
-export const main = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('main', attrs, ...children);
-export const footer = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('footer', attrs, ...children);
-export const button = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('button', attrs, ...children);
+export const div = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('div', attrs, ...children);
+export const article = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('article', attrs, ...children);
+export const section = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('section', attrs, ...children);
+export const header = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('header', attrs, ...children);
+export const main = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('main', attrs, ...children);
+export const footer = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('footer', attrs, ...children);
+export const button = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('button', attrs, ...children);
 export const input = (attrs?: ElementAttributes) => el('input', attrs);
-export const p = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('p', attrs, ...children);
-export const h1 = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('h1', attrs, ...children);
-export const h2 = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('h2', attrs, ...children);
-export const form = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('form', attrs, ...children);
-export const label = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('label', attrs, ...children);
-export const span = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('span', attrs, ...children);
-export const nav = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('nav', attrs, ...children);
-export const a = (attrs?: ElementAttributes, ...children: (Node | string)[]) => el('a', attrs, ...children);
+export const p = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('p', attrs, ...children);
+export const h1 = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('h1', attrs, ...children);
+export const h2 = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('h2', attrs, ...children);
+export const form = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('form', attrs, ...children);
+export const label = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('label', attrs, ...children);
+export const span = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('span', attrs, ...children);
+export const nav = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('nav', attrs, ...children);
+export const a = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('a', attrs, ...children);
 export const img = (attrs?: ElementAttributes) => el('img', attrs);
 export const video = (attrs?: ElementAttributes) => el('video', attrs);
 export const canvas = (attrs?: ElementAttributes) => el('canvas', attrs);
-export const svg = (attrs?: ElementAttributes, ...children: (Node | string)[]) => svgElement('svg', attrs, ...children);
-export const path = (attrs?: ElementAttributes, ...children: (Node | string)[]) => svgElement('path', attrs, ...children);
+export const svg = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('svg', attrs, ...children);
+export const path = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('path', attrs, ...children);
