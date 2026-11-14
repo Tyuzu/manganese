@@ -110,7 +110,7 @@ export function createEditorTabButton<T extends string>(
     role: 'tab',
     'aria-selected': isActive.toString(),
     className: cn(
-      'editor-tab relative inline-flex min-w-[74px] flex-1 items-center justify-center gap-1.5 border px-2 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-200 sm:min-w-[110px] sm:px-3 sm:text-[11px]',
+      'editor-tab relative inline-flex shrink-0 basis-[74px] items-center justify-center gap-1.5 border px-2 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition-all duration-200 sm:min-w-[110px] sm:basis-auto sm:px-3 sm:text-[11px]',
       isActive ? activeClassName : inactiveClassName
     ),
     onclick: () => onSelect(tab.id)

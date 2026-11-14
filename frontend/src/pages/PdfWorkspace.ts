@@ -157,9 +157,9 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   ];
 
   const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
-    activeClassName: 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner',
-    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-slate-100',
-    containerClassName: 'flex flex-wrap gap-1.5 px-3 pb-2 sm:gap-2 sm:px-5',
+    activeClassName: 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner',
+    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
+    containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
 
   const toolContainer = div({ className: 'space-y-4 max-h-[540px] overflow-y-auto pr-1' });

@@ -1,5 +1,5 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './shared';
+import { createDetailPanel, createEditorFooter, createEditorTabNav, createEditorTitleRow } from './shared';
 
 type VideoTab = 'timeline' | 'filters' | 'transform' | 'audio' | 'captions' | 'export';
 type ClipTransition = 'none' | 'crossfade' | 'dip-to-black' | 'wipe' | 'slide';
@@ -781,7 +781,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3 items-center justify-between' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: VideoTab; label: string }[] = [
@@ -793,17 +792,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     { id: 'export', label: 'EXPORT' },
   ];
 
-  tabs.forEach((tab) => {
-    const btn = button({
-      type: 'button',
-      className: `editor-tab inline-flex min-w-[70px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
-        activeTab === tab.id
-          ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
-          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
-      }`,
-      onclick: () => switchTab(tab.id)
-    }, tab.label);
-    sidePanelNav.append(btn);
+  const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
+    activeClassName: 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner',
+    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
+    containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
 
   const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[310px] flex flex-col justify-between overflow-y-auto max-h-[540px]' },

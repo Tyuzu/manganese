@@ -1,5 +1,5 @@
 import { button, createButton, div, input, label, p, path, svg } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './shared';
+import { createDetailPanel, createEditorFooter, createEditorTabNav, createEditorTitleRow } from './shared';
 
 type ImageStudioTab = 'crop' | 'adjust' | 'transform' | 'filters' | 'text';
 
@@ -121,7 +121,6 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     () => toggleEditorFullscreen()
   );
 
-  const sidePanelNav = div({ className: 'flex flex-wrap gap-2 px-3 pb-2 sm:gap-3 sm:px-5 bg-[#2c3e50]/40 pt-3 items-center justify-between' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ImageStudioTab; label: string }[] = [
@@ -132,22 +131,13 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     { id: 'text', label: 'TEXT' },
   ];
 
-  const tabButtonsContainer = div({ className: 'flex flex-wrap gap-2 flex-1' });
-  tabs.forEach((tab) => {
-    const btn = button({
-      type: 'button',
-      className: `editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
-        activeTab === tab.id
-          ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
-          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
-      }`,
-      onclick: () => switchTab(tab.id)
-    }, tab.label);
-    tabButtonsContainer.append(btn);
+  const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
+    activeClassName: 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner',
+    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
+    containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
 
-  // Undo / Redo buttons in top nav bar
-  const undoRedoGroup = div({ className: 'flex items-center gap-1.5 ml-2' },
+  const undoRedoGroup = div({ className: 'flex items-center gap-1.5' },
     button({
       type: 'button',
       className: 'p-2 rounded-xl bg-slate-900/50 hover:bg-slate-900 text-slate-300 hover:text-white border border-slate-700/50 text-xs font-bold transition-all',
@@ -162,7 +152,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     }, '↷')
   );
 
-  sidePanelNav.append(tabButtonsContainer, undoRedoGroup);
+  sidePanelNav.append(undoRedoGroup);
 
   const previewCanvas = document.createElement('canvas');
   previewCanvas.className = 'max-h-full max-w-full object-contain block cursor-crosshair rounded-lg shadow-md';
@@ -623,13 +613,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   function switchTab(tab: ImageStudioTab) {
     activeTab = tab;
-    tabButtonsContainer.querySelectorAll('button').forEach((btn, idx) => {
+    const tabButtons = sidePanelNav.querySelectorAll('[role="tab"]');
+    tabButtons.forEach((btn, idx) => {
       const isSelected = tabs[idx].id === tab;
-      btn.className = `editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
-        isSelected
-          ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
-          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
-      }`;
+      btn.setAttribute('aria-selected', String(isSelected));
+      btn.className = `${isSelected ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner' : 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5'} editor-tab relative inline-flex shrink-0 basis-[74px] items-center justify-center gap-1.5 border px-2 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition-all duration-200 sm:min-w-[110px] sm:basis-auto sm:px-3 sm:text-[11px]`;
     });
     renderToolControls();
     renderComposedImage();

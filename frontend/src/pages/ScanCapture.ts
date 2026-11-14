@@ -215,7 +215,7 @@ export async function createScanPage(): Promise<HTMLElement> {
   const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
     activeClassName: 'border-emerald-400/30 bg-slate-900/60 text-white shadow-inner',
     inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
-    containerClassName: 'flex gap-1 px-5 pb-3 overflow-x-auto'
+    containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
 
   function getTabClassName(isSelected: boolean): string {
