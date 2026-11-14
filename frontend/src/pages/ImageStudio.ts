@@ -1,5 +1,5 @@
 import { button, createButton, div, input, label, p, path, svg } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorTabNav, createEditorTitleRow } from './shared';
+import { bindEditorFullscreenButton, createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
 
 type ImageStudioTab = 'crop' | 'adjust' | 'transform' | 'filters' | 'text';
 
@@ -100,26 +100,12 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     }
   }
 
-  const root = div({
-    className: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center'
-  });
-
-  const modal = div({
-    className: 'editor-surface w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-hidden flex flex-col'
-  });
-
   const fileInput = input({
     type: 'file',
     accept: 'image/*',
     className: 'sr-only',
     onchange: (e: Event) => handleFileUpload(e)
   });
-
-  const { titleRow, fullscreenButton } = createEditorTitleRow(
-    'Image Studio Pro',
-    () => resetEditor(),
-    () => toggleEditorFullscreen()
-  );
 
   const toolContainer = div({ className: 'space-y-4' });
 
@@ -290,25 +276,20 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5' }, sidePanel, viewport);
   const modalFooter = createEditorFooter(() => resetEditor(), () => exportImage('png'));
-  const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
 
-  modal.append(modalWrap);
-  root.append(modal);
+  const { root, modal, fullscreenButton } = createEditorShell({
+    title: 'Image Studio Pro',
+    nav: sidePanelNav,
+    workspace,
+    footer: modalFooter,
+    onReset: () => resetEditor(),
+    onToggleFullscreen: () => undefined,
+    rootClassName: 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center',
+    modalClassName: 'editor-surface w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-x-hidden overflow-y-auto flex flex-col'
+  });
 
-  const updateFullscreenButton = () => {
-    fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
-  };
-  document.addEventListener('fullscreenchange', updateFullscreenButton);
-  updateFullscreenButton();
-
-  function toggleEditorFullscreen() {
-    if (!document.fullscreenEnabled) return;
-    if (document.fullscreenElement === modal) {
-      void document.exitFullscreen();
-      return;
-    }
-    void modal.requestFullscreen();
-  }
+  const { toggleFullscreen } = bindEditorFullscreenButton({ modal, fullscreenButton });
+  fullscreenButton.onclick = toggleFullscreen;
 
   renderToolControls();
 

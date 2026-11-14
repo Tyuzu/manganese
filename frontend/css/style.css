@@ -165,7 +165,8 @@ a {
   min-width: 0;
   margin: 0 auto;
   display: block;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   border: 1px solid var(--line);
   border-radius: clamp(16px, 2vw, 32px);
   background: var(--shell-bg);

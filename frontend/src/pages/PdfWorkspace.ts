@@ -308,7 +308,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     footer: modalFooter,
     onReset: () => resetEditor(),
     onToggleFullscreen: () => toggleEditorFullscreen(),
-    modalClassName: 'editor-surface w-full max-w-[1100px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col',
+    modalClassName: 'editor-surface w-full max-w-[1100px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-x-hidden overflow-y-auto flex flex-col',
   });
 
   // Fullscreen Handling

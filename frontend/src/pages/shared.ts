@@ -189,7 +189,7 @@ export function createEditorShell({
   onReset,
   onToggleFullscreen,
   rootClassName = 'min-h-screen p-3 sm:p-6 lg:p-8 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm',
-  modalClassName = 'w-full max-w-[1120px] rounded-[22px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.35)] overflow-hidden flex flex-col',
+  modalClassName = 'w-full max-w-[1120px] rounded-[22px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.35)] overflow-x-hidden overflow-y-auto flex flex-col',
   wrapperClassName = 'w-full flex flex-col'
 }: {
   title: string;
@@ -213,6 +213,32 @@ export function createEditorShell({
   root.append(modal);
 
   return { root, modal, titleRow, fullscreenButton };
+}
+
+export function bindEditorFullscreenButton({
+  modal,
+  fullscreenButton,
+}: {
+  modal: HTMLElement;
+  fullscreenButton: HTMLButtonElement;
+}): { refreshFullscreenButton: () => void; toggleFullscreen: () => void } {
+  const refreshFullscreenButton = () => {
+    fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenEnabled) return;
+    if (document.fullscreenElement === modal) {
+      void document.exitFullscreen();
+      return;
+    }
+    void modal.requestFullscreen();
+  };
+
+  document.addEventListener('fullscreenchange', refreshFullscreenButton);
+  refreshFullscreenButton();
+
+  return { refreshFullscreenButton, toggleFullscreen };
 }
 
 export function createSliderControl(

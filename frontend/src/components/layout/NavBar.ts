@@ -41,7 +41,7 @@ export function createNavElement(): HTMLElement {
   const navList = div({
     className: 'nav-links hidden w-full flex-col gap-1.5 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center',
     'data-nav-list': ''
-  }, ...overflowItems);
+  }, ...navItems);
 
   const toggleButton = button({
     type: 'button',
@@ -54,6 +54,8 @@ export function createNavElement(): HTMLElement {
       toggleButton.setAttribute('aria-expanded', String(nextOpen));
       toggleButton.querySelector('.nav-toggle-caret')?.setAttribute('style', nextOpen ? 'transform: rotate(180deg);' : 'transform: rotate(0deg);');
       navList.classList.toggle('is-open', nextOpen);
+      navList.classList.toggle('hidden', !nextOpen);
+      navList.classList.toggle('flex', nextOpen);
     }
   },
     `More (${overflowItems.length})`,
