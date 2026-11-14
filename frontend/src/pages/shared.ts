@@ -110,7 +110,7 @@ export function createEditorTabButton<T extends string>(
     role: 'tab',
     'aria-selected': isActive.toString(),
     className: cn(
-      'editor-tab inline-flex min-w-[75px] flex-1 items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-all sm:min-w-[110px] sm:px-3 sm:text-[11px]',
+      'editor-tab relative inline-flex min-w-[74px] flex-1 items-center justify-center gap-1.5 border px-2 py-2 text-[9px] font-black uppercase tracking-[0.16em] transition-all duration-200 sm:min-w-[110px] sm:px-3 sm:text-[11px]',
       isActive ? activeClassName : inactiveClassName
     ),
     onclick: () => onSelect(tab.id)
@@ -129,7 +129,7 @@ export function createEditorTabNav<T extends string>(
 ): HTMLElement {
   const nav = div({
     role: 'tablist',
-    className: options?.containerClassName ?? 'flex flex-wrap gap-1.5 px-3 pb-2 sm:gap-2 sm:px-5'
+    className: options?.containerClassName ?? 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4'
   });
 
   tabs.forEach((tab) => {
@@ -155,26 +155,26 @@ export function createEditorTitleRow(
 ): { titleRow: HTMLElement; fullscreenButton: HTMLButtonElement; closeButton: HTMLButtonElement } {
   const fullscreenButton = button({
     type: 'button',
-    className: 'flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/50 text-xl leading-none text-slate-200 transition hover:bg-slate-800 hover:text-white shadow-sm',
+    className: 'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/45 text-lg leading-none text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:bg-slate-800 hover:text-white',
     title: 'Toggle fullscreen editor view',
     onclick: onToggleFullscreen,
   }, '⤢');
 
   const closeButton = button({
     type: 'button',
-    className: 'flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/50 text-2xl leading-none text-slate-200 transition hover:bg-slate-800 hover:text-white shadow-sm',
+    className: 'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/45 text-2xl leading-none text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:bg-slate-800 hover:text-white',
     title: 'Close editor',
     onclick: onReset,
   }, '×');
 
-  const titleContent = div({ className: 'flex flex-col gap-0.5' },
-    div({ className: 'text-[1.35rem] leading-none font-bold tracking-tight text-slate-50 sm:text-[1.85rem]' }, title),
-    subtitle ? p({ className: 'text-xs text-slate-400 m-0' }, subtitle) : ''
+  const titleContent = div({ className: 'flex min-w-0 flex-1 flex-col justify-center gap-0.5' },
+    div({ className: 'truncate text-[1.15rem] leading-none font-bold tracking-[-0.04em] text-slate-50 sm:text-[1.55rem]' }, title),
+    subtitle ? p({ className: 'm-0 text-[10px] uppercase tracking-[0.18em] text-slate-300/80' }, subtitle) : ''
   );
 
-  const titleRow = div({ className: 'flex flex-col gap-3 px-3  pb-2 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-3' },
+  const titleRow = div({ className: 'flex items-center justify-between gap-3 border-b border-white/5 bg-transparent px-3 py-3 sm:px-5 sm:py-4' },
     titleContent,
-    div({ className: 'flex items-center gap-2 self-end sm:self-auto' }, fullscreenButton, closeButton)
+    div({ className: 'flex shrink-0 items-center gap-2 rounded-xl border border-white/5 bg-slate-900/20 p-1.5' }, fullscreenButton, closeButton)
   );
 
   return { titleRow, fullscreenButton, closeButton };
@@ -188,8 +188,8 @@ export function createEditorShell({
   footer,
   onReset,
   onToggleFullscreen,
-  rootClassName = 'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm',
-  modalClassName = 'w-full max-w-[1120px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.35)] overflow-hidden flex flex-col',
+  rootClassName = 'min-h-screen p-3 sm:p-6 lg:p-8 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm',
+  modalClassName = 'w-full max-w-[1120px] rounded-[22px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.35)] overflow-hidden flex flex-col',
   wrapperClassName = 'w-full flex flex-col'
 }: {
   title: string;

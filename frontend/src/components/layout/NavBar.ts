@@ -21,20 +21,31 @@ export function createNavElement(): HTMLElement {
     a({ href: '/pdf', className: getNavLinkClass(currentPath, '/pdf'), 'data-link': '' }, 'PDF Workspace')
   ];
 
+  const previewItems = navItems.slice(0, 2).map((item) => {
+    const clone = item.cloneNode(true) as HTMLElement;
+    clone.classList.remove('w-full');
+    clone.classList.add('mobile-preview-link', 'flex-1');
+    return clone;
+  });
+
+  const overflowItems = navItems.slice(2);
+
   const navEl = nav({
     className: 'nav-bar relative flex flex-col gap-1.5 border border-slate-700/50 bg-slate-900/30 p-1.5 shadow-lg backdrop-blur-2xl sm:flex-row sm:flex-wrap sm:items-center',
     role: 'navigation',
     style: { overflow: 'visible' }
   });
 
+  const navPreview = div({ className: 'nav-preview flex w-full items-center gap-1.5 sm:hidden' }, ...previewItems);
+
   const navList = div({
-    className: 'nav-links w-full flex-col gap-1.5 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center',
+    className: 'nav-links hidden w-full flex-col gap-1.5 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center',
     'data-nav-list': ''
-  }, ...navItems);
+  }, ...overflowItems);
 
   const toggleButton = button({
     type: 'button',
-    className: 'nav-toggle inline-flex w-full items-center justify-between border border-slate-700/50 bg-slate-900/35 px-3 py-2.5 text-[10px] font-semibold tracking-[0.12em] uppercase text-slate-100 shadow-inner transition hover:bg-slate-800/60 sm:hidden',
+    className: 'nav-toggle ml-auto inline-flex w-auto min-w-[104px] items-center justify-between gap-2 border border-slate-700/50 bg-slate-900/35 px-2.5 py-2 text-[9px] font-semibold tracking-[0.12em] uppercase text-slate-100 shadow-inner transition hover:bg-slate-800/60 sm:hidden',
     'aria-expanded': 'false',
     'aria-label': 'Toggle navigation menu',
     onClick: () => {
@@ -45,12 +56,12 @@ export function createNavElement(): HTMLElement {
       navList.classList.toggle('is-open', nextOpen);
     }
   },
-    'Navigation',
+    `More (${overflowItems.length})`,
     span({ className: 'nav-toggle-caret inline-flex text-base leading-none transition-transform duration-200', style: { transform: 'rotate(0deg)' } }, '▾')
   );
 
   navEl.dataset.open = 'false';
-  navEl.append(toggleButton, navList);
+  navEl.append(div({ className: 'nav-mobile-row flex w-full items-center gap-1.5 sm:hidden' }, navPreview, toggleButton), navList);
 
   return navEl;
 }

@@ -52,7 +52,7 @@ function createHeaderActions(): HTMLElement {
       themeSelect
     ),
     button({
-      className: 'header-action-btn header-action-primary inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-150 active:scale-95 sm:w-auto',
+      className: 'header-action-btn header-action-primary inline-flex w-auto min-w-[110px] items-center justify-center rounded-xl px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all duration-150 active:scale-95',
       onClick: () => {
         if (isLoggedIn) {
           authActions.logout();
