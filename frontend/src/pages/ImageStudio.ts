@@ -298,7 +298,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     toolContainer
   );
 
-  const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5 sm:p-6' }, sidePanel, viewport);
+  const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5' }, sidePanel, viewport);
   const modalFooter = createEditorFooter(() => resetEditor(), () => exportImage('png'));
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
 

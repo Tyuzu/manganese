@@ -1130,7 +1130,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   stage.append(videoContainer, zoomControls, playerHud, timelineContainer);
 
-  const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5 sm:p-6' }, sidePanel, stage);
+  const workspace = div({ className: 'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => startVideoExport());
 
   const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);

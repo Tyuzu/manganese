@@ -22,7 +22,7 @@ export function createNavElement(): HTMLElement {
   ];
 
   const navEl = nav({
-    className: 'nav-bar relative flex flex-col gap-1.5 rounded-2xl border border-slate-700/50 bg-slate-900/30 p-1.5 shadow-lg backdrop-blur-2xl sm:flex-row sm:flex-wrap sm:items-center',
+    className: 'nav-bar relative flex flex-col gap-1.5 border border-slate-700/50 bg-slate-900/30 p-1.5 shadow-lg backdrop-blur-2xl sm:flex-row sm:flex-wrap sm:items-center',
     role: 'navigation',
     style: { overflow: 'visible' }
   });
@@ -34,7 +34,7 @@ export function createNavElement(): HTMLElement {
 
   const toggleButton = button({
     type: 'button',
-    className: 'nav-toggle inline-flex w-full items-center justify-between rounded-xl border border-slate-700/50 bg-slate-900/35 px-3 py-2.5 text-[10px] font-semibold tracking-[0.12em] uppercase text-slate-100 shadow-inner transition hover:bg-slate-800/60 sm:hidden',
+    className: 'nav-toggle inline-flex w-full items-center justify-between border border-slate-700/50 bg-slate-900/35 px-3 py-2.5 text-[10px] font-semibold tracking-[0.12em] uppercase text-slate-100 shadow-inner transition hover:bg-slate-800/60 sm:hidden',
     'aria-expanded': 'false',
     'aria-label': 'Toggle navigation menu',
     onClick: () => {

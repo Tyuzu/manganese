@@ -172,7 +172,7 @@ export function createEditorTitleRow(
     subtitle ? p({ className: 'text-xs text-slate-400 m-0' }, subtitle) : ''
   );
 
-  const titleRow = div({ className: 'flex flex-col gap-3 px-3 pt-4 pb-2 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-4' },
+  const titleRow = div({ className: 'flex flex-col gap-3 px-3  pb-2 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:pt-6 sm:pb-3' },
     titleContent,
     div({ className: 'flex items-center gap-2 self-end sm:self-auto' }, fullscreenButton, closeButton)
   );
