@@ -2,6 +2,53 @@ import { button, createButton, div, input, label, p, span, svgElement } from '..
 import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './shared';
 
 type VideoTab = 'timeline' | 'filters' | 'transform' | 'audio' | 'captions' | 'export';
+type ClipTransition = 'none' | 'crossfade' | 'dip-to-black' | 'wipe' | 'slide';
+type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay' | 'soft-light';
+type MaskType = 'circle' | 'rect' | 'freehand';
+
+interface TimedCaption {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+  style: {
+    size: number;
+    weight: string;
+    background: string;
+    shadow: boolean;
+    x: number;
+    y: number;
+  };
+}
+
+interface TimelineClipSegment {
+  id: number;
+  start: number;
+  end: number;
+  label: string;
+}
+
+interface MaskItem {
+  id: number;
+  type: MaskType;
+  points: Array<{ x: number; y: number }>;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  radius: number;
+  feather: number;
+  opacity: number;
+  blur: number;
+  color: string;
+}
+
+interface PlaybackCurve {
+  p0: { x: number; y: number };
+  p1: { x: number; y: number };
+  p2: { x: number; y: number };
+  p3: { x: number; y: number };
+}
 
 interface VideoEditorState {
   trimStart: number;
@@ -14,6 +61,13 @@ interface VideoEditorState {
   flipV: boolean;
   previewQuality: '1' | '0.5' | '0.25';
   captionText: string;
+  captionSegments: TimedCaption[];
+  transitionType: ClipTransition;
+  clipSegments: TimelineClipSegment[];
+  blendMode: BlendMode;
+  masks: MaskItem[];
+  playbackCurve: PlaybackCurve;
+  cubeLut: { size: number; values: number[] } | null;
   captionSize: number;
   captionWeight: string;
   captionBg: string;
@@ -61,12 +115,26 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   // Caption State
   let captionText = '';
+  let captionSegments: TimedCaption[] = [];
   let captionSize = 20;
   let captionWeight = '700';
   let captionBg = 'rgba(0,0,0,0.6)';
   let captionShadow = true;
   let captionX = 50; // percentage
   let captionY = 85; // percentage
+  let activeTransition: ClipTransition = 'crossfade';
+  let clipSegments: TimelineClipSegment[] = [];
+  let activeBlendMode: BlendMode = 'screen';
+  let masks: MaskItem[] = [];
+  let playbackCurve: PlaybackCurve = {
+    p0: { x: 0, y: 0 },
+    p1: { x: 0.2, y: 1 },
+    p2: { x: 0.8, y: 1 },
+    p3: { x: 1, y: 0 },
+  };
+  let activeMaskTool: MaskType = 'rect';
+  let pendingMask: MaskItem | null = null;
+  let cubeLut: { size: number; values: number[] } | null = null;
 
   // Export State
   let exportResolution: '720p' | '1080p' | '4k' = '1080p';
@@ -123,6 +191,246 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // Undo / Redo History Stack
   let history: VideoEditorState[] = [];
   let historyIndex = -1;
+  const projectStoreName = 'video-editor-state';
+  let projectDb: IDBDatabase | null = null;
+
+  function openProjectDatabase(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('IndexedDB unavailable'));
+        return;
+      }
+
+      const request = window.indexedDB.open('dolomite-video-editor', 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(projectStoreName)) {
+          db.createObjectStore(projectStoreName, { keyPath: 'id' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error('Could not open project database'));
+    });
+  }
+
+  async function persistProjectState() {
+    if (!('indexedDB' in window)) return;
+
+    try {
+      const db = projectDb ?? (await openProjectDatabase());
+      projectDb = db;
+
+      const videoDataUrl = videoFile
+        ? await new Promise<string | null>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(videoFile as File);
+          })
+        : null;
+
+      const payload = {
+        id: 'current-project',
+        videoDataUrl,
+        fileName: videoFile?.name ?? null,
+        fileType: videoFile?.type ?? null,
+        savedAt: Date.now(),
+        state: {
+          trimStart,
+          trimEnd,
+          playbackRate,
+          volume,
+          aspectRatio,
+          rotation,
+          flipH,
+          flipV,
+          previewQuality,
+          captionText,
+          captionSegments: captionSegments.map((segment) => ({ ...segment, style: { ...segment.style } })),
+          transitionType: activeTransition,
+          clipSegments: clipSegments.map((segment) => ({ ...segment })),
+          captionSize,
+          captionWeight,
+          captionBg,
+          captionShadow,
+          captionX,
+          captionY,
+          filters: { ...filters },
+        },
+      };
+
+      const tx = db.transaction(projectStoreName, 'readwrite');
+      tx.objectStore(projectStoreName).put(payload);
+    } catch (error) {
+      console.warn('Unable to save editor state:', error);
+    }
+  }
+
+  async function hydrateProjectState() {
+    if (!('indexedDB' in window)) return;
+
+    try {
+      const db = projectDb ?? (await openProjectDatabase());
+      projectDb = db;
+      const tx = db.transaction(projectStoreName, 'readonly');
+      const request = tx.objectStore(projectStoreName).get('current-project');
+
+      request.onsuccess = () => {
+        const entry = request.result as { videoDataUrl?: string; state?: Partial<VideoEditorState> } | undefined;
+        if (!entry?.state) return;
+
+        const savedState = entry.state as VideoEditorState;
+        if (entry.videoDataUrl) {
+          videoUrl = entry.videoDataUrl;
+          videoElement.src = entry.videoDataUrl;
+          videoElement.onloadedmetadata = () => {
+            duration = videoElement.duration;
+            trimStart = 0;
+            trimEnd = duration;
+            clipSegments = [{ id: 1, start: 0, end: duration, label: 'Main Clip' }];
+            restoreState(savedState);
+            updateTrimMarkers();
+            renderToolControls();
+          };
+          return;
+        }
+
+        restoreState(savedState);
+      };
+    } catch (error) {
+      console.warn('Unable to restore editor state:', error);
+    }
+  }
+
+  function cubicBezierValue(t: number, p0: number, p1: number, p2: number, p3: number): number {
+    const kT = clampValue(t, 0, 1);
+    const u = 1 - kT;
+    const tt = kT * kT;
+    const uu = u * u;
+    return (uu * u * p0) + (3 * uu * kT * p1) + (3 * u * tt * p2) + (tt * kT * p3);
+  }
+
+  function getPlaybackRateAtTime(t: number): number {
+    const safeT = clampValue(t, 0, 1);
+    const y = cubicBezierValue(safeT, playbackCurve.p0.y, playbackCurve.p1.y, playbackCurve.p2.y, playbackCurve.p3.y);
+    return 0.25 + y * 3.75;
+  }
+
+  function updatePlaybackRateFromCurve() {
+    const totalWindow = Math.max(0.01, (trimEnd || duration || 1) - trimStart);
+    const normalized = videoElement.duration
+      ? clampValue((videoElement.currentTime - trimStart) / totalWindow, 0, 1)
+      : 0;
+    playbackRate = Number(getPlaybackRateAtTime(normalized).toFixed(2));
+    if (videoElement.duration) {
+      videoElement.playbackRate = getPlaybackRateAtTime(normalized);
+    }
+  }
+
+  function parseCubeLut(rawText: string): { size: number; values: number[] } | null {
+    const cleaned = rawText.replace(/\r/g, '').split(/\n+/).map((line) => line.trim()).filter((line) => line && !line.startsWith('#'));
+    let size: number | null = null;
+    const values: number[] = [];
+
+    for (const line of cleaned) {
+      if (line.startsWith('LUT_3D_SIZE')) {
+        const match = line.match(/(\d+)/);
+        if (match) size = Number(match[1]);
+        continue;
+      }
+
+      if (line.startsWith('TITLE') || line.startsWith('DOMAIN_')) {
+        continue;
+      }
+
+      if (!Number.isNaN(Number(line.split(/\s+/).filter(Boolean)[0]))) {
+        const numericValues = line.split(/\s+/).map((part) => Number(part)).filter((number) => !Number.isNaN(number));
+        values.push(...numericValues);
+      }
+    }
+
+    if (!size || values.length === 0) return null;
+    return { size, values };
+  }
+
+  function exportProjectFile() {
+    const snapshot = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      source: videoFile ? { name: videoFile.name, type: videoFile.type, size: videoFile.size } : null,
+      state: {
+        trimStart,
+        trimEnd,
+        playbackRate,
+        volume,
+        aspectRatio,
+        rotation,
+        flipH,
+        flipV,
+        previewQuality,
+        captionText,
+        captionSegments: captionSegments.map((segment) => ({ ...segment, style: { ...segment.style } })),
+        transitionType: activeTransition,
+        clipSegments: clipSegments.map((segment) => ({ ...segment })),
+        blendMode: activeBlendMode,
+        masks: masks.map((mask) => ({ ...mask, points: mask.points.map((point) => ({ ...point })) })),
+        playbackCurve: {
+          p0: { ...playbackCurve.p0 },
+          p1: { ...playbackCurve.p1 },
+          p2: { ...playbackCurve.p2 },
+          p3: { ...playbackCurve.p3 },
+        },
+        cubeLut: cubeLut ? { ...cubeLut, values: [...cubeLut.values] } : null,
+        captionSize,
+        captionWeight,
+        captionBg,
+        captionShadow,
+        captionX,
+        captionY,
+        filters: { ...filters },
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dolomite-project-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function importProjectFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const jsonText = await file.text();
+        const parsed = JSON.parse(jsonText) as { state?: Partial<VideoEditorState> };
+        const state = parsed.state ?? parsed;
+        if (!state) {
+          alert('The selected file does not contain valid project data.');
+          return;
+        }
+
+        restoreState(state as VideoEditorState);
+        activeTab = 'timeline';
+        renderToolControls();
+        if (videoElement.src) {
+          updatePlaybackRateFromCurve();
+        }
+      } catch (error) {
+        console.error('Import failed:', error);
+        alert('Unable to import project file. Please choose a valid Dolomite JSON project.');
+      }
+    };
+    input.click();
+  }
 
   function pushState() {
     const currentState: VideoEditorState = {
@@ -136,6 +444,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       flipV,
       previewQuality,
       captionText,
+      captionSegments: captionSegments.map((segment) => ({ ...segment, style: { ...segment.style } })),
+      transitionType: activeTransition,
+      clipSegments: clipSegments.map((segment) => ({ ...segment })),
+      blendMode: activeBlendMode,
+      masks: masks.map((mask) => ({ ...mask, points: mask.points.map((point) => ({ ...point })) })),
+      playbackCurve: {
+        p0: { ...playbackCurve.p0 },
+        p1: { ...playbackCurve.p1 },
+        p2: { ...playbackCurve.p2 },
+        p3: { ...playbackCurve.p3 },
+      },
+      cubeLut: cubeLut ? { ...cubeLut, values: [...cubeLut.values] } : null,
       captionSize,
       captionWeight,
       captionBg,
@@ -147,6 +467,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     history = history.slice(0, historyIndex + 1);
     history.push(currentState);
     historyIndex = history.length - 1;
+    void persistProjectState();
   }
 
   function restoreState(state: VideoEditorState) {
@@ -160,6 +481,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     flipV = state.flipV;
     previewQuality = state.previewQuality;
     captionText = state.captionText;
+    captionSegments = Array.isArray(state.captionSegments) ? state.captionSegments.map((segment) => ({
+      ...segment,
+      style: { ...segment.style }
+    })) : [];
+    activeTransition = state.transitionType || 'crossfade';
+    clipSegments = Array.isArray(state.clipSegments) ? state.clipSegments.map((segment) => ({ ...segment })) : [];
+    activeBlendMode = state.blendMode || 'screen';
+    masks = Array.isArray(state.masks) ? state.masks.map((mask) => ({
+      ...mask,
+      points: (mask.points ?? []).map((point) => ({ ...point })),
+    })) : [];
+    playbackCurve = state.playbackCurve || playbackCurve;
+    cubeLut = state.cubeLut ? { ...state.cubeLut, values: [...state.cubeLut.values] } : null;
     captionSize = state.captionSize;
     captionWeight = state.captionWeight;
     captionBg = state.captionBg;
@@ -167,6 +501,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     captionX = state.captionX;
     captionY = state.captionY;
     Object.assign(filters, state.filters);
+    applyMaskOverlay();
 
     videoElement.playbackRate = playbackRate;
     videoElement.volume = volume;
@@ -177,6 +512,204 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     updateTrimMarkers();
     applyVideoFilters();
     renderToolControls();
+  }
+
+  function parseSrtText(rawText: string): TimedCaption[] {
+    const lines = rawText.replace(/\r/g, '').trim().split(/\n+/);
+    const segments: TimedCaption[] = [];
+    let current: Partial<TimedCaption> | null = null;
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index].trim();
+      if (!line) {
+        if (current && current.text) {
+          segments.push({
+            id: current.id ?? segments.length + 1,
+            start: Number(current.start ?? 0),
+            end: Number(current.end ?? current.start ?? 0),
+            text: current.text ?? '',
+            style: {
+              size: captionSize,
+              weight: captionWeight,
+              background: captionBg,
+              shadow: captionShadow,
+              x: captionX,
+              y: captionY,
+            },
+          });
+          current = null;
+        }
+        continue;
+      }
+
+      if (/^\d+$/.test(line)) {
+        current = current ?? {};
+        current.id = Number(line);
+        continue;
+      }
+
+      const timeMatch = line.match(/(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})/);
+      if (timeMatch) {
+        current = current ?? {};
+        current.start = parseSrtTimestamp(timeMatch[1]);
+        current.end = parseSrtTimestamp(timeMatch[2]);
+        continue;
+      }
+
+      if (current) {
+        current.text = (current.text ? `${current.text}\n` : '') + line;
+      }
+    }
+
+    if (current && current.text) {
+      segments.push({
+        id: current.id ?? segments.length + 1,
+        start: Number(current.start ?? 0),
+        end: Number(current.end ?? current.start ?? 0),
+        text: current.text,
+        style: {
+          size: captionSize,
+          weight: captionWeight,
+          background: captionBg,
+          shadow: captionShadow,
+          x: captionX,
+          y: captionY,
+        },
+      });
+    }
+
+    return segments.filter((segment) => segment.text.trim().length > 0);
+  }
+
+  function parseSrtTimestamp(vttTime: string): number {
+    const normalized = vttTime.replace(',', '.');
+    const [hours, minutes, seconds] = normalized.split(':').map((part) => Number(part));
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+
+  function buildSrtFromSegments(segments: TimedCaption[]): string {
+    return segments
+      .map((segment) => {
+        const start = formatCaptionTimestamp(segment.start);
+        const end = formatCaptionTimestamp(segment.end);
+        return `${segment.id}\n${start} --> ${end}\n${segment.text.trim()}`;
+      })
+      .join('\n\n');
+  }
+
+  function formatCaptionTimestamp(seconds: number): string {
+    const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const secs = safeSeconds % 60;
+    const ms = Math.floor((secs % 1) * 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${Math.floor(secs)
+      .toString()
+      .padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+  }
+
+  function getActiveCaption(): TimedCaption | null {
+    const activeCaption = captionSegments.find((segment) => currentTime >= segment.start && currentTime <= segment.end);
+    if (activeCaption) return activeCaption;
+    if (!captionText.trim()) return null;
+    return {
+      id: 0,
+      start: 0,
+      end: duration || 0,
+      text: captionText,
+      style: {
+        size: captionSize,
+        weight: captionWeight,
+        background: captionBg,
+        shadow: captionShadow,
+        x: captionX,
+        y: captionY,
+      },
+    };
+  }
+
+  function splitClipAtPlayhead() {
+    if (!duration || currentTime <= 0 || currentTime >= duration) return;
+    const currentSegment = clipSegments.find((segment) => currentTime >= segment.start && currentTime <= segment.end) ?? {
+      id: Date.now(),
+      start: trimStart,
+      end: trimEnd || duration,
+      label: 'Segment',
+    };
+    const left = { ...currentSegment, end: currentTime };
+    const right = { id: Date.now() + 1, start: currentTime, end: currentSegment.end, label: `${currentSegment.label} B` };
+    const otherSegments = clipSegments.filter((segment) => segment.id !== currentSegment.id);
+    clipSegments = [...otherSegments, left, right].sort((a, b) => a.start - b.start);
+    trimStart = clipSegments[0]?.start ?? 0;
+    trimEnd = clipSegments[clipSegments.length - 1]?.end ?? duration;
+    pushState();
+    renderToolControls();
+  }
+
+  function deleteCurrentClipSegment() {
+    if (clipSegments.length <= 1) {
+      trimStart = 0;
+      trimEnd = duration;
+      return;
+    }
+    const targetIndex = clipSegments.findIndex((segment) => currentTime >= segment.start && currentTime <= segment.end);
+    if (targetIndex < 0) return;
+    const removed = clipSegments[targetIndex];
+    clipSegments = clipSegments.filter((segment) => segment.id !== removed.id);
+    trimStart = clipSegments[0]?.start ?? 0;
+    trimEnd = clipSegments[clipSegments.length - 1]?.end ?? duration;
+    pushState();
+    renderToolControls();
+  }
+
+  async function importSubtitleFile(file: File) {
+    const text = await file.text();
+    const segments = parseSrtText(text);
+    captionSegments = segments;
+    const firstSegment = segments[0];
+    if (firstSegment) {
+      captionText = firstSegment.text;
+      captionSize = firstSegment.style.size;
+      captionWeight = firstSegment.style.weight;
+      captionBg = firstSegment.style.background;
+      captionShadow = firstSegment.style.shadow;
+      captionX = firstSegment.style.x;
+      captionY = firstSegment.style.y;
+    }
+    updateCaptions();
+    renderToolControls();
+    pushState();
+  }
+
+  function exportSubtitleFile() {
+    if (!captionSegments.length && !captionText.trim()) {
+      alert('Add subtitle content before exporting a sidecar file.');
+      return;
+    }
+    const subtitleText = buildSrtFromSegments(captionSegments.length ? captionSegments : [{
+      id: 1,
+      start: 0,
+      end: Math.max(3, duration || 3),
+      text: captionText || 'Caption',
+      style: {
+        size: captionSize,
+        weight: captionWeight,
+        background: captionBg,
+        shadow: captionShadow,
+        x: captionX,
+        y: captionY,
+      },
+    }]);
+
+    const blob = new Blob([subtitleText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'captions.srt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function undo() {
@@ -288,10 +821,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   const videoContainer = div({ className: 'relative flex-1 flex items-center justify-center bg-slate-950 p-2 overflow-hidden min-h-0 sm:p-6 rounded-xl border border-slate-800/60 shadow-inner' });
 
+  const maskOverlay = div({
+    className: 'absolute inset-0 z-10 pointer-events-none hidden overflow-hidden rounded-lg',
+    style: 'left: 0; top: 0; right: 0; bottom: 0;'
+  });
+
   const captionOverlay = div({
     className: 'absolute text-center cursor-move select-none transition-all px-4 py-1.5 rounded-lg hidden z-20 shadow-xl',
     style: 'left: 50%; top: 85%; transform: translate(-50%, -50%);'
   });
+
+  videoContainer.append(maskOverlay, captionOverlay);
 
   // Make caption overlay draggable
   let isDraggingCaption = false;
@@ -731,6 +1271,103 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   // Dynamic Inspector Panels
+  function renderPlaybackCurveEditor() {
+    const editor = div({ className: 'mt-3 rounded-xl border border-slate-700 bg-slate-950/80 p-2' });
+    const canvas = document.createElement('canvas');
+    canvas.width = 280;
+    canvas.height = 90;
+    canvas.className = 'w-full rounded-lg border border-slate-800 bg-slate-900';
+
+    const redraw = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= 4; i += 1) {
+        const x = (i / 4) * w;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (let i = 0; i <= 100; i += 1) {
+        const t = i / 100;
+        const x = cubicBezierValue(t, playbackCurve.p0.x, playbackCurve.p1.x, playbackCurve.p2.x, playbackCurve.p3.x) * w;
+        const y = h - cubicBezierValue(t, playbackCurve.p0.y, playbackCurve.p1.y, playbackCurve.p2.y, playbackCurve.p3.y) * h;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = '#a78bfa';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const handles = [playbackCurve.p1, playbackCurve.p2];
+      handles.forEach((point) => {
+        const hx = point.x * w;
+        const hy = h - point.y * h;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+        ctx.strokeStyle = '#a78bfa';
+        ctx.stroke();
+      });
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('0.25x', 8, h - 8);
+      ctx.fillText('4x', w - 24, 12);
+    };
+
+    let activeHandle: 'p1' | 'p2' | null = null;
+    canvas.onpointerdown = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = clampValue((event.clientX - rect.left) / rect.width, 0, 1);
+      const y = clampValue(1 - (event.clientY - rect.top) / rect.height, 0, 1);
+      const handles = [
+        { name: 'p1' as const, point: playbackCurve.p1 },
+        { name: 'p2' as const, point: playbackCurve.p2 },
+      ];
+      const hit = handles.reduce((closest, entry) => {
+        const distance = Math.hypot(entry.point.x - x, entry.point.y - y);
+        return distance < closest.distance ? { distance, entry } : closest;
+      }, { distance: 0.12, entry: null as { name: 'p1' | 'p2'; point: { x: number; y: number } } | null });
+      activeHandle = hit.entry?.name ?? null;
+      if (activeHandle) {
+        canvas.setPointerCapture(event.pointerId);
+      }
+    };
+    canvas.onpointermove = (event) => {
+      if (!activeHandle) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = clampValue((event.clientX - rect.left) / rect.width, 0, 1);
+      const y = clampValue(1 - (event.clientY - rect.top) / rect.height, 0, 1);
+      playbackCurve[activeHandle].x = x;
+      playbackCurve[activeHandle].y = y;
+      playbackRate = Number(getPlaybackRateAtTime(0.5).toFixed(2));
+      if (videoElement.duration) {
+        videoElement.playbackRate = getPlaybackRateAtTime((videoElement.currentTime - trimStart) / Math.max(0.01, (trimEnd || duration) - trimStart));
+      }
+      redraw();
+      pushState();
+    };
+    canvas.onpointerup = () => {
+      activeHandle = null;
+    };
+
+    redraw();
+    editor.append(canvas);
+    return editor;
+  }
+
   function renderToolControls() {
     toolContainer.innerHTML = '';
 
@@ -746,10 +1383,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           trimEnd = Math.max(v, trimStart + 0.5);
           updateTrimMarkers();
         }),
-        createSliderControl('Playback Speed', playbackRate, 0.25, 3, (v) => {
-          playbackRate = v;
-          videoElement.playbackRate = v;
-        }),
+        p({ className: 'mt-3 text-xs font-semibold text-slate-300' }, `Bezier Peak: ${playbackRate.toFixed(2)}x`),
+        renderPlaybackCurveEditor(),
         div({ className: 'pt-2 grid grid-cols-2 gap-2.5' },
           createPresetButton('Set Start Here', () => {
             trimStart = videoElement.currentTime;
@@ -763,6 +1398,23 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             pushState();
             renderToolControls();
           })
+        ),
+        div({ className: 'pt-2 grid grid-cols-2 gap-2.5' },
+          createPresetButton('Split Clip', () => {
+            splitClipAtPlayhead();
+          }),
+          createPresetButton('Ripple Delete', () => {
+            deleteCurrentClipSegment();
+          })
+        ),
+        div({ className: 'pt-2' },
+          div({ className: 'flex justify-between items-center text-xs' },
+            span({ className: 'text-slate-400' }, 'Transition'),
+            createSelectDropdown(['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'], activeTransition, (val) => {
+              activeTransition = val as ClipTransition;
+              pushState();
+            })
+          )
         )
       );
     } else if (activeTab === 'filters') {
@@ -809,11 +1461,76 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         createPresetButton('Reset Transforms', () => { rotation = 0; flipH = false; flipV = false; updateTransforms(); pushState(); })
       );
 
+      const maskToolGrid = div({ className: 'grid grid-cols-3 gap-2 mt-2' },
+        createPresetButton('Circle', () => { activeMaskTool = 'circle'; }),
+        createPresetButton('Rect', () => { activeMaskTool = 'rect'; }),
+        createPresetButton('Freehand', () => { activeMaskTool = 'freehand'; })
+      );
+
+      const lutUploadButton = createPresetButton('Import .cube LUT', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.cube,text/plain';
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) return;
+          const rawText = await file.text();
+          const parsed = parseCubeLut(rawText);
+          if (!parsed) {
+            alert('Unable to parse a valid 3D LUT from the selected .cube file.');
+            return;
+          }
+          cubeLut = parsed;
+          pushState();
+          renderToolControls();
+        };
+        input.click();
+      });
+
       toolContainer.append(
         p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Aspect Ratio Presets'),
         ratioGrid,
         p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Rotation & Mirroring'),
         transformGrid,
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Shape Masks & Feather'),
+        maskToolGrid,
+        div({ className: 'grid grid-cols-2 gap-2 pt-2' },
+          createPresetButton('Add Mask', () => {
+            const maskId = Date.now() + Math.floor(Math.random() * 1000);
+            const newMask: MaskItem = {
+              id: maskId,
+              type: activeMaskTool,
+              x: 50,
+              y: 50,
+              width: 45,
+              height: 45,
+              radius: 28,
+              feather: 14,
+              opacity: 0.45,
+              blur: 6,
+              color: '#a78bfa',
+              points: [
+                { x: 25, y: 20 },
+                { x: 72, y: 20 },
+                { x: 72, y: 72 },
+                { x: 25, y: 72 },
+              ],
+            };
+            pendingMask = newMask;
+            masks.push(newMask);
+            applyMaskOverlay();
+            pushState();
+          }),
+          createPresetButton('Clear Masks', () => {
+            masks = [];
+            pendingMask = null;
+            applyMaskOverlay();
+            pushState();
+          })
+        ),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, '3D LUT Grade'),
+        lutUploadButton,
+        cubeLut ? div({ className: 'mt-2 text-[10px] text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 'mt-2 text-[10px] text-slate-500' }, 'No LUT loaded'),
         p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Preview Quality'),
         div({ className: 'grid grid-cols-3 gap-2' },
           createPresetButton('Full (100%)', () => { previewQuality = '1'; pushState(); }),
@@ -858,7 +1575,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       });
 
       toolContainer.append(
-        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Subtitles & Overlay Text'),
+        p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Timed Subtitles & Overlay Text'),
         div({ className: 'space-y-4' },
           div({},
             label({ className: 'block text-xs font-medium text-slate-400 mb-1' }, 'Caption Content'),
@@ -879,6 +1596,49 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
               captionY = 85;
               updateCaptions();
               pushState();
+            })
+          ),
+          div({ className: 'grid grid-cols-2 gap-2 pt-2' },
+            createPresetButton('Add Timed Cue', () => {
+              captionSegments.push({
+                id: captionSegments.length + 1,
+                start: Math.max(0, currentTime),
+                end: Math.min(duration || currentTime + 3, currentTime + 3),
+                text: captionText || 'New caption',
+                style: {
+                  size: captionSize,
+                  weight: captionWeight,
+                  background: captionBg,
+                  shadow: captionShadow,
+                  x: captionX,
+                  y: captionY,
+                },
+              });
+              updateCaptions();
+              pushState();
+              renderToolControls();
+            }),
+            createPresetButton('Clear Cues', () => {
+              captionSegments = [];
+              captionText = '';
+              updateCaptions();
+              pushState();
+              renderToolControls();
+            })
+          ),
+          div({ className: 'grid grid-cols-2 gap-2 pt-2' },
+            createPresetButton('Import SRT/VTT', () => {
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = '.srt,.vtt,text/plain';
+              input.onchange = async () => {
+                const file = input.files?.[0];
+                if (file) await importSubtitleFile(file);
+              };
+              input.click();
+            }),
+            createPresetButton('Export .SRT', () => {
+              exportSubtitleFile();
             })
           )
         )
@@ -908,10 +1668,28 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
                 else exportBitrate = 5000000;
               })
             ),
+            div({ className: 'flex justify-between items-center' },
+              span({ className: 'text-slate-400' }, 'Transition'),
+              createSelectDropdown(['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'], activeTransition, (val) => {
+                activeTransition = val as ClipTransition;
+                pushState();
+              })
+            ),
+            div({ className: 'flex justify-between items-center' },
+              span({ className: 'text-slate-400' }, 'Blend Mode'),
+              createSelectDropdown(['normal', 'screen', 'multiply', 'overlay', 'soft-light'], activeBlendMode, (val) => {
+                activeBlendMode = val as BlendMode;
+                pushState();
+              })
+            ),
             div({ className: 'flex justify-between pt-1 border-t border-slate-800' },
               span({ className: 'text-slate-400' }, 'Trim Length'),
               span({ className: 'font-semibold text-violet-300' }, `${(Math.max(0, (trimEnd || duration) - trimStart)).toFixed(1)}s`)
             )
+          ),
+          div({ className: 'grid grid-cols-2 gap-2 pt-3' },
+            createPresetButton('Export JSON', () => exportProjectFile()),
+            createPresetButton('Import JSON', () => importProjectFile())
           ),
           isRendering ? div({ className: 'space-y-2 text-center' },
             p({ className: 'text-xs text-violet-300 font-semibold' }, `Rendering Video... ${Math.round(renderProgress)}%`),
@@ -959,10 +1737,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       duration = videoElement.duration;
       trimStart = 0;
       trimEnd = duration;
+      clipSegments = [{ id: 1, start: 0, end: duration, label: 'Main Clip' }];
       timeDisplay.textContent = `00:00 / ${formatTime(duration)}`;
 
       videoContainer.innerHTML = '';
-      videoContainer.append(videoElement, captionOverlay);
+      videoContainer.append(maskOverlay, videoElement, captionOverlay);
 
       generateThumbnailStrip();
 
@@ -994,11 +1773,54 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function generateThumbnailStrip() {
     thumbnailStrip.innerHTML = '';
-    const numThumbs = 8;
-    for (let i = 0; i < numThumbs; i++) {
-      const thumb = div({ className: 'flex-1 bg-slate-800 border-r border-slate-700/50 flex items-center justify-center text-[9px] text-slate-500' }, 'img');
-      thumbnailStrip.append(thumb);
+    if (!videoUrl || !duration) return;
+
+    const frameCount = 10;
+    const canvases: HTMLCanvasElement[] = [];
+
+    for (let index = 0; index < frameCount; index += 1) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 90;
+      canvas.className = 'h-full w-full border-r border-slate-700/50 bg-slate-900/80 object-cover';
+      thumbnailStrip.append(canvas);
+      canvases.push(canvas);
     }
+
+    const previewVideo = document.createElement('video');
+    previewVideo.src = videoUrl;
+    previewVideo.muted = true;
+    previewVideo.playsInline = true;
+    previewVideo.preload = 'auto';
+    previewVideo.crossOrigin = 'anonymous';
+
+    const drawFrame = (canvas: HTMLCanvasElement, seekTime: number) => {
+      previewVideo.currentTime = Math.min(Math.max(seekTime, 0), Math.max(0, duration - 0.1));
+      const drawSnapshot = () => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(previewVideo, 0, 0, canvas.width, canvas.height);
+      };
+
+      previewVideo.onseeked = () => {
+        drawSnapshot();
+      };
+      if (previewVideo.readyState >= 2) {
+        drawSnapshot();
+      }
+    };
+
+    previewVideo.onloadedmetadata = () => {
+      canvases.forEach((canvas, index) => {
+        const seekTime = (index / Math.max(1, frameCount - 1)) * duration;
+        drawFrame(canvas, seekTime);
+      });
+    };
+
+    previewVideo.load();
   }
 
   function updateTrimMarkers() {
@@ -1045,22 +1867,93 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     applyVideoFilters();
   }
 
+  function clampValue(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function applyMaskOverlay() {
+    const visibleMasks = (() => {
+      const pending = pendingMask;
+      if (!pending) return masks;
+      return masks.some((mask) => mask.id === pending.id) ? masks : [...masks, pending];
+    })();
+
+    const overlays = visibleMasks.map((mask) => {
+      const style: Record<string, string> = {
+        position: 'absolute',
+        left: `${mask.x}%`,
+        top: `${mask.y}%`,
+        width: `${Math.max(12, mask.width)}%`,
+        height: `${Math.max(12, mask.height)}%`,
+        opacity: String(mask.opacity),
+        background: `${mask.color}22`,
+        border: `2px solid ${mask.color}`,
+        borderRadius: mask.type === 'circle' ? '50%' : '12px',
+        boxShadow: `0 0 ${mask.blur}px ${mask.color}`,
+        filter: `blur(${Math.min(mask.blur, 12)}px)`,
+        pointerEvents: 'none',
+        transform: 'translate(-50%, -50%)',
+      };
+
+      if (mask.type === 'freehand' && mask.points.length > 2) {
+        const points = mask.points.map((point) => `${point.x},${point.y}`).join(' ');
+        style.clipPath = `polygon(${points})`;
+        style.width = '100%';
+        style.height = '100%';
+        style.left = '50%';
+        style.top = '50%';
+      }
+
+      const el = div({
+        className: 'absolute pointer-events-none',
+        style: Object.entries(style).map(([key, value]) => `${key}:${value};`).join(' '),
+      });
+      return el;
+    });
+
+    maskOverlay.innerHTML = '';
+    if (!visibleMasks.length) {
+      maskOverlay.classList.add('hidden');
+      return;
+    }
+
+    maskOverlay.classList.remove('hidden');
+    overlays.forEach((node) => maskOverlay.append(node));
+  }
+
   function applyVideoFilters() {
     const scaleX = flipH ? -1 : 1;
     const scaleY = flipV ? -1 : 1;
     const zoomScaleX = scaleX * viewportZoom.zoomLevel;
     const zoomScaleY = scaleY * viewportZoom.zoomLevel;
 
+    const exposureBoost = filters.exposure / 100;
+    const highlightsBoost = filters.highlights / 100;
+    const shadowsBoost = filters.shadows / 100;
+    const vignetteAmount = Math.max(0, filters.vignette) / 100;
+    const filmGrainAmount = Math.max(0, filters.filmGrain) / 100;
+    const fadeAmount = Math.max(0, filters.fade) / 100;
+
     videoElement.style.filter = `
-      brightness(${filters.brightness}%)
-      contrast(${filters.contrast}%)
-      saturate(${filters.saturate}%)
-      hue-rotate(${filters.temperature}deg)
+      brightness(${clampValue(filters.brightness * exposureBoost, 0, 200)}%)
+      contrast(${clampValue(filters.contrast * highlightsBoost, 0, 250)}%)
+      saturate(${clampValue(filters.saturate * shadowsBoost, 0, 250)}%)
+      hue-rotate(${filters.temperature + filters.tint}deg)
       blur(${filters.blur}px)
       grayscale(${filters.grayscale}%)
-      sepia(${filters.sepia}%)
+      sepia(${filters.sepia + filters.fade * 0.2}%)
+      drop-shadow(0 0 ${Math.max(0, filters.sharpen)}px rgba(255,255,255,${Math.min(0.6, vignetteAmount)}))
     `.trim();
     videoElement.style.transform = `translate(${viewportZoom.panX}px, ${viewportZoom.panY}px) rotate(${rotation}deg) scale(${zoomScaleX}, ${zoomScaleY})`;
+
+    applyMaskOverlay();
+
+    if (videoElement.parentElement) {
+      const overlay = videoElement.parentElement.querySelector('.video-fx-overlay') as HTMLDivElement | null;
+      if (overlay) {
+        overlay.style.background = `radial-gradient(circle at center, rgba(255,255,255,${Math.min(0.35, fadeAmount)}) 0%, rgba(0,0,0,${Math.min(0.45, filmGrainAmount)}) 60%, rgba(0,0,0,${Math.min(0.7, vignetteAmount)}) 100%)`;
+      }
+    }
   }
 
   function updateTransforms() {
@@ -1104,19 +1997,31 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function updateCaptions() {
-    if (!captionText.trim()) {
+    const activeCaption = getActiveCaption();
+    const resolvedText = activeCaption?.text ?? captionText;
+
+    if (!resolvedText.trim() && !captionSegments.length) {
       captionOverlay.classList.add('hidden');
-    } else {
-      captionOverlay.textContent = captionText;
-      captionOverlay.style.fontSize = `${captionSize}px`;
-      captionOverlay.style.fontWeight = captionWeight;
-      captionOverlay.style.backgroundColor = captionBg;
-      captionOverlay.style.textShadow = captionShadow ? '0 2px 4px rgba(0,0,0,0.8)' : 'none';
-      captionOverlay.style.left = `${captionX}%`;
-      captionOverlay.style.top = `${captionY}%`;
-      captionOverlay.style.transform = 'translate(-50%, -50%)';
-      captionOverlay.classList.remove('hidden');
+      return;
     }
+
+    captionOverlay.textContent = resolvedText;
+    const styleSource = activeCaption?.style ?? {
+      size: captionSize,
+      weight: captionWeight,
+      background: captionBg,
+      shadow: captionShadow,
+      x: captionX,
+      y: captionY,
+    };
+    captionOverlay.style.fontSize = `${styleSource.size}px`;
+    captionOverlay.style.fontWeight = styleSource.weight;
+    captionOverlay.style.backgroundColor = styleSource.background;
+    captionOverlay.style.textShadow = styleSource.shadow ? '0 2px 4px rgba(0,0,0,0.8)' : 'none';
+    captionOverlay.style.left = `${styleSource.x}%`;
+    captionOverlay.style.top = `${styleSource.y}%`;
+    captionOverlay.style.transform = 'translate(-50%, -50%)';
+    captionOverlay.classList.remove('hidden');
   }
 
   // Real Export Engine Implementation
@@ -1151,18 +2056,47 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     renderCanvas.width = targetWidth;
     renderCanvas.height = targetHeight;
     const ctx = renderCanvas.getContext('2d');
-
     const stream = renderCanvas.captureStream(exportFps);
-    
+
     try {
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaElementSource(videoElement);
       const dest = audioCtx.createMediaStreamDestination();
       source.connect(dest);
       source.connect(audioCtx.destination);
-      dest.stream.getAudioTracks().forEach(track => stream.addTrack(track));
+      dest.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
     } catch (err) {
       console.warn('Audio capture stream initialization skipped:', err);
+    }
+
+    const supportsWebCodecs = typeof window !== 'undefined' && 'VideoEncoder' in window && 'AudioEncoder' in window;
+    if (supportsWebCodecs) {
+      const VideoEncoderCtor = (window as typeof window & { VideoEncoder?: typeof VideoEncoder }).VideoEncoder;
+      if (VideoEncoderCtor) {
+        const encoder = new VideoEncoderCtor({
+          output: async (chunk) => {
+            const encodedChunk = chunk as any;
+            const chunkBuffer = typeof encodedChunk.arrayBuffer === 'function'
+              ? await encodedChunk.arrayBuffer()
+              : encodedChunk.data ? encodedChunk.data : new Uint8Array();
+            renderChunks.push(new Blob([chunkBuffer], { type: 'video/webm' }));
+          },
+          error: (error) => {
+            console.warn('WebCodecs export failed, falling back to MediaRecorder:', error);
+          },
+        });
+        encoder.configure({
+          codec: 'vp09.00.10.08',
+          width: targetWidth,
+          height: targetHeight,
+          bitrate: exportBitrate,
+          framerate: exportFps,
+        });
+        const data = new VideoFrame(renderCanvas, { timestamp: 0 });
+        encoder.encode(data);
+        data.close();
+        encoder.flush();
+      }
     }
 
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
@@ -1208,14 +2142,28 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         ctx.translate(targetWidth / 2, targetHeight / 2);
         ctx.rotate((rotation * Math.PI) / 180);
         ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-        ctx.drawImage(videoElement, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+
+        if (activeTransition === 'crossfade' && clipSegments.length > 1) {
+          const transitionProgress = Math.min(1, (current - trimStart) / Math.max(0.5, (trimEnd - trimStart) * 0.2));
+          ctx.fillStyle = '#000';
+          ctx.fillRect(-targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+          ctx.globalAlpha = 1 - transitionProgress;
+          ctx.drawImage(videoElement, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+          ctx.globalAlpha = transitionProgress;
+          ctx.fillStyle = 'rgba(0,0,0,0.75)';
+          ctx.fillRect(-targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+        } else {
+          ctx.drawImage(videoElement, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight);
+        }
         ctx.restore();
 
-        if (captionText.trim()) {
-          ctx.font = `${captionWeight} ${captionSize * (targetWidth / 1000)}px sans-serif`;
+        const activeCaption = getActiveCaption();
+        if (activeCaption && activeCaption.text.trim()) {
+          const captionStyle = activeCaption.style;
+          ctx.font = `${captionStyle.weight} ${Math.max(18, captionStyle.size * (targetWidth / 1280))}px sans-serif`;
           ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'center';
-          ctx.fillText(captionText, (captionX / 100) * targetWidth, (captionY / 100) * targetHeight);
+          ctx.fillText(activeCaption.text, (captionStyle.x / 100) * targetWidth, (captionStyle.y / 100) * targetHeight);
         }
       }
 
@@ -1343,14 +2291,20 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     viewportZoom.panX = 0;
     viewportZoom.panY = 0;
     captionText = '';
+    captionSegments = [];
+    clipSegments = duration ? [{ id: 1, start: 0, end: duration, label: 'Main Clip' }] : [];
+    masks = [];
+    pendingMask = null;
     updateTransforms();
     updateCaptions();
+    applyMaskOverlay();
     if (duration) updateTrimMarkers();
     pushState();
     renderToolControls();
   }
 
   renderToolControls();
+  void hydrateProjectState();
 
   return root;
 }
