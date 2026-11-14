@@ -1,5 +1,5 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorTitleRow } from './shared';
+import { createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
 import { createScanCameraController } from './scan/camera';
 import type { ScanMode } from './scan/controls';
 import { createWorker } from 'tesseract.js';
@@ -52,15 +52,6 @@ export async function createScanPage(): Promise<HTMLElement> {
     activePageIndex >= 0 && activePageIndex < pages.length ? pages[activePageIndex] : null;
 
   // --- Core DOM Elements ---
-  const root = div({
-    className: 'min-h-screen p-4 sm:p-8 lg:p-10 flex items-center justify-center select-none'
-  });
-
-  const modal = div({
-    className:
-      'w-full max-w-[1060px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col'
-  });
-
   const statusMsgEl = span({ id: 'status-msg', className: 'text-slate-200 font-mono truncate max-w-[140px]' }, 'Waiting for upload');
   const statusModeEl = span({ className: 'font-semibold text-emerald-400' }, 'PDF Document');
 
@@ -201,14 +192,7 @@ export async function createScanPage(): Promise<HTMLElement> {
     )
   );
 
-  const { titleRow, fullscreenButton } = createEditorTitleRow(
-    'Edit your scan',
-    () => resetEditor(),
-    () => toggleEditorFullscreen()
-  );
-
   // --- Side Panel Navigation ---
-  const sidePanelNav = div({ className: 'flex gap-1 px-5 pb-3 overflow-x-auto' });
   const toolContainer = div({ className: 'space-y-4' });
 
   const tabs: { id: ScanTab; label: string }[] = [
@@ -221,16 +205,10 @@ export async function createScanPage(): Promise<HTMLElement> {
     { id: 'export', label: 'EXPORT' }
   ];
 
-  tabs.forEach((tab) => {
-    const btn = button(
-      {
-        type: 'button',
-        className: getTabClassName(activeTab === tab.id),
-        onclick: () => switchTab(tab.id)
-      },
-      tab.label
-    );
-    sidePanelNav.append(btn);
+  const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
+    activeClassName: 'border-emerald-400/30 bg-slate-900/60 text-white shadow-inner',
+    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
+    containerClassName: 'flex gap-1 px-5 pb-3 overflow-x-auto'
   });
 
   function getTabClassName(isSelected: boolean): string {
@@ -1247,10 +1225,17 @@ export async function createScanPage(): Promise<HTMLElement> {
   // --- Layout Assembly & Fullscreen ---
   const workspace = div({ className: 'flex flex-col md:flex-row gap-5 px-5 pb-5' }, sidePanel, stage);
   const modalFooter = createEditorFooter(() => resetEditor(), () => triggerExport());
-  const modalWrap = div({ className: 'w-full' }, titleRow, sidePanelNav, workspace, modalFooter);
 
-  modal.append(modalWrap);
-  root.append(modal);
+  const { root, modal, fullscreenButton } = createEditorShell({
+    title: 'Edit your scan',
+    nav: sidePanelNav,
+    workspace,
+    footer: modalFooter,
+    onReset: () => resetEditor(),
+    onToggleFullscreen: () => toggleEditorFullscreen(),
+    rootClassName: 'min-h-screen p-4 sm:p-8 lg:p-10 flex items-center justify-center select-none',
+    modalClassName: 'w-full max-w-[1060px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-hidden flex flex-col'
+  });
 
   const updateFullscreenButton = () => {
     fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
