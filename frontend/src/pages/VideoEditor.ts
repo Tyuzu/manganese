@@ -1,5 +1,7 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { bindEditorFullscreenButton, createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
+import { appStore } from '../appState';
+import { processMediaOnServer } from '../api';
+import { bindEditorFullscreenButton, createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav, createMediaProcessingModeSelector } from './shared';
 
 type VideoTab = 'timeline' | 'filters' | 'transform' | 'audio' | 'captions' | 'export';
 type ClipTransition = 'none' | 'crossfade' | 'dip-to-black' | 'wipe' | 'slide';
@@ -784,6 +786,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
 
+  const editorTopBar = div({ className: 'flex flex-col gap-3' },
+    sidePanelNav,
+    createMediaProcessingModeSelector({ label: 'Edit location', className: 'w-full' })
+  );
+
   const sidePanel = div({ className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[310px] flex flex-col justify-between overflow-y-auto max-h-[540px]' },
     toolContainer
   );
@@ -1113,7 +1120,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   const { root, modal, fullscreenButton } = createEditorShell({
     title: 'Video Studio Pro',
-    nav: sidePanelNav,
+    nav: editorTopBar,
     workspace,
     footer: modalFooter,
     onReset: () => resetEditor(),
@@ -2004,6 +2011,33 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     if (!videoFile || !videoUrl) {
       alert('Please import a video before rendering.');
       return;
+    }
+
+    if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
+      try {
+        const result = await processMediaOnServer({
+          operation: 'video-export',
+          mediaType: 'video',
+          fileName: videoFile.name || `rendered-video-${Date.now()}.${exportFormat}`,
+          mode: 'server',
+          dataUrl: videoUrl,
+          metadata: {
+            resolution: exportResolution,
+            fps: exportFps,
+            format: exportFormat,
+            bitrate: exportBitrate,
+            trimStart,
+            trimEnd,
+          },
+        });
+        console.info('Video export sent to backend:', result);
+        alert(result.message || 'Video processing request was sent to the server.');
+        return;
+      } catch (error) {
+        console.error('Server video export failed:', error);
+        alert('Server render failed. Please retry or use browser rendering.');
+        return;
+      }
     }
 
     isRendering = true;

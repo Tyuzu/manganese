@@ -1,5 +1,7 @@
 import { button, createButton, div, input, label, p, path, svg } from '../components/ui/dom';
-import { bindEditorFullscreenButton, createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
+import { appStore } from '../appState';
+import { processMediaOnServer } from '../api';
+import { bindEditorFullscreenButton, createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav, createMediaProcessingModeSelector } from './shared';
 
 type ImageStudioTab = 'crop' | 'adjust' | 'transform' | 'filters' | 'text';
 
@@ -122,6 +124,11 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
     containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
   });
+
+  const editorTopBar = div({ className: 'flex flex-col gap-3' },
+    sidePanelNav,
+    createMediaProcessingModeSelector({ label: 'Edit location', className: 'w-full' })
+  );
 
   const undoRedoGroup = div({ className: 'flex items-center gap-1.5' },
     button({
@@ -279,7 +286,7 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
 
   const { root, modal, fullscreenButton } = createEditorShell({
     title: 'Image Studio Pro',
-    nav: sidePanelNav,
+    nav: editorTopBar,
     workspace,
     footer: modalFooter,
     onReset: () => resetEditor(),
@@ -604,11 +611,38 @@ export async function createImageEditorPage(): Promise<HTMLElement> {
     renderComposedImage();
   }
 
-  function exportImage(format: 'png' | 'jpeg' = 'png') {
+  async function exportImage(format: 'png' | 'jpeg' = 'png') {
     if (!originalImage) return;
+    const mode = appStore.getState().mediaProcessingMode ?? 'browser';
     const prevTab = activeTab;
     activeTab = 'adjust';
     renderComposedImage();
+
+    if (mode === 'server') {
+      try {
+        const fileName = `studio-export-${Date.now()}.${format}`;
+        const result = await processMediaOnServer({
+          operation: 'image-export',
+          mediaType: 'image',
+          fileName,
+          mode: 'server',
+          dataUrl: previewCanvas.toDataURL(`image/${format}`, 0.95),
+          metadata: {
+            width: previewCanvas.width,
+            height: previewCanvas.height,
+            format,
+          },
+        });
+        console.info('Image export sent to backend:', result);
+        alert(result.message || 'Image sent to server for processing.');
+      } catch (error) {
+        console.error('Server export failed:', error);
+        alert('Server export failed, falling back to browser export.');
+      }
+      activeTab = prevTab;
+      renderComposedImage();
+      return;
+    }
 
     const link = document.createElement('a');
     link.download = `studio-export-${Date.now()}.${format}`;

@@ -8,7 +8,7 @@ import (
 )
 
 func TestCORSAllowsBrowserPreflightForProtectedRequests(t *testing.T) {
-	req := httptest.NewRequest(http.MethodOptions, "/api/v1/farms", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/media/process", nil)
 	req.Header.Set("Origin", "http://localhost:3000")
 	req.Header.Set("Access-Control-Request-Method", "PATCH")
 

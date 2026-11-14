@@ -101,6 +101,15 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiOptions = 
   return (await readJsonResponse<T>(response)) as T;
 }
 
+export interface MediaServerProcessRequest {
+  operation: string;
+  mediaType?: 'image' | 'video' | 'document' | 'media';
+  fileName?: string;
+  dataUrl?: string;
+  mode?: 'browser' | 'server';
+  metadata?: Record<string, unknown>;
+}
+
 export const api = {
   get: <T = any>(endpoint: string, options: Omit<ApiOptions, 'method' | 'body'> = {}) =>
     apiFetch<T>(endpoint, { ...options, method: 'GET' }),
@@ -113,3 +122,13 @@ export const api = {
   delete: <T = any>(endpoint: string, options: Omit<ApiOptions, 'method' | 'body'> = {}) =>
     apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
 };
+
+export async function processMediaOnServer(payload: MediaServerProcessRequest) {
+  return api.post<{ ok: boolean; mode: string; operation: string; message: string; fileName?: string; size?: number; output?: string }>(
+    '/media/process',
+    {
+      ...payload,
+      mode: payload.mode ?? 'server',
+    }
+  );
+}

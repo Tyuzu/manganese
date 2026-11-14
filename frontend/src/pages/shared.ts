@@ -1,4 +1,5 @@
 import { button, cn, createButton, div, h2, input, p, span, uiClasses } from '../components/ui/dom';
+import { appStore, mediaModeActions, type MediaProcessingMode } from '../appState';
 
 export interface DashboardFeature {
   title: string;
@@ -60,6 +61,47 @@ export function createFeatureGrid(
     grid.appendChild(createFeatureCard(feature, onNavigate));
   });
   return grid;
+}
+
+export function createMediaProcessingModeSelector(options?: { label?: string; className?: string }): HTMLElement {
+  const label = options?.label ?? 'Edit location';
+  const wrapper = div({
+    className: cn('flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-3 shadow-inner shadow-slate-950/40', options?.className)
+  });
+
+  const title = p({ className: 'm-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300' }, label);
+  const buttons = div({ className: 'grid grid-cols-2 gap-2' });
+
+  const browserButton = button({
+    type: 'button',
+    className: 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-sky-500/40 bg-sky-500/10 text-sky-100',
+    onclick: () => mediaModeActions.set('browser')
+  }, 'Browser');
+
+  const serverButton = button({
+    type: 'button',
+    className: 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white',
+    onclick: () => mediaModeActions.set('server')
+  }, 'Server');
+
+  const syncSelection = (nextMode: MediaProcessingMode) => {
+    const isBrowser = nextMode === 'browser';
+    browserButton.className = isBrowser
+      ? 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-sky-500/40 bg-sky-500/10 text-sky-100 shadow-[0_0_0_1px_rgba(56,189,248,0.15)]'
+      : 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white';
+    serverButton.className = !isBrowser
+      ? 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-violet-500/40 bg-violet-500/10 text-violet-100 shadow-[0_0_0_1px_rgba(167,139,250,0.15)]'
+      : 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white';
+    browserButton.setAttribute('aria-pressed', String(isBrowser));
+    serverButton.setAttribute('aria-pressed', String(!isBrowser));
+  };
+
+  buttons.append(browserButton, serverButton);
+  wrapper.append(title, buttons);
+  syncSelection(appStore.getState().mediaProcessingMode ?? 'browser');
+  appStore.subscribe((state) => syncSelection(state.mediaProcessingMode ?? 'browser'));
+
+  return wrapper;
 }
 
 export function createDetailPanel(

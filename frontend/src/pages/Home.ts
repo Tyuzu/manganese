@@ -1,5 +1,5 @@
 import { cn, div, h1, p, span, uiClasses } from '../components/ui/dom';
-import { createFeatureGrid } from './shared';
+import { createFeatureGrid, createMediaProcessingModeSelector } from './shared';
 import { router } from '../main';
 
 const dashboardFeatures = [
@@ -65,6 +65,7 @@ export async function createHomePage(): Promise<HTMLElement> {
     )
   );
 
+  hero.appendChild(createMediaProcessingModeSelector({ label: 'Edit location', className: 'mt-6 max-w-xl' }));
   hero.appendChild(createFeatureGrid(dashboardFeatures, (route) => router.navigate(route)));
   return hero;
 }

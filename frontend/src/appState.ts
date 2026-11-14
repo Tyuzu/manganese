@@ -2,6 +2,8 @@ import { createStore } from './state/store';
 import { withPersistence } from './state/persistence';
 import { applyEditorTheme, applyTheme, normalizeEditorTheme, normalizeTheme, type AppTheme, type EditorThemeName } from './theme';
 
+export type MediaProcessingMode = 'browser' | 'server';
+
 export interface RouteStateMap {
   [routeKey: string]: Record<string, unknown>;
 }
@@ -12,6 +14,7 @@ export interface AppState {
   roles: string[];
   theme: AppTheme;
   editorTheme: EditorThemeName;
+  mediaProcessingMode: MediaProcessingMode;
   isAuthenticated: boolean;
   routeState: RouteStateMap;
 }
@@ -31,6 +34,10 @@ const normalizeRoles = (roles: unknown): string[] => {
   );
 };
 
+const normalizeMediaProcessingMode = (mode: unknown): MediaProcessingMode => {
+  return mode === 'server' ? 'server' : 'browser';
+};
+
 export const normalizeAppState = (state: Partial<AppState> = {}): AppState => {
   const token = typeof state.token === 'string' && state.token.length > 0 ? state.token : null;
   const handle = typeof state.handle === 'string' && state.handle.trim().length > 0 ? state.handle : null;
@@ -43,6 +50,7 @@ export const normalizeAppState = (state: Partial<AppState> = {}): AppState => {
     roles,
     theme: normalizeTheme(state.theme),
     editorTheme: normalizeEditorTheme(state.editorTheme),
+    mediaProcessingMode: normalizeMediaProcessingMode(state.mediaProcessingMode),
     isAuthenticated,
     routeState:
       state.routeState && typeof state.routeState === 'object' && !Array.isArray(state.routeState)
@@ -57,6 +65,7 @@ export const DEFAULT_APP_STATE: AppState = normalizeAppState({
   roles: [],
   theme: 'dark',
   editorTheme: 'midnight',
+  mediaProcessingMode: 'browser',
   isAuthenticated: false,
   routeState: {},
 });
@@ -82,16 +91,17 @@ const baseStore = createStore<AppState>(DEFAULT_APP_STATE);
 
 export const appStore = withPersistence(baseStore, {
   key: 'my_spa_app_state',
-  version: 5,
+  version: 6,
   debounceMs: 0,
   migrations: {
-    5: (oldState: any) =>
+    6: (oldState: any) =>
       normalizeAppState({
         token: oldState?.token ?? null,
         handle: oldState?.handle ?? null,
         roles: Array.isArray(oldState?.roles) ? oldState.roles : oldState?.token ? ['user'] : [],
         theme: normalizeTheme(oldState?.theme),
         editorTheme: normalizeEditorTheme(oldState?.editorTheme),
+        mediaProcessingMode: normalizeMediaProcessingMode(oldState?.mediaProcessingMode),
         isAuthenticated: Boolean(oldState?.token || oldState?.isAuthenticated),
         routeState: oldState?.routeState ?? {},
       }),
@@ -102,6 +112,7 @@ export const appStore = withPersistence(baseStore, {
     roles: state.roles,
     theme: state.theme,
     editorTheme: state.editorTheme,
+    mediaProcessingMode: state.mediaProcessingMode,
     isAuthenticated: state.isAuthenticated,
     routeState: state.routeState,
   }),
@@ -135,6 +146,16 @@ export const routeStateActions = {
       return { ...currentState, routeState: nextRouteState };
     });
   },
+};
+
+export const mediaModeActions = {
+  set: (mode: MediaProcessingMode) => {
+    appStore.setState((currentState) => ({
+      ...currentState,
+      mediaProcessingMode: normalizeMediaProcessingMode(mode),
+    }));
+  },
+  get: () => appStore.getState().mediaProcessingMode ?? 'browser',
 };
 
 export const authActions = {
