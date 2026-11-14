@@ -1,4 +1,6 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
+import { appStore } from '../appState';
+import { processMediaOnServer } from '../api';
 import {
   createDetailPanel,
   createEditorFooter,
@@ -703,7 +705,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     renderToolControls();
   }
 
-  function triggerExport(format: 'pdf' | 'jpg' | 'txt') {
+  async function triggerExport(format: 'pdf' | 'jpg' | 'txt') {
     const baseName = (uploadedFileName || 'scanned-document').replace(/\.[^/.]+$/, '');
 
     if (format === 'txt') {
@@ -716,6 +718,30 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       URL.revokeObjectURL(url);
       showToast(`Downloaded ${baseName}-ocr.txt`, 'success');
       return;
+    }
+
+    if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
+      const contentData = uploadedFileUrl ?? `data:${uploadedFileType === 'pdf' ? 'application/pdf' : 'image/png'};base64,`;
+      try {
+        const result = await processMediaOnServer({
+          operation: 'pdf-export',
+          mediaType: 'pdf',
+          fileName: `${baseName}-edited.${format}`,
+          dataUrl: contentData,
+          mode: 'server',
+          metadata: {
+            format,
+            pageCount: pages.length,
+            ocrEnabled,
+            language: ocrLanguage,
+          },
+        });
+        console.info('PDF export sent to backend:', result);
+        showToast(`Sent ${baseName} to server for processing`, 'success');
+        return;
+      } catch (error) {
+        console.error('PDF server processing failed:', error);
+      }
     }
 
     if (uploadedFileUrl) {

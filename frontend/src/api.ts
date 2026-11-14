@@ -103,11 +103,28 @@ export async function apiFetch<T = any>(endpoint: string, options: ApiOptions = 
 
 export interface MediaServerProcessRequest {
   operation: string;
-  mediaType?: 'image' | 'video' | 'document' | 'media';
+  mediaType?: 'image' | 'video' | 'scan' | 'pdf' | 'document' | 'media';
   fileName?: string;
   dataUrl?: string;
   mode?: 'browser' | 'server';
   metadata?: Record<string, unknown>;
+}
+
+export function buildMediaOperationRequest(
+  operation: string,
+  mediaType: MediaServerProcessRequest['mediaType'],
+  fileName: string,
+  dataUrl?: string,
+  metadata?: Record<string, unknown>
+): MediaServerProcessRequest {
+  return {
+    operation,
+    mediaType,
+    fileName,
+    dataUrl,
+    mode: 'server',
+    metadata,
+  };
 }
 
 export const api = {
@@ -124,11 +141,24 @@ export const api = {
 };
 
 export async function processMediaOnServer(payload: MediaServerProcessRequest) {
+  const mediaType = payload.mediaType ?? 'media';
+  const endpoint =
+    mediaType === 'video'
+      ? '/video/process'
+      : mediaType === 'scan'
+        ? '/scan/process'
+        : mediaType === 'pdf'
+          ? '/pdf/process'
+          : mediaType === 'image'
+            ? '/image/process'
+            : '/media/process';
+
   return api.post<{ ok: boolean; mode: string; operation: string; message: string; fileName?: string; size?: number; output?: string }>(
-    '/media/process',
+    endpoint,
     {
       ...payload,
       mode: payload.mode ?? 'server',
+      metadata: payload.metadata ?? {},
     }
   );
 }

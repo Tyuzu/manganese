@@ -1,4 +1,6 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
+import { appStore } from '../appState';
+import { processMediaOnServer } from '../api';
 import {
   createDetailPanel,
   createEditorFooter,
@@ -1142,12 +1144,29 @@ export async function createScanPage(): Promise<HTMLElement> {
       const extension = exportFormat === 'pdf' ? 'jpg' : exportFormat;
       const downloadUrl = canvas.toDataURL(mimeType, exportQuality);
 
-      const link = document.createElement('a');
-      link.download = `${scanName || 'Scan'}.${extension}`;
-      link.href = downloadUrl;
-      link.click();
-
-      setStatus(`Exported ${link.download}`);
+      if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
+        const result = await processMediaOnServer({
+          operation: 'scan-export',
+          mediaType: 'scan',
+          fileName: `${scanName || 'Scan'}.${extension}`,
+          dataUrl: downloadUrl,
+          mode: 'server',
+          metadata: {
+            exportFormat,
+            quality: exportQuality,
+            pageCount: pages.length,
+            mode: currentMode,
+          },
+        });
+        console.info('Scan export sent to backend:', result);
+        setStatus(`Sent ${scanName || 'Scan'} to server`);
+      } else {
+        const link = document.createElement('a');
+        link.download = `${scanName || 'Scan'}.${extension}`;
+        link.href = downloadUrl;
+        link.click();
+        setStatus(`Exported ${link.download}`);
+      }
     } catch {
       setStatus('Export failed');
     }
