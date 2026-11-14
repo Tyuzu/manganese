@@ -1,5 +1,12 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
+import {
+  createDetailPanel,
+  createEditorFooter,
+  createEditorShell,
+  createEditorTabNav,
+  createPresetButton,
+  createSliderControl,
+} from './shared';
 
 interface ScannerPageItem {
   id: string;
@@ -763,51 +770,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     switchTab('ocr');
     showToast('OCR text extraction completed!', 'success');
   });
-
-  // --- UI Component Builders ---
-  function createSliderControl(
-    title: string,
-    value: number,
-    min: number,
-    max: number,
-    unit: string,
-    onChange: (val: number) => void
-  ) {
-    const valDisplay = div({ className: 'text-xs font-mono text-cyan-400' }, `${value}${unit}`);
-
-    return div(
-      { className: 'space-y-1.5' },
-      div({ className: 'flex justify-between items-center' }, label({ className: 'text-xs font-medium text-slate-300' }, title), valDisplay),
-      input({
-        type: 'range',
-        min: min.toString(),
-        max: max.toString(),
-        value: value.toString(),
-        step: unit === '°' ? '0.5' : '1',
-        className: 'w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500',
-        oninput: (e: Event) => {
-          const v = parseFloat((e.target as HTMLInputElement).value);
-          valDisplay.textContent = `${v}${unit}`;
-          onChange(v);
-        },
-      })
-    );
-  }
-
-  function createPresetButton(name: string, onClick: () => void, isActive = false) {
-    return button(
-      {
-        type: 'button',
-        className: `rounded-xl border p-2.5 text-center text-[11px] font-medium transition-all shadow-sm ${
-          isActive
-            ? 'border-cyan-500/60 bg-cyan-950/60 text-cyan-200'
-            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:text-white'
-        }`,
-        onclick: onClick,
-      },
-      name
-    );
-  }
 
   function createPageThumbnailItem(pageItem: ScannerPageItem, index: number) {
     const isSelected = index === selectedPageIndex;

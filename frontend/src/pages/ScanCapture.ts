@@ -1,5 +1,12 @@
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { createDetailPanel, createEditorFooter, createEditorShell, createEditorTabNav } from './shared';
+import {
+  createDetailPanel,
+  createEditorFooter,
+  createEditorShell,
+  createEditorTabNav,
+  createPresetButton,
+  createSliderControl,
+} from './shared';
 import { createScanCameraController } from './scan/camera';
 import type { ScanMode } from './scan/controls';
 import { createWorker } from 'tesseract.js';
@@ -1153,49 +1160,6 @@ export async function createScanPage(): Promise<HTMLElement> {
       btn.className = getTabClassName(tabs[idx].id === tab);
     });
     renderToolControls();
-  }
-
-  function createPresetButton(labelText: string, isActive: boolean, onClick: () => void) {
-    return button(
-      {
-        type: 'button',
-        className: `rounded-xl border p-2.5 text-left text-xs font-medium transition-all shadow-sm ${
-          isActive
-            ? 'border-emerald-500/70 bg-emerald-950/50 text-white'
-            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:text-white'
-        }`,
-        onclick: onClick
-      },
-      labelText
-    );
-  }
-
-  function createSliderControl(
-    labelText: string,
-    initialValue: number,
-    min: number,
-    max: number,
-    onChange: (val: number) => void
-  ) {
-    const valBadge = span({ className: 'font-mono text-emerald-400' }, `${initialValue}%`);
-    const slider = input({
-      type: 'range',
-      min: String(min),
-      max: String(max),
-      value: String(initialValue),
-      className: 'w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg',
-      oninput: (e: Event) => {
-        const val = Number((e.target as HTMLInputElement).value);
-        valBadge.textContent = `${val}%`;
-        onChange(val);
-      }
-    });
-
-    return div(
-      { className: 'space-y-1' },
-      div({ className: 'flex justify-between text-[11px] text-slate-300' }, span({}, labelText), valBadge),
-      slider
-    );
   }
 
   function resetEditor() {

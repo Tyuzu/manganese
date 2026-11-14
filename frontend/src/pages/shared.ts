@@ -1,4 +1,4 @@
-import { button, cn, createButton, div, h2, p, span, uiClasses } from '../components/ui/dom';
+import { button, cn, createButton, div, h2, input, p, span, uiClasses } from '../components/ui/dom';
 
 export interface DashboardFeature {
   title: string;
@@ -215,6 +215,91 @@ export function createEditorShell({
   return { root, modal, titleRow, fullscreenButton };
 }
 
+export function createSliderControl(
+  title: string,
+  value: number,
+  min: number,
+  max: number,
+  onChangeOrUnit: ((value: number) => void) | string,
+  maybeOnChange?: (value: number) => void,
+  options?: {
+    unit?: string;
+    labelClassName?: string;
+    valueClassName?: string;
+    trackClassName?: string;
+    containerClassName?: string;
+  }
+): HTMLElement {
+  const unit = typeof onChangeOrUnit === 'string' ? onChangeOrUnit : options?.unit ?? '%';
+  const onChange = typeof onChangeOrUnit === 'function' ? onChangeOrUnit : maybeOnChange ?? (() => undefined);
+
+  const valDisplay = div({
+    className: cn('text-xs font-mono', options?.valueClassName ?? 'text-cyan-400')
+  }, `${value}${unit}`);
+
+  const slider = input({
+    type: 'range',
+    min: min.toString(),
+    max: max.toString(),
+    value: value.toString(),
+    step: unit === '°' ? '0.5' : '1',
+    className: cn(
+      'w-full rounded-lg appearance-none cursor-pointer',
+      options?.trackClassName ?? 'h-1.5 bg-slate-800 accent-cyan-500'
+    ),
+    oninput: (e: Event) => {
+      const nextValue = parseFloat((e.target as HTMLInputElement).value);
+      valDisplay.textContent = `${nextValue}${unit}`;
+      onChange(nextValue);
+    }
+  });
+
+  return div(
+    { className: cn('space-y-1.5', options?.containerClassName) },
+    div({ className: 'flex items-center justify-between gap-3' },
+      span({ className: cn('text-xs font-medium text-slate-300', options?.labelClassName) }, title),
+      valDisplay
+    ),
+    slider
+  );
+}
+
+export function createPresetButton(
+  name: string,
+  onClickOrIsActive: (() => void) | boolean,
+  maybeOnClick?: (() => void) | boolean,
+  options?: {
+    activeClassName?: string;
+    inactiveClassName?: string;
+    buttonClassName?: string;
+  }
+): HTMLButtonElement {
+  const hasBooleanSecondArg = typeof onClickOrIsActive === 'boolean';
+  const onClick =
+    typeof onClickOrIsActive === 'function'
+      ? onClickOrIsActive
+      : (typeof maybeOnClick === 'function' ? maybeOnClick : (() => undefined));
+  const isActive =
+    hasBooleanSecondArg
+      ? onClickOrIsActive
+      : (typeof maybeOnClick === 'boolean' ? maybeOnClick : false);
+
+  return button(
+    {
+      type: 'button',
+      className: cn(
+        'rounded-xl border p-2.5 text-center text-[11px] font-medium transition-all shadow-sm',
+        isActive
+          ? (options?.activeClassName ?? 'border-cyan-500/60 bg-cyan-950/60 text-cyan-200')
+          : (options?.inactiveClassName ?? 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:text-white'),
+        options?.buttonClassName
+      ),
+      onclick: onClick,
+    },
+    name
+  );
+}
+
 export function createEditorFooter(
   onCancel: () => void,
   onSave: () => void,
@@ -242,118 +327,16 @@ export function createEditorFooter(
   );
 }
 
-// ==========================================
-// NEW: Toast Notification System
-// ==========================================
+export type {
+  ToastOptions,
+  ModalContentOptions,
+  ModalManagerOptions,
+} from '../components/ui/notifications';
 
-export interface ToastOptions {
-  message: string;
-  variant?: 'info' | 'success' | 'error' | 'warning';
-  durationMs?: number;
-}
-
-export function createToastSystem() {
-  const container = div({
-    className: 'pointer-events-none fixed top-4 right-4 z-50 flex flex-col items-end gap-2.5 max-w-sm w-full px-4',
-  });
-
-  if (typeof document !== 'undefined') {
-    document.body.appendChild(container);
-  }
-
-  function show({ message, variant = 'info', durationMs = 3000 }: ToastOptions) {
-    const variantStyles = {
-      info: 'border-cyan-500/40 bg-slate-900/95 text-cyan-200 shadow-cyan-950/40',
-      success: 'border-emerald-500/40 bg-slate-900/95 text-emerald-300 shadow-emerald-950/40',
-      error: 'border-rose-500/40 bg-slate-900/95 text-rose-300 shadow-rose-950/40',
-      warning: 'border-amber-500/40 bg-slate-900/95 text-amber-200 shadow-amber-950/40',
-    };
-
-    const toast = div(
-      {
-        className: cn(
-          'pointer-events-auto flex items-center justify-between rounded-xl border px-4 py-3 text-xs font-medium shadow-xl backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0',
-          variantStyles[variant]
-        ),
-      },
-      span({ className: 'flex-1 pr-2' }, message)
-    );
-
-    container.appendChild(toast);
-
-    // Trigger enter animation
-    requestAnimationFrame(() => {
-      toast.classList.remove('translate-y-2', 'opacity-0');
-    });
-
-    const dismiss = () => {
-      toast.classList.add('translate-y-[-8px]', 'opacity-0');
-      setTimeout(() => toast.remove(), 300);
-    };
-
-    const timer = setTimeout(dismiss, durationMs);
-    toast.onclick = () => {
-      clearTimeout(timer);
-      dismiss();
-    };
-  }
-
-  return { container, show };
-}
-
-// Global shared toast instance
-export const globalToast = createToastSystem();
-
-// ==========================================
-// NEW: Modal State & Lifecycle Manager
-// ==========================================
-
-export interface ModalManagerOptions {
-  onClose?: () => void;
-  closeOnEscape?: boolean;
-  closeOnBackdropClick?: boolean;
-}
-
-export function createModalManager(rootElement: HTMLElement, options: ModalManagerOptions = {}) {
-  const { onClose, closeOnEscape = true, closeOnBackdropClick = true } = options;
-  let isOpen = true;
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (closeOnEscape && e.key === 'Escape' && isOpen) {
-      close();
-    }
-  };
-
-  const handleBackdropClick = (e: MouseEvent) => {
-    if (closeOnBackdropClick && e.target === rootElement && isOpen) {
-      close();
-    }
-  };
-
-  if (typeof document !== 'undefined') {
-    document.addEventListener('keydown', handleKeyDown);
-    rootElement.addEventListener('click', handleBackdropClick);
-  }
-
-  function close() {
-    if (!isOpen) return;
-    isOpen = false;
-    
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('keydown', handleKeyDown);
-      rootElement.removeEventListener('click', handleBackdropClick);
-    }
-
-    rootElement.style.opacity = '0';
-    rootElement.style.transition = 'opacity 0.2s ease-out';
-    setTimeout(() => {
-      rootElement.remove();
-      onClose?.();
-    }, 200);
-  }
-
-  return {
-    close,
-    isOpen: () => isOpen,
-  };
-}
+export {
+  createToast,
+  createToastStack,
+  globalToast,
+  createModal,
+  createModalManager,
+} from '../components/ui/notifications';
