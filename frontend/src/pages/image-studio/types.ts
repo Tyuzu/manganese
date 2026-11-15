@@ -32,6 +32,8 @@ export type ProjectState = {
   flipX: boolean;
   flipY: boolean;
   zoom: number;
+  panX: number;
+  panY: number;
   brushSize: number;
   maskEnabled: boolean;
   text: string;

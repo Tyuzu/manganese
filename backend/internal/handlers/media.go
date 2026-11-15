@@ -143,6 +143,237 @@ func safeExportName(name string) string {
 	return trimmed
 }
 
+func metadataFloat(metadata map[string]interface{}, key string) float64 {
+	if metadata == nil {
+		return 0
+	}
+	value, found := metadata[key]
+	if !found || value == nil {
+		return 0
+	}
+
+	switch typed := value.(type) {
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	case int:
+		return float64(typed)
+	case int32:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
+		if err == nil {
+			return parsed
+		}
+	}
+
+	return 0
+}
+
+func metadataBool(metadata map[string]interface{}, key string) bool {
+	if metadata == nil {
+		return false
+	}
+	value, found := metadata[key]
+	if !found || value == nil {
+		return false
+	}
+
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		return strings.EqualFold(strings.TrimSpace(typed), "true") || strings.EqualFold(strings.TrimSpace(typed), "1")
+	case float64:
+		return typed != 0
+	}
+
+	return false
+}
+
+func metadataMap(metadata map[string]interface{}, key string) map[string]interface{} {
+	if metadata == nil {
+		return nil
+	}
+	value, found := metadata[key]
+	if !found || value == nil {
+		return nil
+	}
+	parsed, ok := value.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	return parsed
+}
+
+func normalizeExportExtension(name string, metadata map[string]interface{}) string {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		trimmed = "dolomite-export.mp4"
+	}
+
+	ext := filepath.Ext(trimmed)
+	if ext == "" {
+		ext = ".mp4"
+	}
+	if formatValue, ok := metadata["format"].(string); ok {
+		requested := strings.ToLower(strings.TrimSpace(formatValue))
+		if requested == "mp4" || requested == "webm" || requested == "mov" || requested == "mkv" || requested == "avi" {
+			ext = "." + requested
+		}
+	}
+
+	base := strings.TrimSuffix(trimmed, filepath.Ext(trimmed))
+	if ext == "" {
+		return trimmed
+	}
+	return base + ext
+}
+
+func resolveResolution(metadata map[string]interface{}) string {
+	if metadata == nil {
+		return ""
+	}
+
+	value, ok := metadata["resolution"].(string)
+	if !ok {
+		return ""
+	}
+
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "480p":
+		return "854:480"
+	case "720p":
+		return "1280:720"
+	case "1080p":
+		return "1920:1080"
+	case "2k":
+		return "2048:1080"
+	case "1440p":
+		return "2560:1440"
+	case "2160p":
+		return "3840:2160"
+	default:
+		return ""
+	}
+}
+
+func buildVideoFilterString(req mediaRequest) string {
+	parts := make([]string, 0, 8)
+
+	if metadataBool(req.Metadata, "flipH") {
+		parts = append(parts, "hflip")
+	}
+	if metadataBool(req.Metadata, "flipV") {
+		parts = append(parts, "vflip")
+	}
+
+	rotation := int(metadataFloat(req.Metadata, "rotation"))
+	switch rotation % 360 {
+	case 90:
+		parts = append(parts, "transpose=1")
+	case 180:
+		parts = append(parts, "transpose=2,transpose=2")
+	case 270:
+		parts = append(parts, "transpose=2")
+	}
+
+	if resolvedResolution := resolveResolution(req.Metadata); resolvedResolution != "" {
+		parts = append(parts, "scale="+resolvedResolution)
+	}
+
+	if filters := metadataMap(req.Metadata, "filters"); len(filters) > 0 {
+		brightness := metadataFloat(filters, "brightness")
+		contrast := metadataFloat(filters, "contrast")
+		saturation := metadataFloat(filters, "saturate")
+		if saturation == 0 {
+			saturation = metadataFloat(filters, "saturation")
+		}
+		exposure := metadataFloat(filters, "exposure")
+		if brightness != 0 || contrast != 0 || saturation != 0 || exposure != 0 {
+			parts = append(parts, fmt.Sprintf("eq=brightness=%0.2f:contrast=%0.2f:saturation=%0.2f", brightness/200.0, 1.0+contrast/100.0, 1.0+saturation/100.0))
+		}
+	}
+
+	if blur := metadataFloat(req.Metadata, "blur"); blur > 0 {
+		parts = append(parts, fmt.Sprintf("gblur=sigma=%0.2f", blur/8.0))
+	}
+
+	if vignette := metadataFloat(req.Metadata, "vignette"); vignette > 0 {
+		parts = append(parts, fmt.Sprintf("eq=brightness=0.0:contrast=1.0:saturation=1.0:gamma=1.0:gamma_weight=1.0"))
+		_ = vignette
+	}
+
+	return strings.Join(parts, ",")
+}
+
+func buildVideoExportArgs(req mediaRequest, sourcePath string, audioInputs []string, subtitlePath string) []string {
+	args := []string{"-y"}
+
+	trimStart := metadataFloat(req.Metadata, "trimStart")
+	trimEnd := metadataFloat(req.Metadata, "trimEnd")
+	if trimStart > 0 {
+		args = append(args, "-ss", strconv.FormatFloat(trimStart, 'f', 3, 64))
+	}
+
+	args = append(args, "-i", sourcePath)
+
+	if trimEnd > trimStart && trimEnd > 0 {
+		args = append(args, "-to", strconv.FormatFloat(trimEnd-trimStart, 'f', 3, 64))
+	}
+
+	for _, audioPath := range audioInputs {
+		args = append(args, "-i", audioPath)
+	}
+	if subtitlePath != "" {
+		args = append(args, "-i", subtitlePath)
+	}
+
+	videoFilters := buildVideoFilterString(req)
+	if videoFilters != "" {
+		args = append(args, "-vf", videoFilters)
+	}
+
+	fps := metadataFloat(req.Metadata, "fps")
+	if fps > 0 {
+		args = append(args, "-r", strconv.FormatFloat(fps, 'f', 0, 64))
+	}
+
+	args = append(args, "-map", "0:v")
+	if len(audioInputs) > 0 {
+		for index := range audioInputs {
+			args = append(args, "-map", fmt.Sprintf("%d:a?", index+1))
+		}
+	} else {
+		args = append(args, "-map", "0:a?")
+	}
+	if subtitlePath != "" {
+		args = append(args, "-map", fmt.Sprintf("%d:s?", len(audioInputs)+1))
+	}
+
+	if bitrate := int(metadataFloat(req.Metadata, "bitrate")); bitrate > 0 {
+		args = append(args, "-b:v", strconv.Itoa(bitrate))
+	}
+	if volume := metadataFloat(req.Metadata, "volume"); volume > 0 && volume != 1 {
+		args = append(args, "-af", fmt.Sprintf("volume=%0.2f", volume))
+	}
+	args = append(args,
+		"-c:v", "libx264",
+		"-preset", "veryfast",
+		"-crf", "22",
+		"-pix_fmt", "yuv420p",
+		"-c:a", "aac",
+		"-c:s", "mov_text",
+		"-movflags", "+faststart",
+		"-shortest",
+	)
+
+	return args
+}
+
 func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return mediaResponse{}, fmt.Errorf("ffmpeg is not installed: %w", err)
@@ -210,46 +441,15 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 		}
 	}
 
-	outputName := safeExportName(strings.TrimSpace(req.FileName))
+	outputName := normalizeExportExtension(safeExportName(strings.TrimSpace(req.FileName)), req.Metadata)
 	if outputName == "" {
 		outputName = "dolomite-rendered.mp4"
-	}
-	if filepath.Ext(outputName) == "" {
-		outputName += ".mp4"
 	}
 	exportDir := ensureExportDirectory()
 	outputPath := filepath.Join(exportDir, fmt.Sprintf("%d-%s", time.Now().UnixNano(), outputName))
 
-	args := []string{"-y", "-i", sourcePath}
-	for _, audioPath := range audioInputs {
-		args = append(args, "-i", audioPath)
-	}
-	if subtitlePath != "" {
-		args = append(args, "-i", subtitlePath)
-	}
-
-	args = append(args, "-map", "0:v")
-	if len(audioInputs) > 0 {
-		for index := range audioInputs {
-			args = append(args, "-map", fmt.Sprintf("%d:a?", index+1))
-		}
-	} else {
-		args = append(args, "-map", "0:a?")
-	}
-	if subtitlePath != "" {
-		args = append(args, "-map", fmt.Sprintf("%d:s?", len(audioInputs)+1))
-	}
-	args = append(args,
-		"-c:v", "libx264",
-		"-preset", "veryfast",
-		"-crf", "22",
-		"-pix_fmt", "yuv420p",
-		"-c:a", "aac",
-		"-c:s", "mov_text",
-		"-movflags", "+faststart",
-		"-shortest",
-		outputPath,
-	)
+	args := buildVideoExportArgs(req, sourcePath, audioInputs, subtitlePath)
+	args = append(args, outputPath)
 
 	cmd := exec.Command("ffmpeg", args...)
 	combined, err := cmd.CombinedOutput()

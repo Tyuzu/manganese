@@ -64,6 +64,11 @@ export function createImageEditorPage(): HTMLDivElement {
   let autosaveTimer = 0;
   let brushActive = false;
   let painting = false;
+  let panning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panOriginX = 0;
+  let panOriginY = 0;
   let lastPaintPoint: { x: number; y: number } | null = null;
 
   const query = <T extends HTMLElement>(selector: string): T => {
@@ -276,6 +281,8 @@ export function createImageEditorPage(): HTMLDivElement {
     query<HTMLElement>('[data-role="zoom-value"]').textContent =
       Math.round(doc.zoom * 100) + "%";
 
+    applyCanvasTransform(doc);
+
     query<HTMLInputElement>('[data-role="brush-size"]').value =
       String(doc.brushSize);
 
@@ -343,23 +350,7 @@ export function createImageEditorPage(): HTMLDivElement {
     overlayCanvas.style.display = "block";
   }
 
-  function drawPreview(bitmap: ImageBitmap, doc: EditorDocument): void {
-    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-
-      overlayCanvas.width = bitmap.width;
-      overlayCanvas.height = bitmap.height;
-    }
-
-    const ctx = canvasContext;
-    if (!ctx) {
-      return;
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0);
-
+  function applyCanvasTransform(doc: EditorDocument): void {
     const geometry = getGeometry(doc);
     const fit = Math.min(
       1,
@@ -378,7 +369,27 @@ export function createImageEditorPage(): HTMLDivElement {
 
     canvasFrame.style.width = cssWidth + "px";
     canvasFrame.style.height = cssHeight + "px";
+    canvasFrame.style.transform = "translate(" + doc.panX + "px, " + doc.panY + "px)";
+  }
 
+  function drawPreview(bitmap: ImageBitmap, doc: EditorDocument): void {
+    if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+
+      overlayCanvas.width = bitmap.width;
+      overlayCanvas.height = bitmap.height;
+    }
+
+    const ctx = canvasContext;
+    if (!ctx) {
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0);
+
+    applyCanvasTransform(doc);
     updateMaskOverlay(doc);
 
     query<HTMLElement>('[data-role="render-info"]').textContent =
@@ -711,6 +722,8 @@ export function createImageEditorPage(): HTMLDivElement {
       flipX: !!state?.flipX,
       flipY: !!state?.flipY,
       zoom: clamp(state?.zoom || 1, 0.25, 4),
+      panX: state?.panX ?? 0,
+      panY: state?.panY ?? 0,
       brushSize: clamp(state?.brushSize || 32, 2, 200),
       maskEnabled: !!state?.maskEnabled,
       text: state?.text || "",
@@ -1072,19 +1085,50 @@ export function createImageEditorPage(): HTMLDivElement {
     scheduleAutosave();
   }
 
+  function finishPanning(): void {
+    if (!panning) return;
+
+    panning = false;
+    canvas.style.cursor = brushActive ? "crosshair" : "default";
+  }
+
   canvas.addEventListener("pointerdown", (event) => {
-    if (!brushActive || !activeDocument()) return;
+    const doc = activeDocument();
 
-    painting = true;
-    lastPaintPoint = null;
+    if (!doc) return;
 
+    if (brushActive) {
+      painting = true;
+      lastPaintPoint = null;
+
+      canvas.setPointerCapture(event.pointerId);
+      updateMaskPoint(event);
+      return;
+    }
+
+    if (event.button !== 0) return;
+
+    panning = true;
+    panStartX = event.clientX;
+    panStartY = event.clientY;
+    panOriginX = doc.panX;
+    panOriginY = doc.panY;
+    canvas.style.cursor = "grabbing";
     canvas.setPointerCapture(event.pointerId);
-    updateMaskPoint(event);
   });
 
   canvas.addEventListener("pointermove", (event) => {
+    const doc = activeDocument();
+
     if (painting) {
       updateMaskPoint(event);
+      return;
+    }
+
+    if (panning && doc) {
+      doc.panX = panOriginX + (event.clientX - panStartX);
+      doc.panY = panOriginY + (event.clientY - panStartY);
+      applyCanvasTransform(doc);
     }
   });
 
@@ -1103,9 +1147,43 @@ export function createImageEditorPage(): HTMLDivElement {
     }
   }
 
-  canvas.addEventListener("pointerup", finishPainting);
-  canvas.addEventListener("pointercancel", finishPainting);
-  canvas.addEventListener("lostpointercapture", finishPainting);
+  canvas.addEventListener("pointerup", () => {
+    finishPainting();
+    finishPanning();
+  });
+  canvas.addEventListener("pointercancel", () => {
+    finishPainting();
+    finishPanning();
+  });
+  canvas.addEventListener("lostpointercapture", () => {
+    finishPainting();
+    finishPanning();
+  });
+
+  canvas.addEventListener("wheel", (event) => {
+    const doc = activeDocument();
+
+    if (!doc) return;
+
+    event.preventDefault();
+
+    const previousZoom = doc.zoom;
+    const nextZoom = clamp(
+      doc.zoom * (event.deltaY < 0 ? 1.12 : 0.88),
+      0.25,
+      4
+    );
+
+    if (nextZoom === previousZoom) return;
+
+    const ratio = nextZoom / previousZoom;
+    doc.zoom = nextZoom;
+    doc.panX *= ratio;
+    doc.panY *= ratio;
+
+    updateControls();
+    updateRevision(doc);
+  }, { passive: false });
 
   function readCropInputs(): CropRect | null {
     const doc = activeDocument();
@@ -1147,11 +1225,9 @@ export function createImageEditorPage(): HTMLDivElement {
     doc.rotation = 0;
     doc.flipX = false;
     doc.flipY = false;
-    doc.text = "";
-    doc.hasMask = false;
-    doc.maskEnabled = false;
-
-    resizeMaskCanvas(doc, false);
+    doc.zoom = 1;
+    doc.panX = 0;
+    doc.panY = 0;
 
     updateRevision(doc);
     updateControls();
@@ -1269,6 +1345,8 @@ export function createImageEditorPage(): HTMLDivElement {
       case "fit":
         if (doc) {
           doc.zoom = 1;
+          doc.panX = 0;
+          doc.panY = 0;
           updateControls();
           scheduleRender(0);
           scheduleAutosave();
