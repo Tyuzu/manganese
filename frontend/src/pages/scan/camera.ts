@@ -41,6 +41,7 @@ export function createScanCameraController({
 }: ScanCameraControllerOptions) {
   let stream: MediaStream | null = null;
   let cameraReady = false;
+  let currentObjectUrl: string | null = null;
 
   const videoEl = createLiveVideo();
   const cameraOverlay = createCameraOverlay();
@@ -84,19 +85,23 @@ export function createScanCameraController({
     stopCamera();
     cameraReady = false;
 
+    // Revoke previous object URL to prevent memory leaks
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = null;
+    }
+
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    const previewImage = createDocumentPreview(
-      file.name,
-      isPdf
-        ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
+    const src = isPdf
+      ? 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`
           <svg xmlns="http://www.w3.org/2000/svg" width="900" height="600">
             <rect width="100%" height="100%" fill="#e5e7eb"/>
             <text x="50%" y="50%" text-anchor="middle" fill="#111827" font-size="28" font-family="Arial">${file.name}</text>
           </svg>
         `)
-        : URL.createObjectURL(file)
-    );
+      : (currentObjectUrl = URL.createObjectURL(file));
 
+    const previewImage = createDocumentPreview(file.name, src);
     previewFrame.replaceChildren(previewImage);
 
     const modeLabel = getMode() === 'pdf' ? 'PDF' : 'photo';
