@@ -29,7 +29,7 @@ type mediaResponse struct {
 	Operation string                 `json:"operation"`
 	Message   string                 `json:"message"`
 	FileName  string                 `json:"fileName"`
-	Size      int                    `json:"size"`
+	Size      int64                  `json:"size"`
 	Output    string                 `json:"output,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 	Status    string                 `json:"status,omitempty"`
@@ -39,6 +39,7 @@ type mediaResponse struct {
 }
 
 type exportJob struct {
+	mu        sync.RWMutex
 	ID        string    `json:"id"`
 	Status    string    `json:"status"`
 	Message   string    `json:"message"`
@@ -50,14 +51,46 @@ type exportJob struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+func (j *exportJob) update(status, message, output, errStr string, progress float64) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	j.Status = status
+	j.Message = message
+	if output != "" {
+		j.Output = output
+	}
+	if errStr != "" {
+		j.Error = errStr
+	}
+	j.Progress = progress
+	j.UpdatedAt = time.Now()
+}
+
+func (j *exportJob) snapshot() exportJob {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	return exportJob{
+		ID:        j.ID,
+		Status:    j.Status,
+		Message:   j.Message,
+		FileName:  j.FileName,
+		Output:    j.Output,
+		Progress:  j.Progress,
+		Error:     j.Error,
+		CreatedAt: j.CreatedAt,
+		UpdatedAt: j.UpdatedAt,
+	}
+}
+
 var exportJobs sync.Map
 
 func decodeDataURL(dataURL string) ([]byte, error) {
-	if strings.TrimSpace(dataURL) == "" {
+	trimmed := strings.TrimSpace(dataURL)
+	if trimmed == "" {
 		return nil, fmt.Errorf("empty data URL")
 	}
 
-	payload := dataURL
+	payload := trimmed
 	if idx := strings.Index(payload, ","); idx >= 0 {
 		payload = payload[idx+1:]
 	}
@@ -65,38 +98,10 @@ func decodeDataURL(dataURL string) ([]byte, error) {
 		return nil, fmt.Errorf("encoded payload is empty")
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(payload)
-	if err == nil {
+	if decoded, err := base64.StdEncoding.DecodeString(payload); err == nil {
 		return decoded, nil
 	}
-
 	return base64.RawStdEncoding.DecodeString(payload)
-}
-
-func metadataBoolValue(metadata map[string]interface{}, key string) bool {
-	if metadata == nil {
-		return false
-	}
-
-	value, found := metadata[key]
-	if !found || value == nil {
-		return false
-	}
-
-	switch typed := value.(type) {
-	case bool:
-		return typed
-	case string:
-		return strings.EqualFold(strings.TrimSpace(typed), "true") || strings.EqualFold(strings.TrimSpace(typed), "1")
-	case float64:
-		return typed != 0
-	case int:
-		return typed != 0
-	case int64:
-		return typed != 0
-	default:
-		return false
-	}
 }
 
 func buildSubtitleSRT(raw interface{}) string {
@@ -128,6 +133,7 @@ func buildSubtitleSRT(raw interface{}) string {
 			start, _ := segment["start"].(float64)
 			end, _ := segment["end"].(float64)
 			text, _ := segment["text"].(string)
+			text = strings.TrimSpace(text)
 			if text == "" {
 				continue
 			}
@@ -147,12 +153,10 @@ func buildSubtitleSRT(raw interface{}) string {
 	return strings.TrimSpace(content.String())
 }
 
-func formatSRTTimestamp(value interface{}) string {
-	seconds, ok := value.(float64)
-	if !ok {
-		return "00:00:00,000"
+func formatSRTTimestamp(seconds float64) string {
+	if seconds < 0 {
+		seconds = 0
 	}
-
 	whole := int(seconds)
 	ms := int((seconds - float64(whole)) * 1000)
 	hours := whole / 3600
@@ -177,7 +181,7 @@ func safeExportName(name string) string {
 	}
 	trimmed = strings.NewReplacer("/", "-", "\\", "-").Replace(trimmed)
 	trimmed = strings.Map(func(r rune) rune {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.' {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
 			return r
 		}
 		return '-'
@@ -209,12 +213,10 @@ func metadataFloat(metadata map[string]interface{}, key string) float64 {
 	case int64:
 		return float64(typed)
 	case string:
-		parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64)
-		if err == nil {
+		if parsed, err := strconv.ParseFloat(strings.TrimSpace(typed), 64); err == nil {
 			return parsed
 		}
 	}
-
 	return 0
 }
 
@@ -231,11 +233,13 @@ func metadataBool(metadata map[string]interface{}, key string) bool {
 	case bool:
 		return typed
 	case string:
-		return strings.EqualFold(strings.TrimSpace(typed), "true") || strings.EqualFold(strings.TrimSpace(typed), "1")
+		t := strings.TrimSpace(typed)
+		return strings.EqualFold(t, "true") || strings.EqualFold(t, "1")
 	case float64:
 		return typed != 0
+	case int:
+		return typed != 0
 	}
-
 	return false
 }
 
@@ -272,9 +276,6 @@ func normalizeExportExtension(name string, metadata map[string]interface{}) stri
 	}
 
 	base := strings.TrimSuffix(trimmed, filepath.Ext(trimmed))
-	if ext == "" {
-		return trimmed
-	}
 	return base + ext
 }
 
@@ -347,11 +348,6 @@ func buildVideoFilterString(req mediaRequest) string {
 		parts = append(parts, fmt.Sprintf("gblur=sigma=%0.2f", blur/8.0))
 	}
 
-	if vignette := metadataFloat(req.Metadata, "vignette"); vignette > 0 {
-		parts = append(parts, "eq=brightness=0.0:contrast=1.0:saturation=1.0:gamma=1.0:gamma_weight=1.0")
-		_ = vignette
-	}
-
 	return strings.Join(parts, ",")
 }
 
@@ -377,13 +373,11 @@ func buildVideoExportArgs(req mediaRequest, sourcePath string, audioInputs []str
 		args = append(args, "-i", subtitlePath)
 	}
 
-	videoFilters := buildVideoFilterString(req)
-	if videoFilters != "" {
+	if videoFilters := buildVideoFilterString(req); videoFilters != "" {
 		args = append(args, "-vf", videoFilters)
 	}
 
-	fps := metadataFloat(req.Metadata, "fps")
-	if fps > 0 {
+	if fps := metadataFloat(req.Metadata, "fps"); fps > 0 {
 		args = append(args, "-r", strconv.FormatFloat(fps, 'f', 0, 64))
 	}
 
@@ -439,41 +433,27 @@ func queueVideoExport(req mediaRequest) (mediaResponse, error) {
 	exportJobs.Store(jobID, job)
 
 	go func() {
-		job.Status = "processing"
-		job.Message = "Rendering video on the server…"
-		job.Progress = 5
-		job.UpdatedAt = time.Now()
-		exportJobs.Store(jobID, job)
+		job.update("processing", "Rendering video on the server…", "", "", 5)
 
 		result, err := processVideoExport(req)
 		if err != nil {
-			job.Status = "failed"
-			job.Message = err.Error()
-			job.Error = err.Error()
-			job.Progress = 0
-			job.UpdatedAt = time.Now()
-			exportJobs.Store(jobID, job)
+			job.update("failed", err.Error(), "", err.Error(), 0)
 			return
 		}
 
-		job.Status = "completed"
-		job.Message = result.Message
-		job.FileName = result.FileName
-		job.Output = result.Output
-		job.Progress = 100
-		job.UpdatedAt = time.Now()
-		exportJobs.Store(jobID, job)
+		job.update("completed", result.Message, result.Output, "", 100)
 	}()
 
+	snap := job.snapshot()
 	return mediaResponse{
 		OK:        true,
 		Mode:      req.Mode,
 		Operation: req.Operation,
 		Message:   "Video export queued on the server.",
-		FileName:  job.FileName,
-		Status:    job.Status,
+		FileName:  snap.FileName,
+		Status:    snap.Status,
 		JobID:     jobID,
-		Progress:  job.Progress,
+		Progress:  snap.Progress,
 		Metadata:  req.Metadata,
 	}, nil
 }
@@ -487,16 +467,12 @@ func getExportJobStatus(jobID string) (exportJob, bool) {
 	if !ok || job == nil {
 		return exportJob{}, false
 	}
-	return *job, true
+	return job.snapshot(), true
 }
 
 func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return mediaResponse{}, fmt.Errorf("ffmpeg is not installed: %w", err)
-	}
-
-	if strings.TrimSpace(req.DataURL) == "" {
-		return mediaResponse{}, fmt.Errorf("missing source video payload")
 	}
 
 	videoBytes, err := decodeDataURL(req.DataURL)
@@ -510,29 +486,21 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	sourceName := safeExportName(strings.TrimSpace(req.FileName))
-	if sourceName == "" {
-		sourceName = "source-video.mp4"
-	}
-
+	sourceName := safeExportName(req.FileName)
 	sourcePath := filepath.Join(tmpDir, filepath.Base(sourceName))
 	if err := os.WriteFile(sourcePath, videoBytes, 0o644); err != nil {
 		return mediaResponse{}, fmt.Errorf("write source video: %w", err)
 	}
 
-	audioInputs := []string{}
+	var audioInputs []string
 	if rawAudio, ok := req.Metadata["audioTracks"]; ok {
-		tracks, ok := rawAudio.([]interface{})
-		if ok {
+		if tracks, ok := rawAudio.([]interface{}); ok {
 			for _, item := range tracks {
 				track, ok := item.(map[string]interface{})
 				if !ok {
 					continue
 				}
 				dataURL, _ := track["dataUrl"].(string)
-				if strings.TrimSpace(dataURL) == "" {
-					continue
-				}
 				audioBytes, err := decodeDataURL(dataURL)
 				if err != nil {
 					continue
@@ -546,10 +514,9 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 		}
 	}
 
-	subtitlePath := ""
+	var subtitlePath string
 	if rawCaptionTracks, ok := req.Metadata["captionTracks"]; ok {
-		subtitles := buildSubtitleSRT(rawCaptionTracks)
-		if strings.TrimSpace(subtitles) != "" {
+		if subtitles := buildSubtitleSRT(rawCaptionTracks); subtitles != "" {
 			subtitlePath = filepath.Join(tmpDir, "captions.srt")
 			if err := os.WriteFile(subtitlePath, []byte(subtitles), 0o644); err != nil {
 				return mediaResponse{}, fmt.Errorf("write subtitles: %w", err)
@@ -557,10 +524,7 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 		}
 	}
 
-	outputName := normalizeExportExtension(safeExportName(strings.TrimSpace(req.FileName)), req.Metadata)
-	if outputName == "" {
-		outputName = "dolomite-rendered.mp4"
-	}
+	outputName := normalizeExportExtension(safeExportName(req.FileName), req.Metadata)
 	exportDir := ensureExportDirectory()
 	outputPath := filepath.Join(exportDir, fmt.Sprintf("%d-%s", time.Now().UnixNano(), outputName))
 
@@ -568,77 +532,49 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	args = append(args, outputPath)
 
 	cmd := exec.Command("ffmpeg", args...)
-	combined, err := cmd.CombinedOutput()
-	if err != nil {
+	if combined, err := cmd.CombinedOutput(); err != nil {
 		return mediaResponse{}, fmt.Errorf("ffmpeg render failed: %w (output: %s)", err, strings.TrimSpace(string(combined)))
 	}
 
-	renderedBytes, err := os.ReadFile(outputPath)
+	fileInfo, err := os.Stat(outputPath)
 	if err != nil {
-		return mediaResponse{}, fmt.Errorf("read rendered output: %w", err)
+		return mediaResponse{}, fmt.Errorf("read rendered output stats: %w", err)
 	}
-
-	if len(renderedBytes) == 0 {
+	if fileInfo.Size() == 0 {
 		return mediaResponse{}, fmt.Errorf("ffmpeg produced an empty render")
 	}
 
-	response := mediaResponse{
+	return mediaResponse{
 		OK:        true,
 		Mode:      req.Mode,
 		Operation: req.Operation,
-		Message:   fmt.Sprintf("FFmpeg render completed for %s and wrote %d bytes.", req.FileName, len(renderedBytes)),
+		Message:   fmt.Sprintf("FFmpeg render completed for %s and wrote %d bytes.", req.FileName, fileInfo.Size()),
 		FileName:  outputName,
-		Size:      len(renderedBytes),
+		Size:      fileInfo.Size(),
 		Output:    outputPath,
 		Metadata:  req.Metadata,
-	}
-	if req.Mode == "server" {
-		response.Output = outputPath
-	}
-
-	return response, nil
+	}, nil
 }
 
-func serveExportFile(w http.ResponseWriter, _ *http.Request, filePath string) {
-	if strings.TrimSpace(filePath) == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "missing export file path"})
-		return
-	}
-
+func serveExportFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	cleanPath := filepath.Clean(filePath)
-	if !strings.HasPrefix(cleanPath, filepath.Clean(os.TempDir())) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusForbidden)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid export path"})
+	if strings.TrimSpace(filePath) == "" || !strings.HasPrefix(cleanPath, filepath.Clean(os.TempDir())) {
+		http.Error(w, `{"error":"invalid or missing export file path"}`, http.StatusBadRequest)
 		return
 	}
 
 	fileInfo, err := os.Stat(cleanPath)
 	if err != nil || fileInfo.IsDir() {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "exported file not found"})
+		http.Error(w, `{"error":"exported file not found"}`, http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filepath.Base(cleanPath)))
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
-
-	data, err := os.ReadFile(cleanPath)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "failed to read exported file"})
-		return
-	}
-
-	_, _ = w.Write(data)
+	http.ServeFile(w, r, cleanPath)
 }
 
-func handleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType string, fallbackOperation string) {
+func HandleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType string, fallbackOperation string) {
 	var req mediaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -660,31 +596,8 @@ func handleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType stri
 		req.FileName = fmt.Sprintf("processed-%s.bin", req.MediaType)
 	}
 
-	payloadSize := 0
-	if req.DataURL != "" {
-		payload := req.DataURL
-		if idx := strings.Index(payload, ","); idx >= 0 {
-			payload = payload[idx+1:]
-		}
-		if decoded, err := base64.StdEncoding.DecodeString(payload); err == nil {
-			payloadSize = len(decoded)
-		} else {
-			payloadSize = len(payload)
-		}
-	}
-
-	resp := mediaResponse{
-		OK:        true,
-		Mode:      req.Mode,
-		Operation: req.Operation,
-		Message:   fmt.Sprintf("%s accepted for %s processing on the %s pipeline.", req.Operation, req.MediaType, req.Mode),
-		FileName:  req.FileName,
-		Size:      payloadSize,
-		Metadata:  req.Metadata,
-	}
-
 	if req.Operation == "video-export" || (req.MediaType == "video" && req.Operation == "video-export") {
-		if req.Mode == "server" && metadataBoolValue(req.Metadata, "async") {
+		if req.Mode == "server" && metadataBool(req.Metadata, "async") {
 			result, err := queueVideoExport(req)
 			if err != nil {
 				w.Header().Set("Content-Type", "application/json")
@@ -692,19 +605,33 @@ func handleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType stri
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 				return
 			}
-			resp = result
-		} else {
-			result, err := processVideoExport(req)
-			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-				return
-			}
-			resp = result
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(result)
+			return
 		}
+
+		result, err := processVideoExport(req)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(result)
+		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(mediaResponse{
+		OK:        true,
+		Mode:      req.Mode,
+		Operation: req.Operation,
+		Message:   fmt.Sprintf("Operation %s accepted for %s.", req.Operation, req.MediaType),
+		FileName:  req.FileName,
+		Metadata:  req.Metadata,
+	})
 }

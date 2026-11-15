@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// HandlePDFProcess handles PDF document generation, conversion, and export operations.
 func HandlePDFProcess(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	handleMediaOperation(w, r, "pdf", "pdf-export")
+	HandleMediaOperation(w, r, "pdf", "pdf-export")
 }

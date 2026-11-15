@@ -4891,3 +4891,32 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   return root;
 }
+export interface ExportStatusResponse {
+  ok: boolean;
+  jobId: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  message: string;
+  fileName: string;
+  progress: number;
+  output?: string;
+  error?: string;
+}
+
+/**
+ * Fetches the current progress and status of a server-side video export job.
+ */
+async function getVideoExportStatus(jobId: string): Promise<ExportStatusResponse> {
+  const response = await fetch(`/api/video/status?jobId=${encodeURIComponent(jobId)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
+    throw new Error(errorData.error || `Server returned status ${response.status}`);
+  }
+
+  return response.json();
+}

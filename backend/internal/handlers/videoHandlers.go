@@ -8,28 +8,40 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// writeJSON is a helper to write JSON responses consistently and cleanly.
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(data)
+}
+
+// HandleVideoProcess handles video processing operations.
 func HandleVideoProcess(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	handleMediaOperation(w, r, "video", "video-export")
+	HandleMediaOperation(w, r, "video", "video-export")
 }
 
+// HandleVideoExport handles direct video export requests.
 func HandleVideoExport(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	handleMediaOperation(w, r, "video", "video-export")
+	HandleMediaOperation(w, r, "video", "video-export")
 }
 
-func HandleVideoExportStatus(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	jobID := r.URL.Query().Get("jobId")
-	if strings.TrimSpace(jobID) == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "missing jobId"})
+// HandleVideoExportStatus checks the progress of an asynchronous export job.
+// Supports both httprouter path parameters (/status/:jobId) and query parameters (?jobId=...).
+func HandleVideoExportStatus(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	jobID := ps.ByName("jobId")
+	if jobID == "" {
+		jobID = r.URL.Query().Get("jobId")
+	}
+
+	jobID = strings.TrimSpace(jobID)
+	if jobID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing jobId"})
 		return
 	}
 
 	job, ok := getExportJobStatus(jobID)
 	if !ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "job not found"})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job not found"})
 		return
 	}
 
@@ -48,17 +60,20 @@ func HandleVideoExportStatus(w http.ResponseWriter, r *http.Request, _ httproute
 		response["error"] = job.Error
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }
 
-func HandleVideoDownload(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	pathValue := r.URL.Query().Get("path")
+// HandleVideoDownload handles downloading rendered export files.
+// Supports both httprouter path parameters (/download/*path) and query parameters (?path=...).
+func HandleVideoDownload(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	pathValue := ps.ByName("path")
 	if pathValue == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(map[string]string{"error": "missing path"})
+		pathValue = r.URL.Query().Get("path")
+	}
+
+	pathValue = strings.TrimSpace(pathValue)
+	if pathValue == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing path"})
 		return
 	}
 

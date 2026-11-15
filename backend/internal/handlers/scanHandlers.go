@@ -6,6 +6,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// HandleScanProcess handles document scanning, image optimization, and scan export operations.
 func HandleScanProcess(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	handleMediaOperation(w, r, "scan", "scan-export")
+	HandleMediaOperation(w, r, "scan", "scan-export")
 }
