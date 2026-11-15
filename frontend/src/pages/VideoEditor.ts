@@ -1623,6 +1623,72 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 13. LOAD AND RESTORE SOURCE VIDEO
   // ============================================================
 
+  function flushVideoSession() {
+    if (renderAnimationFrame) {
+      cancelAnimationFrame(renderAnimationFrame);
+      renderAnimationFrame = 0;
+    }
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+
+    exportCancelled = true;
+    isRendering = false;
+    renderChunks = [];
+    renderProgress = 0;
+    history = [];
+    historyIndex = -1;
+
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+      videoUrl = null;
+    }
+
+    videoFile = null;
+    currentTime = 0;
+    duration = 0;
+    trimStart = 0;
+    trimEnd = 0;
+
+    videoElement.pause();
+    videoElement.removeAttribute('src');
+    videoElement.load();
+
+    captionText = '';
+    captionSegments = [];
+    audioTracks = [];
+    captionTracks = [
+      {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        label: 'Primary Captions',
+        color: '#a78bfa',
+        enabled: true,
+        segments: [],
+      },
+    ];
+    activeCaptionTrackId = captionTracks[0].id;
+
+    masks = [];
+    pendingMask = null;
+    clipSegments = [];
+    playbackCurve = structuredClone(DEFAULT_PLAYBACK_CURVE);
+    cubeLut = null;
+    Object.assign(filters, DEFAULT_FILTERS);
+
+    setAspectRatio('16:9');
+    videoElement.volume = 1;
+    videoElement.playbackRate = 1;
+    volume = 1;
+    volumeSlider.value = '1';
+
+    renderToolControls();
+    updateCaptions();
+    updateTrimMarkers();
+    applyMaskOverlay();
+    applyVideoFilters();
+  }
+
   function setVideoFile(
     file: File,
     restoredState?: Partial<VideoEditorState>,
@@ -1761,9 +1827,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       return;
     }
 
-    history = [];
-    historyIndex = -1;
-
+    flushVideoSession();
     setVideoFile(file);
 
     target.value = '';
@@ -2370,6 +2434,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }
 
     const mimeType = getSupportedRecorderMimeType(exportFormat);
+    const targetRecordingFrameRate = Math.min(exportFps, 30);
 
     if (!mimeType) {
       if (exportFormat === 'mp4') {
@@ -2412,6 +2477,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     updateRenderProgressUI(0);
 
     videoElement.pause();
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.defaultPlaybackRate = 1;
+    videoElement.playbackRate = 1;
     syncPlaybackUI();
 
     const canvasStream = canvas.captureStream(exportFps);
@@ -2580,7 +2649,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         getActiveCaption,
       );
 
-      recorder.start(500);
+      recorder.start(Math.max(50, 1000 / targetRecordingFrameRate));
 
       await videoElement.play();
 
@@ -2939,6 +3008,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       'Import Video',
 
       fileInput,
+    ),
+
+    button(
+      {
+        type: 'button',
+        className:
+          'rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/20',
+        onclick: flushVideoSession,
+      },
+      'Flush All',
     ),
 
     createButton(
