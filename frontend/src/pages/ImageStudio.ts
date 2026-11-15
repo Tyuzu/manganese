@@ -77,6 +77,7 @@ export function createImageEditorPage(): HTMLDivElement {
   };
 
   const statusElement = query<HTMLElement>('[data-role="status"]');
+  const loaderElement = query<HTMLElement>('[data-role="loader"]');
   const engineStatus = query<HTMLElement>('[data-role="engine-status"]');
 
   const canvas = query<HTMLCanvasElement>('[data-role="canvas"]');
@@ -100,6 +101,13 @@ export function createImageEditorPage(): HTMLDivElement {
   }
 
   buildFilterControls(filterControls);
+
+  let loadingCount = 0;
+
+  function setLoading(loading: boolean): void {
+    loadingCount = Math.max(0, loading ? loadingCount + 1 : loadingCount - 1);
+    loaderElement.hidden = loadingCount === 0;
+  }
 
   function setStatus(message: string): void {
     statusElement.textContent = message;
@@ -156,10 +164,49 @@ export function createImageEditorPage(): HTMLDivElement {
     doc.maskRevision++;
   }
 
+  function closeDocument(id: string): void {
+    const doc = documents.get(id);
+
+    if (!doc) return;
+
+    renderer.unload(doc.id);
+    doc.bitmap.close();
+    documents.delete(id);
+
+    if (activeJob) {
+      renderer.cancel(activeJob);
+      activeJob = 0;
+    }
+
+    bitmapCache.clear();
+
+    if (activeId === id) {
+      activeId = documents.size
+        ? Array.from(documents.keys()).slice(-1)[0] || null
+        : null;
+    }
+
+    brushActive = false;
+
+    renderTabs();
+    updateControls();
+
+    if (activeId) {
+      scheduleRender(0);
+    } else {
+      canvas.width = 1;
+      canvas.height = 1;
+      setStatus("No document open");
+    }
+  }
+
   function renderTabs(): void {
     tabsElement.replaceChildren();
 
     for (const doc of documents.values()) {
+      const tab = document.createElement("div");
+      tab.className = "ie-tab-wrap" + (doc.id === activeId ? " active" : "");
+
       const button = document.createElement("button");
       button.className = "ie-tab" + (doc.id === activeId ? " active" : "");
       button.textContent = doc.name;
@@ -169,7 +216,20 @@ export function createImageEditorPage(): HTMLDivElement {
         activateDocument(doc.id);
       });
 
-      tabsElement.appendChild(button);
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "ie-tab-close";
+      removeButton.textContent = "×";
+      removeButton.title = "Remove document";
+      removeButton.setAttribute("aria-label", "Remove " + doc.name);
+      removeButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        closeDocument(doc.id);
+      });
+
+      tab.appendChild(button);
+      tab.appendChild(removeButton);
+      tabsElement.appendChild(tab);
     }
   }
 
@@ -401,6 +461,7 @@ export function createImageEditorPage(): HTMLDivElement {
     }
 
     setStatus("Rendering preview…");
+    setLoading(true);
 
     let maskBitmap: ImageBitmap | null = null;
 
@@ -518,6 +579,8 @@ export function createImageEditorPage(): HTMLDivElement {
       }
 
       setStatus(message);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -619,7 +682,10 @@ export function createImageEditorPage(): HTMLDivElement {
 
     renderTabs();
     updateControls();
-    scheduleRender(120);
+    requestAnimationFrame(() => {
+      scheduleRender(0);
+      void renderPreview();
+    });
     scheduleAutosave();
   }
 
@@ -684,6 +750,8 @@ export function createImageEditorPage(): HTMLDivElement {
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
 
+      setLoading(true);
+
       try {
         setStatus("Opening " + file.name + "…");
 
@@ -699,6 +767,8 @@ export function createImageEditorPage(): HTMLDivElement {
             ? "Could not open image: " + error.message
             : "Could not open image"
         );
+      } finally {
+        setLoading(false);
       }
     }
   }
@@ -1092,6 +1162,7 @@ export function createImageEditorPage(): HTMLDivElement {
 
     switch (action) {
       case "open":
+        fileInput.value = "";
         fileInput.click();
         return;
 
@@ -1210,34 +1281,7 @@ export function createImageEditorPage(): HTMLDivElement {
 
       case "close":
         if (doc) {
-          renderer.unload(doc.id);
-
-          doc.bitmap.close();
-          documents.delete(doc.id);
-
-          if (activeJob) {
-            renderer.cancel(activeJob);
-            activeJob = 0;
-          }
-
-          bitmapCache.clear();
-
-          activeId = documents.size
-            ? Array.from(documents.keys()).slice(-1)[0] || null
-            : null;
-
-          brushActive = false;
-
-          renderTabs();
-          updateControls();
-
-          if (activeId) {
-            scheduleRender(0);
-          } else {
-            canvas.width = 1;
-            canvas.height = 1;
-            setStatus("No document open");
-          }
+          closeDocument(doc.id);
         }
         return;
     }

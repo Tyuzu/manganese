@@ -88,11 +88,37 @@ export function buildImageStudioShell(): HTMLDivElement {
       cursor: not-allowed;
     }
 
+    .ie-status-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      min-width: 120px;
+      margin-left: auto;
+    }
+
     .ie-status {
       color: var(--ie-muted);
-      min-width: 120px;
       text-align: right;
       font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .ie-loader {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255,255,255,0.18);
+      border-top-color: var(--ie-accent);
+      border-radius: 50%;
+      display: inline-block;
+      animation: ie-spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+
+    @keyframes ie-spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .ie-tabs {
@@ -106,8 +132,23 @@ export function buildImageStudioShell(): HTMLDivElement {
       border-bottom: 1px solid var(--ie-border);
     }
 
-    .ie-tab {
+    .ie-tab-wrap {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 4px 2px 2px;
+      border-radius: 6px;
       border: 1px solid transparent;
+      background: transparent;
+    }
+
+    .ie-tab-wrap.active {
+      border-color: var(--ie-border);
+      background: var(--ie-panel-2);
+    }
+
+    .ie-tab {
+      border: none;
       color: var(--ie-muted);
       background: transparent;
       border-radius: 6px;
@@ -122,8 +163,29 @@ export function buildImageStudioShell(): HTMLDivElement {
 
     .ie-tab.active {
       color: white;
+      background: transparent;
+    }
+
+    .ie-tab-close {
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--ie-muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .ie-tab-close:hover {
       border-color: var(--ie-border);
-      background: var(--ie-panel-2);
+      color: white;
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .ie-layout {
@@ -379,7 +441,10 @@ export function buildImageStudioShell(): HTMLDivElement {
 
       <button class="ie-button primary" data-action="export">Export image</button>
 
-      <span class="ie-status" data-role="status">Ready</span>
+      <span class="ie-status-wrap">
+        <span class="ie-loader" data-role="loader" hidden></span>
+        <span class="ie-status" data-role="status">Ready</span>
+      </span>
 
       <input data-role="file-input" type="file" accept="image/*" multiple hidden>
       <input data-role="project-input" type="file" accept=".json,application/json" hidden>
