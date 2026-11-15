@@ -437,7 +437,23 @@ export function createImageEditorPage(): HTMLDivElement {
         maskBitmap = null;
         activeJob = render.id;
 
-        result = await render.promise;
+        try {
+          result = await Promise.race([
+            render.promise,
+            new Promise<never>((_, reject) => {
+              window.setTimeout(() => reject(new Error("Preview worker timed out.")), 5000);
+            }),
+          ]);
+        } catch {
+          result = await renderFallback(
+            doc,
+            width,
+            height,
+            null,
+            null,
+            0.92
+          );
+        }
 
         if (activeJob === render.id) {
           activeJob = 0;
@@ -456,17 +472,29 @@ export function createImageEditorPage(): HTMLDivElement {
         maskBitmap = null;
       }
 
-      if (!result.bitmap) {
+      if (!result.bitmap || result.width <= 0 || result.height <= 0) {
+        result = await renderFallback(
+          doc,
+          width,
+          height,
+          null,
+          null,
+          0.92
+        );
+      }
+
+      const bitmap = result.bitmap;
+      if (!bitmap) {
         throw new Error("Preview renderer returned no bitmap.");
       }
 
       if (currentVersion !== renderVersion) {
-        result.bitmap.close();
+        bitmap.close();
         return;
       }
 
-      bitmapCache.set(key, result.bitmap);
-      drawPreview(result.bitmap, doc);
+      bitmapCache.set(key, bitmap);
+      drawPreview(bitmap, doc);
 
       setStatus("Preview updated");
     } catch (error) {
@@ -479,11 +507,17 @@ export function createImageEditorPage(): HTMLDivElement {
         return;
       }
 
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "Rendering failed"
-      );
+      const message = error instanceof Error ? error.message : "Rendering failed";
+
+      if (message.includes("The source image is no longer available in the worker.")) {
+        setStatus("Preparing preview…");
+        window.setTimeout(() => {
+          scheduleRender(100);
+        }, 150);
+        return;
+      }
+
+      setStatus(message);
     }
   }
 
@@ -585,7 +619,7 @@ export function createImageEditorPage(): HTMLDivElement {
 
     renderTabs();
     updateControls();
-    scheduleRender(0);
+    scheduleRender(120);
     scheduleAutosave();
   }
 
@@ -716,7 +750,7 @@ export function createImageEditorPage(): HTMLDivElement {
 
     renderTabs();
     updateControls();
-    scheduleRender(0);
+    scheduleRender(120);
   }
 
   async function exportProjectJson(): Promise<void> {
