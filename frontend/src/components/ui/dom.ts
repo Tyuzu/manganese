@@ -7,16 +7,38 @@ export type ChildInput =
   | undefined
   | ChildInput[]
   | NodeList
-  | HTMLCollection;
+  | HTMLCollection
+  | Iterable<ChildInput>;
 
-export type ElementChild = Node | string | number | boolean | null | undefined;
+export type ElementChild = ChildInput;
 export type ElementAttributes = Record<string, any>;
+export type ClassValue = string | number | boolean | undefined | null | { [key: string]: any } | ClassValue[];
 
-export function cn(...values: Array<string | false | null | undefined>): string {
-  return values.filter((value): value is string => typeof value === 'string' && value.length > 0).join(' ');
+/**
+ * Robust class names utility supporting strings, arrays, and conditional objects (clsx-style).
+ */
+export function cn(...inputs: ClassValue[]): string {
+  const classes: string[] = [];
+  for (const input of inputs) {
+    if (!input) continue;
+    if (typeof input === 'string' || typeof input === 'number') {
+      classes.push(String(input));
+    } else if (Array.isArray(input)) {
+      const cls = cn(...input);
+      if (cls) classes.push(cls);
+    } else if (typeof input === 'object') {
+      for (const [key, value] of Object.entries(input)) {
+        if (value) classes.push(key);
+      }
+    }
+  }
+  return classes.join(' ');
 }
 
-function flattenChildren(items: ChildInput, target: Array<Node | string | number> = []): Array<Node | string | number> {
+export function flattenChildren(
+  items: ChildInput,
+  target: Array<Node | string | number> = []
+): Array<Node | string | number> {
   if (items == null || typeof items === 'boolean') {
     return target;
   }
@@ -26,16 +48,142 @@ function flattenChildren(items: ChildInput, target: Array<Node | string | number
     return target;
   }
 
-  if (Array.isArray(items) || items instanceof NodeList || items instanceof HTMLCollection) {
-    const length = items.length;
-    for (let index = 0; index < length; index += 1) {
-      flattenChildren((items as ArrayLike<ChildInput>)[index], target);
+  if (
+    Array.isArray(items) ||
+    items instanceof NodeList ||
+    items instanceof HTMLCollection ||
+    (typeof items === 'object' && Symbol.iterator in items)
+  ) {
+    for (const item of items as Iterable<ChildInput>) {
+      flattenChildren(item, target);
     }
     return target;
   }
 
-  target.push(items as never);
+  target.push(String(items));
   return target;
+}
+
+function isElementAttributes(value: unknown): value is ElementAttributes {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !(
+      value instanceof Node ||
+      value instanceof NodeList ||
+      value instanceof HTMLCollection ||
+      Array.isArray(value) ||
+      Symbol.iterator in value
+    )
+  );
+}
+
+const eventNameMap: Record<string, string> = {
+  doubleclick: 'dblclick',
+  dblclick: 'dblclick',
+};
+
+function setAttributes(element: Element, attributes: ElementAttributes): void {
+  const isSvg = element instanceof SVGElement;
+
+  for (const [key, value] of Object.entries(attributes)) {
+    if (value === undefined || value === null || value === false) {
+      continue;
+    }
+
+    // Ref callback: { ref: (el) => { ... } }
+    if (key === 'ref' && typeof value === 'function') {
+      value(element);
+      continue;
+    }
+
+    // Event map object: { events: { click: (e) => {} } }
+    if (key === 'events' && typeof value === 'object') {
+      const eventMap = value as Record<string, EventListenerOrEventListenerObject | undefined>;
+      for (const [eventName, listener] of Object.entries(eventMap)) {
+        if (listener) {
+          const normalizedEvent = eventNameMap[eventName.toLowerCase()] || eventName.toLowerCase();
+          element.addEventListener(normalizedEvent, listener);
+        }
+      }
+      continue;
+    }
+
+    // Inline styles object: { style: { color: 'red' } }
+    if ((key === 'style' || key === 'styles') && typeof value === 'object') {
+      if (isSvg) {
+        for (const [styleKey, styleVal] of Object.entries(value)) {
+          (element as SVGElement).style.setProperty(styleKey, String(styleVal));
+        }
+      } else {
+        Object.assign((element as HTMLElement).style, value);
+      }
+      continue;
+    }
+
+    // Data attributes object: { dataset: { id: '123' } }
+    if (key === 'dataset' && typeof value === 'object' && element instanceof HTMLElement) {
+      Object.assign(element.dataset, value as Record<string, string>);
+      continue;
+    }
+
+    // Inline event handlers: { onClick: (e) => {} }
+    if (key.startsWith('on') && typeof value === 'function') {
+      const rawEvent = key.slice(2).toLowerCase();
+      const eventName = eventNameMap[rawEvent] || rawEvent;
+      element.addEventListener(eventName, value as EventListener);
+      continue;
+    }
+
+    // Class name handling
+    if (key === 'class' || key === 'className') {
+      const className = typeof value === 'string' ? value.trim() : String(value);
+      if (isSvg) {
+        element.setAttribute('class', className);
+      } else {
+        (element as HTMLElement).className = className;
+      }
+      continue;
+    }
+
+    // Direct property assignment for HTML elements (skip special attributes)
+    if (
+      !isSvg &&
+      key in element &&
+      key !== 'list' &&
+      key !== 'type' &&
+      key !== 'draggable' &&
+      key !== 'value' &&
+      key !== 'checked'
+    ) {
+      (element as unknown as Record<string, unknown>)[key] = value;
+      continue;
+    }
+
+    // Handle special input value/checked properties correctly
+    if (!isSvg && (key === 'value' || key === 'checked')) {
+      (element as unknown as Record<string, unknown>)[key] = value;
+    }
+
+    // Fallback to standard setAttribute
+    element.setAttribute(key, String(value));
+  }
+}
+
+function appendChildren(element: Element | DocumentFragment, children: ChildInput): void {
+  for (const child of flattenChildren(children)) {
+    if (child instanceof Node) {
+      element.appendChild(child);
+    } else if (typeof child === 'string' || typeof child === 'number') {
+      element.appendChild(document.createTextNode(String(child)));
+    }
+  }
+}
+
+export function fragment(...children: ChildInput[]): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  appendChildren(frag, children);
+  return frag;
 }
 
 export function createElement<K extends keyof HTMLElementTagNameMap>(
@@ -53,78 +201,16 @@ export function createElement(
   attributes: ElementAttributes | null | ChildInput = {},
   children: ChildInput = []
 ): HTMLElement {
-  if (
-    attributes !== null &&
-    (typeof attributes === 'string' ||
-      typeof attributes === 'number' ||
-      attributes instanceof Node ||
-      Array.isArray(attributes) ||
-      attributes instanceof NodeList ||
-      attributes instanceof HTMLCollection)
-  ) {
+  if (attributes !== null && !isElementAttributes(attributes)) {
     children = attributes as ChildInput;
     attributes = {};
   }
 
   const element = document.createElement(tagName);
-  const safeAttributes = attributes ?? {};
-
-  for (const [key, value] of Object.entries(safeAttributes)) {
-    if (value === undefined || value === null || value === false) {
-      continue;
-    }
-
-    if (key === 'events' && typeof value === 'object') {
-      const eventMap = value as Record<string, EventListenerOrEventListenerObject | undefined>;
-      for (const [eventName, listener] of Object.entries(eventMap)) {
-        if (listener) {
-          element.addEventListener(eventName, listener);
-        }
-      }
-      continue;
-    }
-
-    if ((key === 'style' || key === 'styles') && typeof value === 'object') {
-      Object.assign(element.style, value as Record<string, string>);
-      continue;
-    }
-
-    if (key === 'class' && typeof value === 'string') {
-      element.className = value.trim();
-      continue;
-    }
-
-    if (key === 'className') {
-      element.className = String(value);
-      continue;
-    }
-
-    if (key === 'dataset' && typeof value === 'object') {
-      Object.assign(element.dataset, value as Record<string, string>);
-      continue;
-    }
-
-    if (key.startsWith('on') && typeof value === 'function') {
-      const eventName = key.slice(2).toLowerCase();
-      element.addEventListener(eventName, value as EventListener);
-      continue;
-    }
-
-    if (key in element && key !== 'list' && key !== 'type' && key !== 'draggable') {
-      (element as unknown as Record<string, unknown>)[key] = value;
-      continue;
-    }
-
-    element.setAttribute(key, String(value));
+  if (attributes && isElementAttributes(attributes)) {
+    setAttributes(element, attributes);
   }
-
-  for (const child of flattenChildren(children)) {
-    if (child instanceof Node) {
-      element.appendChild(child);
-    } else if (typeof child === 'string' || typeof child === 'number') {
-      element.appendChild(document.createTextNode(String(child)));
-    }
-  }
+  appendChildren(element, children);
 
   return element;
 }
@@ -132,7 +218,7 @@ export function createElement(
 export function el<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   attributes?: ElementAttributes,
-  ...children: (Node | string | number | boolean | null | undefined)[]
+  ...children: ChildInput[]
 ): HTMLElementTagNameMap[K] {
   return createElement(tagName, attributes, children) as HTMLElementTagNameMap[K];
 }
@@ -140,48 +226,14 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 export function svgElement(
   tagName: string,
   attributes?: ElementAttributes,
-  ...children: (Node | string | number | boolean | null | undefined)[]
+  ...children: ChildInput[]
 ): SVGElement {
   const element = document.createElementNS('http://www.w3.org/2000/svg', tagName);
 
   if (attributes) {
-    for (const [key, value] of Object.entries(attributes)) {
-      if (value === undefined || value === null || value === false) {
-        continue;
-      }
-
-      if (key === 'className' || key === 'class') {
-        element.setAttribute('class', String(value));
-      } else if (key === 'events' && typeof value === 'object') {
-        const eventMap = value as Record<string, EventListenerOrEventListenerObject | undefined>;
-        for (const [eventName, listener] of Object.entries(eventMap)) {
-          if (listener) {
-            element.addEventListener(eventName, listener);
-          }
-        }
-      } else if ((key === 'style' || key === 'styles') && typeof value === 'object') {
-        Object.assign(element.style, value as Record<string, string>);
-      } else if (key === 'dataset' && typeof value === 'object') {
-        Object.assign(element.dataset, value as Record<string, string>);
-      } else if (key.startsWith('on') && typeof value === 'function') {
-        const eventName = key.slice(2).toLowerCase();
-        element.addEventListener(eventName, value as EventListener);
-      } else {
-        element.setAttribute(key, String(value));
-      }
-    }
+    setAttributes(element, attributes);
   }
-
-  for (const child of children) {
-    if (child == null || typeof child === 'boolean') {
-      continue;
-    }
-    if (child instanceof Node) {
-      element.appendChild(child);
-    } else {
-      element.appendChild(document.createTextNode(String(child)));
-    }
-  }
+  appendChildren(element, children);
 
   return element;
 }
@@ -219,13 +271,14 @@ export function createPageHeader(title: string, description?: string, className 
 }
 
 export function createErrorCard(title = 'Error', message = 'Failed to load page component.'): HTMLElement {
-  return div({ className: 'card mx-auto max-w-xl text-center' },
+  return div(
+    { className: 'card mx-auto max-w-xl text-center' },
     h2({ className: 'text-xl font-semibold text-white' }, title),
     p({ className: 'mt-3 text-sm text-slate-400' }, message)
   );
 }
 
-// Convenient shorthand wrappers for common tags
+// HTML Tag Shorthands
 export const div = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('div', attrs, ...children);
 export const article = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('article', attrs, ...children);
 export const section = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('section', attrs, ...children);
@@ -245,5 +298,15 @@ export const a = (attrs?: ElementAttributes, ...children: ElementChild[]) => el(
 export const img = (attrs?: ElementAttributes) => el('img', attrs);
 export const video = (attrs?: ElementAttributes) => el('video', attrs);
 export const canvas = (attrs?: ElementAttributes) => el('canvas', attrs);
+
+// SVG Tag Shorthands
 export const svg = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('svg', attrs, ...children);
 export const path = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('path', attrs, ...children);
+export const circle = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('circle', attrs, ...children);
+export const rect = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('rect', attrs, ...children);
+export const g = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('g', attrs, ...children);
+export const line = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('line', attrs, ...children);
+export const polyline = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('polyline', attrs, ...children);
+export const polygon = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('polygon', attrs, ...children);
+export const ellipse = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('ellipse', attrs, ...children);
+export const text = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('text', attrs, ...children);
