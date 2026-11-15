@@ -238,6 +238,52 @@ func serveExportFile(w http.ResponseWriter, r *http.Request, filePath string) {
 	http.ServeFile(w, r, cleanPath)
 }
 
+func queueVideoExport(req mediaRequest) (mediaResponse, error) {
+	if strings.TrimSpace(req.DataURL) == "" {
+		return mediaResponse{}, fmt.Errorf("missing source video payload")
+	}
+
+	jobID := fmt.Sprintf("video-%d", time.Now().UnixNano())
+	job := &exportJob{
+		ID:        jobID,
+		Status:    "queued",
+		Message:   "Video export queued on the server.",
+		FileName:  strings.TrimSpace(req.FileName),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if job.FileName == "" {
+		job.FileName = "dolomite-rendered.mp4"
+	}
+	exportJobs.Store(jobID, job)
+
+	// Launch background processing and pass the job pointer for progress updates
+	go func() {
+		job.update("processing", "Rendering video on the server…", "", "", 5)
+
+		result, err := processVideoExportWithProgress(job, req)
+		if err != nil {
+			job.update("failed", err.Error(), "", err.Error(), 0)
+			return
+		}
+
+		job.update("completed", result.Message, result.Output, "", 100)
+	}()
+
+	snap := job.snapshot()
+	return mediaResponse{
+		OK:        true,
+		Mode:      req.Mode,
+		Operation: req.Operation,
+		Message:   "Video export queued on the server.",
+		FileName:  snap.FileName,
+		Status:    snap.Status,
+		JobID:     jobID,
+		Progress:  snap.Progress,
+		Metadata:  req.Metadata,
+	}, nil
+}
+
 func HandleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType string, fallbackOperation string) {
 	var req mediaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -270,7 +316,7 @@ func HandleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType stri
 			return
 		}
 
-		result, err := processVideoExport(req)
+		result, err := processVideoExportWithProgress(&exportJob{ID: "sync"}, req)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 			return

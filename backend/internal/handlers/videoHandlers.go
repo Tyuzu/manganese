@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"os"
@@ -88,52 +89,7 @@ func getExportJobStatus(jobID string) (exportJob, bool) {
 	return job.snapshot(), true
 }
 
-func queueVideoExport(req mediaRequest) (mediaResponse, error) {
-	if strings.TrimSpace(req.DataURL) == "" {
-		return mediaResponse{}, fmt.Errorf("missing source video payload")
-	}
-
-	jobID := fmt.Sprintf("video-%d", time.Now().UnixNano())
-	job := &exportJob{
-		ID:        jobID,
-		Status:    "queued",
-		Message:   "Video export queued on the server.",
-		FileName:  strings.TrimSpace(req.FileName),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	if job.FileName == "" {
-		job.FileName = "dolomite-rendered.mp4"
-	}
-	exportJobs.Store(jobID, job)
-
-	go func() {
-		job.update("processing", "Rendering video on the server…", "", "", 5)
-
-		result, err := processVideoExport(req)
-		if err != nil {
-			job.update("failed", err.Error(), "", err.Error(), 0)
-			return
-		}
-
-		job.update("completed", result.Message, result.Output, "", 100)
-	}()
-
-	snap := job.snapshot()
-	return mediaResponse{
-		OK:        true,
-		Mode:      req.Mode,
-		Operation: req.Operation,
-		Message:   "Video export queued on the server.",
-		FileName:  snap.FileName,
-		Status:    snap.Status,
-		JobID:     jobID,
-		Progress:  snap.Progress,
-		Metadata:  req.Metadata,
-	}, nil
-}
-
-func processVideoExport(req mediaRequest) (mediaResponse, error) {
+func processVideoExportWithProgress(job *exportJob, req mediaRequest) (mediaResponse, error) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		return mediaResponse{}, fmt.Errorf("ffmpeg is not installed: %w", err)
 	}
@@ -198,8 +154,72 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	args = append(args, outputPath)
 
 	cmd := exec.Command("ffmpeg", args...)
-	if combined, err := cmd.CombinedOutput(); err != nil {
-		return mediaResponse{}, fmt.Errorf("ffmpeg render failed: %w (output: %s)", err, strings.TrimSpace(string(combined)))
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return mediaResponse{}, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return mediaResponse{}, fmt.Errorf("failed to start ffmpeg: %w", err)
+	}
+
+	var totalDurationSeconds float64
+	trimStart := metadataFloat(req.Metadata, "trimStart")
+	trimEnd := metadataFloat(req.Metadata, "trimEnd")
+
+	scanner := bufio.NewScanner(stderrPipe)
+	// Use custom split function to handle FFmpeg \r progress updates
+	scanner.Split(scanLinesOrCarriageReturns)
+
+	var stderrOutput strings.Builder
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		stderrOutput.WriteString(line)
+		stderrOutput.WriteString("\n")
+
+		// Parse total duration e.g. "Duration: 00:01:23.45"
+		if strings.Contains(line, "Duration:") && totalDurationSeconds == 0 {
+			parts := strings.Split(line, "Duration:")
+			if len(parts) > 1 {
+				subParts := strings.Split(parts[1], ",")
+				if len(subParts) > 0 {
+					totalDurationSeconds = parseDurationToSeconds(strings.TrimSpace(subParts[0]))
+				}
+			}
+		}
+
+		// Determine expected active duration (accounting for trimming)
+		expectedDuration := totalDurationSeconds
+		if trimEnd > trimStart && trimStart >= 0 {
+			expectedDuration = trimEnd - trimStart
+		} else if trimEnd > 0 && trimStart == 0 {
+			expectedDuration = trimEnd
+		}
+
+		// Parse current encoding time e.g. "time=00:00:12.34"
+		if strings.Contains(line, "time=") && expectedDuration > 0 {
+			for _, token := range strings.Fields(line) {
+				if strings.HasPrefix(token, "time=") {
+					timeStr := strings.TrimPrefix(token, "time=")
+					currentSeconds := parseDurationToSeconds(timeStr)
+					if currentSeconds >= 0 {
+						pct := 5.0 + (currentSeconds/expectedDuration)*90.0
+						if pct > 95.0 {
+							pct = 95.0
+						}
+						job.update("processing", "Rendering video on the server…", "", "", pct)
+					}
+				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return mediaResponse{}, fmt.Errorf("failed to read ffmpeg stderr: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return mediaResponse{}, fmt.Errorf("ffmpeg render failed: %w (output: %s)", err, strings.TrimSpace(stderrOutput.String()))
 	}
 
 	fileInfo, err := os.Stat(outputPath)
@@ -221,6 +241,55 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 		Metadata:  req.Metadata,
 	}, nil
 }
+
+// scanLinesOrCarriageReturns splits input on either newline (\n) or carriage return (\r).
+func scanLinesOrCarriageReturns(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	for i := 0; i < len(data); i++ {
+		if data[i] == '\n' {
+			return i + 1, data[0:i], nil
+		}
+		if data[i] == '\r' {
+			if i+1 < len(data) && data[i+1] == '\n' {
+				return i + 2, data[0:i], nil
+			}
+			return i + 1, data[0:i], nil
+		}
+	}
+	if atEOF {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
+func parseDurationToSeconds(durStr string) float64 {
+	durStr = strings.TrimSuffix(strings.TrimSpace(durStr), "s")
+	if !strings.Contains(durStr, ":") {
+		val, _ := strconv.ParseFloat(durStr, 64)
+		return val
+	}
+	parts := strings.Split(durStr, ":")
+	if len(parts) != 3 {
+		return 0
+	}
+	hours, _ := strconv.ParseFloat(parts[0], 64)
+	minutes, _ := strconv.ParseFloat(parts[1], 64)
+	seconds, _ := strconv.ParseFloat(parts[2], 64)
+	return hours*3600 + minutes*60 + seconds
+}
+
+// func parseDurationToSeconds(durStr string) float64 {
+// 	parts := strings.Split(durStr, ":")
+// 	if len(parts) != 3 {
+// 		return 0
+// 	}
+// 	hours, _ := strconv.ParseFloat(parts[0], 64)
+// 	minutes, _ := strconv.ParseFloat(parts[1], 64)
+// 	seconds, _ := strconv.ParseFloat(parts[2], 64)
+// 	return hours*3600 + minutes*60 + seconds
+// }
 
 func buildVideoExportArgs(req mediaRequest, sourcePath string, audioInputs []string, subtitlePath string) []string {
 	args := []string{"-y"}
