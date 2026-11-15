@@ -1,8 +1,20 @@
-import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
+import '../../css/pdf.css';
+import {
+  button,
+  createButton,
+  div,
+  input,
+  label,
+  p,
+  span,
+  strong,
+  svgElement,
+} from '../components/ui/dom';
+
 import { appStore } from '../appState';
 import { processMediaOnServer } from '../api';
+
 import {
-  createDetailPanel,
   createEditorFooter,
   createEditorShell,
   createEditorTabNav,
@@ -22,306 +34,542 @@ interface MergeQueueItem {
   name: string;
   sizeMB: string;
   estimatedPages: number;
+  file: File;
 }
 
+type ScanTab = 'pages' | 'enhance' | 'ocr' | 'deskew' | 'merge' | 'export';
+type ExportFormat = 'pdf' | 'jpg' | 'txt';
+type ScanPreset = 'original' | 'magic' | 'bw';
+
+const TABS: { id: ScanTab; label: string }[] = [
+  { id: 'pages', label: 'Pages' },
+  { id: 'enhance', label: 'Enhance' },
+  { id: 'ocr', label: 'OCR' },
+  { id: 'deskew', label: 'Deskew' },
+  { id: 'merge', label: 'Merge' },
+  { id: 'export', label: 'Export' },
+];
+
+const OCR_LANGUAGES = [
+  { value: 'eng', label: 'English' },
+  { value: 'spa', label: 'Spanish' },
+  { value: 'fra', label: 'French' },
+  { value: 'deu', label: 'German' },
+];
+
+const INITIAL_PAGES: ScannerPageItem[] = [
+  { id: 'p-1', title: 'Page 1 (Cover)', rotation: 0 },
+  { id: 'p-2', title: 'Page 2 (Invoice Details)', rotation: 0 },
+  { id: 'p-3', title: 'Page 3 (Line Items)', rotation: 0 },
+  { id: 'p-4', title: 'Page 4 (Terms & Signatures)', rotation: 0 },
+];
+
 export async function createPdfScannerPage(): Promise<HTMLElement> {
-  // --- State Management ---
-  type ScanTab = 'pages' | 'enhance' | 'ocr' | 'deskew' | 'merge' | 'export';
   let activeTab: ScanTab = 'pages';
 
+  let uploadedFile: File | null = null;
   let uploadedFileName: string | null = null;
   let uploadedFileUrl: string | null = null;
   let uploadedFileType: 'pdf' | 'image' | null = null;
 
-  let pages: ScannerPageItem[] = [
-    { id: 'p-1', title: 'Page 1 (Cover)', rotation: 0 },
-    { id: 'p-2', title: 'Page 2 (Invoice Details)', rotation: 0 },
-    { id: 'p-3', title: 'Page 3 (Line Items)', rotation: 0 },
-    { id: 'p-4', title: 'Page 4 (Terms & Signatures)', rotation: 0 },
-  ];
+  let pages: ScannerPageItem[] = INITIAL_PAGES.map((page) => ({ ...page }));
   let selectedPageIndex = 0;
 
-  // Image / Scan Enhancement State
   let brightness = 100;
   let contrast = 100;
   let grayscale = 0;
-  let scanPreset: 'original' | 'magic' | 'bw' = 'original';
+  let scanPreset: ScanPreset = 'original';
 
-  // Geometry & Viewport State
   let deskewAngle = 0;
   let zoomLevel = 100;
 
-  // OCR & Merge State
   let ocrEnabled = true;
   let ocrLanguage = 'eng';
-  let extractedText = 'Upload a document or click "Run OCR" to extract searchable text...';
+  let extractedText =
+    'Upload a document or click "Run OCR" to extract searchable text...';
+
   let mergeQueue: MergeQueueItem[] = [];
 
-  // --- Toast Notification Helper ---
-  const toastContainer = div({
-    className: 'pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2',
-  });
+  let destroyed = false;
 
-  function showToast(message: string, variant: 'info' | 'success' = 'info') {
-    const badgeColor =
-      variant === 'success'
-        ? 'border-emerald-500/40 bg-slate-900/95 text-emerald-300'
-        : 'border-cyan-500/40 bg-slate-900/95 text-cyan-200';
+  // --------------------------------------------------
+  // Utilities
+  // --------------------------------------------------
 
+  function createId(prefix = 'pdf') {
+    return `${prefix}-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+  }
+
+  function showToast(
+    message: string,
+    variant: 'info' | 'success' = 'info',
+  ) {
     const toast = div(
       {
-        className: `rounded-xl border px-3.5 py-2 text-xs font-medium shadow-xl backdrop-blur-md transition-all duration-300 ${badgeColor}`,
+        className: `pdf-toast ${variant === 'success' ? 'is-success' : 'is-info'}`,
       },
-      message
+      message,
     );
+
     toastContainer.append(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(-6px)';
-      setTimeout(() => toast.remove(), 300);
+
+    requestAnimationFrame(() => {
+      toast.classList.add('is-visible');
+    });
+
+    window.setTimeout(() => {
+      toast.classList.remove('is-visible');
+
+      window.setTimeout(() => toast.remove(), 250);
     }, 2600);
   }
 
-  // --- File Inputs ---
+  function getActivePage() {
+    return pages[selectedPageIndex] ?? null;
+  }
+
+  function getBaseName() {
+    return (uploadedFileName || 'scanned-document').replace(/\.[^/.]+$/, '');
+  }
+
+  function getFileType(file: File): 'pdf' | 'image' {
+    return file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf')
+      ? 'pdf'
+      : 'image';
+  }
+
+  function createIcon(name: string) {
+    const paths: Record<string, string> = {
+      upload: 'M12 16V4m0 0L7 9m5-5 5 5M4 16v4h16v-4',
+      file: 'M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 0v5h5',
+      zoomIn: 'M11 5v12m-6-6h12M21 21l-4.35-4.35',
+      zoomOut: 'M5 11h12m4 10-4.35-4.35',
+      rotate: 'M20 11a8 8 0 1 1-2.34-5.66L20 8m0-5v5h-5',
+      close: 'M18 6 6 18M6 6l12 12',
+      download: 'M12 3v12m0 0 5-5m-5 5-5-5M4 17v4h16v-4',
+    };
+
+    return svgElement(
+      'svg',
+      {
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': '1.7',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        class: 'pdf-icon',
+        'aria-hidden': 'true',
+      },
+      svgElement('path', { d: paths[name] || paths.file }),
+    );
+  }
+
+  // --------------------------------------------------
+  // Notifications
+  // --------------------------------------------------
+
+  const toastContainer = div({
+    className: 'pdf-toast-container',
+  });
+
+  // --------------------------------------------------
+  // File inputs
+  // --------------------------------------------------
+
   const fileInput = input({
     type: 'file',
-    accept: '.pdf,image/*',
-    className: 'sr-only',
-    onchange: (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (target.files?.[0]) loadDocumentFile(target.files[0]);
+    accept: '.pdf,image/png,image/jpeg,image/webp',
+    className: 'pdf-hidden-input',
+    onchange: (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const file = target.files?.[0];
+
+      if (file) {
+        loadDocumentFile(file);
+      }
+
+      target.value = '';
     },
   });
 
   const mergeFileInput = input({
     type: 'file',
-    accept: '.pdf,image/*',
+    accept: '.pdf,image/png,image/jpeg,image/webp',
     multiple: true,
-    className: 'sr-only',
-    onchange: (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      if (!target.files?.length) return;
-      Array.from(target.files).forEach((f) => {
+    className: 'pdf-hidden-input',
+    onchange: (event: Event) => {
+      const target = event.target as HTMLInputElement;
+
+      if (!target.files?.length) {
+        return;
+      }
+
+      const files = Array.from(target.files);
+
+      files.forEach((file) => {
         mergeQueue.push({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          name: f.name,
-          sizeMB: (f.size / 1024 / 1024).toFixed(2),
-          estimatedPages: f.type === 'application/pdf' ? 2 : 1,
+          id: createId('merge'),
+          name: file.name,
+          sizeMB: (file.size / 1024 / 1024).toFixed(2),
+          estimatedPages: getFileType(file) === 'pdf' ? 2 : 1,
+          file,
         });
       });
-      showToast(`Added ${target.files.length} file(s) to merge queue`, 'success');
+
+      showToast(`${files.length} file(s) added to queue`, 'success');
+
       renderToolControls();
       target.value = '';
     },
   });
 
-  // --- Top Quick Actions ---
+  // --------------------------------------------------
+  // Quick actions
+  // --------------------------------------------------
+
+  const pageCounter = span(
+    { className: 'pdf-page-counter' },
+    'Page 1 / 4',
+  );
+
+  const documentName = span(
+    { className: 'pdf-document-name' },
+    'No document loaded',
+  );
+
+  const uploadButton = createButton(
+    'secondary',
+    {
+      type: 'button',
+      className: 'pdf-button pdf-button-secondary',
+      onclick: () => fileInput.click(),
+    },
+    'Upload document',
+  );
+
+  const exportButton = createButton(
+    'primary',
+    {
+      type: 'button',
+      className: 'pdf-button pdf-button-primary',
+      onclick: () => triggerExport('pdf'),
+    },
+    'Export PDF',
+  );
+
   const quickActions = div(
-    { className: 'flex flex-wrap items-center justify-between gap-2 sm:gap-3' },
+    { className: 'pdf-quick-actions' },
     div(
-      { className: 'flex items-center gap-2 text-[11px] text-slate-300' },
-      span({ className: 'rounded-lg bg-slate-900/60 px-2.5 py-1 font-mono text-cyan-300 border border-white/5' },
-        `Page ${selectedPageIndex + 1} / ${pages.length}`
-      ),
-      span({ className: 'hidden sm:inline text-slate-400' }, uploadedFileName || 'Sample_Invoice.pdf')
+      { className: 'pdf-document-info' },
+      pageCounter,
+      documentName,
     ),
     div(
-      { className: 'flex flex-wrap justify-end gap-2' },
-      label(
-        {
-          className:
-            'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60',
-        },
-        'Upload PDF/Scan',
-        fileInput
-      ),
-      createButton(
-        'primary',
-        {
-          type: 'button',
-          className:
-            'bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-cyan-600/20',
-          onclick: () => triggerExport('pdf'),
-        },
-        'Export PDF'
-      )
-    )
+      { className: 'pdf-quick-buttons' },
+      uploadButton,
+      exportButton,
+    ),
   );
 
-  // --- Navigation Tabs ---
-  const tabs: { id: ScanTab; label: string }[] = [
-    { id: 'pages', label: 'PAGES' },
-    { id: 'enhance', label: 'ENHANCE' },
-    { id: 'ocr', label: 'OCR' },
-    { id: 'deskew', label: 'DESKEW' },
-    { id: 'merge', label: 'MERGE' },
-    { id: 'export', label: 'EXPORT' },
-  ];
+  // --------------------------------------------------
+  // Navigation
+  // --------------------------------------------------
 
-  const sidePanelNav = createEditorTabNav(tabs, activeTab, (tabId) => switchTab(tabId), {
-    activeClassName: 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner',
-    inactiveClassName: 'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
-    containerClassName: 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
+  const sidePanelNav = createEditorTabNav(
+    TABS,
+    activeTab,
+    (tabId) => switchTab(tabId),
+    {
+      activeClassName: 'pdf-tab-active',
+      inactiveClassName: 'pdf-tab-inactive',
+      containerClassName: 'pdf-tablist',
+    },
+  );
+
+  // --------------------------------------------------
+  // Inspector
+  // --------------------------------------------------
+
+  const toolContainer = div({
+    className: 'pdf-tool-container',
   });
 
-  const toolContainer = div({ className: 'space-y-4 max-h-[540px] overflow-y-auto pr-1' });
   const sidePanel = div(
-    { className: 'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#49677a]/60 p-3 md:w-[290px]' },
-    toolContainer
+    { className: 'pdf-inspector' },
+    div(
+      { className: 'pdf-inspector-heading' },
+      p({ className: 'pdf-inspector-title' }, 'Document settings'),
+      span({ className: 'pdf-inspector-subtitle' }, 'Editing tools'),
+    ),
+    toolContainer,
   );
 
-  // --- Document Viewport Stage ---
-  const uploadIcon = svgElement(
-    'svg',
-    {
-      class: 'w-8 h-8',
-      fill: 'none',
-      stroke: 'currentColor',
-      viewBox: '0 0 24 24',
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      'stroke-width': '1.5',
-    },
-    svgElement('path', {
-      d: 'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z',
-    })
-  );
+  // --------------------------------------------------
+  // Document preview
+  // --------------------------------------------------
 
   const previewContainer = div({
-    className:
-      'relative flex-1 flex items-center justify-center bg-slate-950 rounded-xl p-2 overflow-hidden min-h-[340px] sm:p-6 select-none',
+    className: 'pdf-preview-container',
   });
 
+  const uploadIcon = div(
+    { className: 'pdf-upload-icon' },
+    createIcon('upload'),
+  );
+
   function renderEmptyDropzone() {
-    previewContainer.innerHTML = '';
+    previewContainer.replaceChildren();
+
     const dropzone = div(
       {
-        className:
-          'flex flex-col items-center justify-center text-center p-4 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/40 hover:bg-slate-900/80 hover:border-cyan-500/50 transition-all cursor-pointer w-full h-full sm:p-8',
+        className: 'pdf-dropzone',
         onclick: () => fileInput.click(),
       },
-      div({ className: 'mb-3 rounded-2xl bg-slate-800/80 p-4 text-cyan-400 border border-slate-700/50' }, uploadIcon),
-      p({ className: 'text-sm font-semibold text-slate-200' }, 'No document loaded'),
-      p({ className: 'mt-1 text-xs text-slate-400' }, 'Drop PDF or image scan here, or click to upload'),
-      p({ className: 'mt-2 text-[11px] text-slate-500' }, 'Supports PDF, PNG, JPG, WEBP')
+      uploadIcon,
+      p({ className: 'pdf-dropzone-title' }, 'No document loaded'),
+      p(
+        { className: 'pdf-dropzone-description' },
+        'Drop a PDF or image here, or browse your files',
+      ),
+      div(
+        { className: 'pdf-supported-formats' },
+        'PDF',
+        span({}, '·'),
+        'PNG',
+        span({}, '·'),
+        'JPG',
+        span({}, '·'),
+        'WEBP',
+      ),
     );
+
     previewContainer.append(dropzone);
   }
 
-  // Drag & Drop support on Viewport
-  previewContainer.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    previewContainer.classList.add('ring-2', 'ring-cyan-500/60');
-  });
-  previewContainer.addEventListener('dragleave', () => {
-    previewContainer.classList.remove('ring-2', 'ring-cyan-500/60');
-  });
-  previewContainer.addEventListener('drop', (e) => {
-    e.preventDefault();
-    previewContainer.classList.remove('ring-2', 'ring-cyan-500/60');
-    const file = e.dataTransfer?.files?.[0];
-    if (file) loadDocumentFile(file);
-  });
+  // --------------------------------------------------
+  // Preview rendering
+  // --------------------------------------------------
 
-  // --- Stage Bottom HUD Bar ---
+  function renderDocumentPreview() {
+    pageCounter.textContent = `Page ${selectedPageIndex + 1} / ${pages.length}`;
+
+    documentName.textContent =
+      uploadedFileName || 'Sample document';
+
+    if (!uploadedFileUrl || !uploadedFileType) {
+      renderEmptyDropzone();
+      return;
+    }
+
+    previewContainer.replaceChildren();
+
+    const activePage = getActivePage();
+
+    const wrapper = div({
+      className: 'pdf-document-canvas',
+      id: 'active-document-canvas',
+    });
+
+    if (activePage?.isBlank) {
+      wrapper.append(
+        div(
+          { className: 'pdf-blank-page' },
+          span({ className: 'pdf-blank-page-title' }, activePage.title),
+          span({ className: 'pdf-blank-page-description' }, 'Blank page'),
+        ),
+      );
+    } else if (uploadedFileType === 'image') {
+      const image = document.createElement('img');
+
+      image.src = uploadedFileUrl;
+      image.alt = uploadedFileName || 'Scanned document';
+      image.className = 'pdf-document-image';
+
+      wrapper.append(image);
+    } else {
+      const iframe = document.createElement('iframe');
+
+      iframe.src = `${uploadedFileUrl}#toolbar=0&navpanes=0`;
+      iframe.title = uploadedFileName || 'PDF document';
+      iframe.className = 'pdf-document-frame';
+
+      wrapper.append(iframe);
+    }
+
+    previewContainer.append(wrapper);
+
+    applyVisualTransforms();
+  }
+
+  function applyVisualTransforms() {
+    const wrapper = previewContainer.querySelector(
+      '#active-document-canvas',
+    ) as HTMLElement | null;
+
+    zoomLabel.textContent = `${zoomLevel}%`;
+
+    if (!wrapper) {
+      return;
+    }
+
+    const pageRotation = getActivePage()?.rotation ?? 0;
+
+    wrapper.style.transform =
+      `scale(${zoomLevel / 100}) rotate(${pageRotation + deskewAngle}deg)`;
+
+    wrapper.style.filter =
+      `brightness(${brightness}%) contrast(${contrast}%) grayscale(${grayscale}%)`;
+  }
+
+  // --------------------------------------------------
+  // Viewport controls
+  // --------------------------------------------------
+
   const zoomOutBtn = button(
     {
       type: 'button',
-      className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-2.5 py-2 rounded-xl text-[11px] border border-slate-700',
-      title: 'Zoom Out',
+      className: 'pdf-icon-button',
+      title: 'Zoom out',
+      'aria-label': 'Zoom out',
     },
-    '−'
+    createIcon('zoomOut'),
   );
-  const zoomLabel = span({ className: 'text-[11px] font-mono text-slate-300 px-1.5 min-w-[44px] text-center' }, '100%');
+
+  const zoomLabel = span(
+    { className: 'pdf-zoom-label' },
+    '100%',
+  );
+
   const zoomInBtn = button(
     {
       type: 'button',
-      className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-2.5 py-2 rounded-xl text-[11px] border border-slate-700',
-      title: 'Zoom In',
+      className: 'pdf-icon-button',
+      title: 'Zoom in',
+      'aria-label': 'Zoom in',
     },
-    '+'
+    createIcon('zoomIn'),
   );
 
   const deskewLeftBtn = button(
     {
       type: 'button',
-      className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-xl text-[11px] border border-slate-700',
+      className: 'pdf-hud-button',
+      title: 'Rotate counterclockwise',
     },
-    '📐 -1°'
+    '−1°',
   );
+
   const deskewRightBtn = button(
     {
       type: 'button',
-      className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-xl text-[11px] border border-slate-700',
+      className: 'pdf-hud-button',
+      title: 'Rotate clockwise',
     },
-    '📐 +1°'
+    '+1°',
   );
+
   const rotate90Btn = button(
     {
       type: 'button',
-      className: 'bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-xl text-[11px] border border-slate-700',
+      className: 'pdf-hud-button',
+      title: 'Rotate 90 degrees',
     },
-    '↻ 90°'
+    createIcon('rotate'),
+    '90°',
   );
-  const ocrRunBtn = button(
+
+  const ocrRunBtn = createButton(
+    'primary',
     {
       type: 'button',
-      className:
-        'bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-4 py-2 rounded-xl text-[11px] shadow-lg shadow-cyan-600/30 transition-all',
+      className: 'pdf-button pdf-button-primary pdf-ocr-button',
+      onclick: runOCR,
     },
-    '🔍 Run OCR'
+    'Run OCR',
   );
 
   const stageHud = div(
-    {
-      className:
-        'mt-2 flex flex-wrap shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-800/80 bg-slate-900/90 p-2.5 backdrop-blur-md z-10',
-    },
-    div({ className: 'flex items-center gap-1' }, zoomOutBtn, zoomLabel, zoomInBtn),
+    { className: 'pdf-stage-hud' },
+    div(
+      { className: 'pdf-zoom-controls' },
+      zoomOutBtn,
+      zoomLabel,
+      zoomInBtn,
+    ),
+    div(
+      { className: 'pdf-hud-divider' },
+    ),
     deskewLeftBtn,
     deskewRightBtn,
     rotate90Btn,
-    ocrRunBtn
+    ocrRunBtn,
   );
 
-  // Fixed: quickActions is only mounted once here
+  // --------------------------------------------------
+  // Stage
+  // --------------------------------------------------
+
   const stage = div(
-    {
-      className:
-        'relative flex flex-1 flex-col overflow-hidden rounded-[18px] border border-slate-800/50 bg-[#4f6675] p-2 min-h-0 sm:p-4',
-    },
-    toastContainer,
-    div({ className: 'mb-2 sm:mb-3' }, quickActions),
+    { className: 'pdf-stage' },
+    div(
+      { className: 'pdf-stage-header' },
+      quickActions,
+    ),
     previewContainer,
-    stageHud
+    stageHud,
   );
+
+  // --------------------------------------------------
+  // Workspace
+  // --------------------------------------------------
 
   const workspace = div(
-    { className: 'flex flex-col gap-3 px-2 pb-3 sm:flex-row sm:gap-5 sm:px-5 sm:pb-5' },
+    { className: 'pdf-workspace' },
+    stage,
     sidePanel,
-    stage
   );
-  const modalFooter = createEditorFooter(() => resetEditor(), () => triggerExport('pdf'));
 
-  const { root, modal, fullscreenButton } = createEditorShell({
-    title: 'Edit your PDF',
+  const modalFooter = createEditorFooter(
+    resetEditor,
+    () => triggerExport('pdf'),
+  );
+
+  const {
+    root,
+    modal,
+    fullscreenButton,
+  } = createEditorShell({
+    title: 'PDF Editor',
     nav: sidePanelNav,
     workspace,
     footer: modalFooter,
-    onReset: () => resetEditor(),
-    onToggleFullscreen: () => toggleEditorFullscreen(),
-    modalClassName: 'editor-surface w-full max-w-[1100px] rounded-[28px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.25)] overflow-x-hidden overflow-y-auto flex flex-col',
+    onReset: resetEditor,
+    onToggleFullscreen: toggleEditorFullscreen,
+    modalClassName: 'editor-surface pdf-editor-surface',
   });
 
-  // Fullscreen Handling
-  const updateFullscreenButton = () => {
-    fullscreenButton.textContent = document.fullscreenElement === modal ? '⤡' : '⤢';
-  };
-  document.addEventListener('fullscreenchange', updateFullscreenButton);
-  updateFullscreenButton();
+  root.classList.add('pdf-editor-root');
+
+  // --------------------------------------------------
+  // Fullscreen
+  // --------------------------------------------------
+
+  function updateFullscreenButton() {
+    if (!fullscreenButton) {
+      return;
+    }
+
+    fullscreenButton.textContent =
+      document.fullscreenElement === modal ? '⤡' : '⤢';
+  }
 
   function toggleEditorFullscreen() {
-    if (!document.fullscreenEnabled) return;
+    if (!document.fullscreenEnabled) {
+      return;
+    }
+
     if (document.fullscreenElement === modal) {
       void document.exitFullscreen();
     } else {
@@ -329,365 +577,694 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     }
   }
 
-  // --- Viewport Rendering & Transforms ---
-  function renderDocumentPreview() {
-    if (!uploadedFileUrl || !uploadedFileType) {
-      renderEmptyDropzone();
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
+
+  // --------------------------------------------------
+  // Drag and drop
+  // --------------------------------------------------
+
+  previewContainer.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    previewContainer.classList.add('is-dragging');
+  });
+
+  previewContainer.addEventListener('dragleave', (event) => {
+    event.preventDefault();
+    previewContainer.classList.remove('is-dragging');
+  });
+
+  previewContainer.addEventListener('drop', (event) => {
+    event.preventDefault();
+    previewContainer.classList.remove('is-dragging');
+
+    const file = event.dataTransfer?.files[0];
+
+    if (file) {
+      loadDocumentFile(file);
+    }
+  });
+
+  // --------------------------------------------------
+  // File loading
+  // --------------------------------------------------
+
+  function loadDocumentFile(file: File) {
+    const isPdf =
+      file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf');
+
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
+      showToast('Unsupported file format');
       return;
     }
 
-    previewContainer.innerHTML = '';
-    const activePage = pages[selectedPageIndex] || pages[0];
-    const wrapper = div({
-      id: 'active-document-canvas',
-      className: 'flex items-center justify-center w-full h-full transition-transform duration-150 ease-out',
-    });
-
-    if (activePage?.isBlank) {
-      wrapper.append(
-        div(
-          {
-            className:
-              'flex flex-col items-center justify-center w-[280px] h-[380px] bg-white text-slate-400 rounded shadow-2xl border border-slate-300',
-          },
-          span({ className: 'text-xs font-mono' }, activePage.title),
-          span({ className: 'text-[10px] mt-1' }, '(Blank Inserted Page)')
-        )
-      );
-    } else if (uploadedFileType === 'image') {
-      const img = document.createElement('img');
-      img.src = uploadedFileUrl;
-      img.alt = uploadedFileName || 'Scanned Document';
-      img.className = 'max-h-full max-w-full rounded-lg shadow-2xl object-contain bg-white';
-      wrapper.append(img);
-    } else {
-      const iframe = document.createElement('iframe');
-      iframe.src = `${uploadedFileUrl}#toolbar=0&navpanes=0`;
-      iframe.className = 'w-full h-full rounded-lg bg-white shadow-2xl border-0';
-      wrapper.append(iframe);
-    }
-
-    previewContainer.append(wrapper);
-    applyVisualTransforms();
-  }
-
-  function applyVisualTransforms() {
-    const wrapper = previewContainer.querySelector('#active-document-canvas') as HTMLElement | null;
-    if (!wrapper) return;
-
-    const pageRotation = pages[selectedPageIndex]?.rotation ?? 0;
-    const totalRotation = pageRotation + deskewAngle;
-    const scale = zoomLevel / 100;
-
-    wrapper.style.transform = `scale(${scale}) rotate(${totalRotation}deg)`;
-    wrapper.style.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${grayscale}%)`;
-    zoomLabel.textContent = `${zoomLevel}%`;
-  }
-
-  // --- File Upload Handler ---
-  function loadDocumentFile(file: File) {
     if (uploadedFileUrl) {
       URL.revokeObjectURL(uploadedFileUrl);
     }
 
+    uploadedFile = file;
     uploadedFileName = file.name;
     uploadedFileUrl = URL.createObjectURL(file);
-    uploadedFileType = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image';
+    uploadedFileType = isPdf ? 'pdf' : 'image';
 
-    if (uploadedFileType === 'image') {
-      pages = [{ id: 'p-1', title: `${file.name} (Scan)`, rotation: 0 }];
-    } else {
-      pages = [
-        { id: 'p-1', title: 'Page 1', rotation: 0 },
-        { id: 'p-2', title: 'Page 2', rotation: 0 },
-        { id: 'p-3', title: 'Page 3', rotation: 0 },
-      ];
-    }
+    pages = isImage
+      ? [
+          {
+            id: createId('page'),
+            title: `${file.name} (Scan)`,
+            rotation: 0,
+          },
+        ]
+      : [
+          { id: createId('page'), title: 'Page 1', rotation: 0 },
+        ];
+
     selectedPageIndex = 0;
 
+    brightness = 100;
+    contrast = 100;
+    grayscale = 0;
+    deskewAngle = 0;
+    zoomLevel = 100;
+    scanPreset = 'original';
+
     extractedText = [
-      `OCR EXTRACTION — ${file.name.toUpperCase()}`,
-      `Processed: ${new Date().toLocaleDateString()} | Language: ${ocrLanguage.toUpperCase()}`,
-      `----------------------------------------`,
-      `Invoice #9042 — Full-Stack Engineering Inc.`,
-      `Subtotal: $3,850.00 | Tax: $400.00 | Total: $4,250.00`,
-      `Status: Verified & Searchable Layer Ready`,
+      `DOCUMENT: ${file.name}`,
+      `PROCESSED: ${new Date().toLocaleString()}`,
+      `LANGUAGE: ${ocrLanguage.toUpperCase()}`,
+      '',
+      'OCR has not been executed on this document.',
     ].join('\n');
 
     renderDocumentPreview();
     renderToolControls();
-    showToast(`Loaded "${file.name}"`, 'success');
+
+    showToast(`Loaded ${file.name}`, 'success');
   }
 
-  // --- Side Panel Tool Controls ---
-  function renderToolControls() {
-    toolContainer.innerHTML = '';
+  // --------------------------------------------------
+  // Page thumbnails
+  // --------------------------------------------------
 
-    if (activeTab === 'pages') {
-      const pageList = div(
-        { className: 'space-y-2' },
-        ...pages.map((pageItem, idx) => createPageThumbnailItem(pageItem, idx))
-      );
+  function createPageThumbnailItem(
+    pageItem: ScannerPageItem,
+    index: number,
+  ) {
+    const isSelected = index === selectedPageIndex;
 
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-2' }, `Document Pages (${pages.length})`),
-        pageList,
-        div(
-          { className: 'pt-2 grid grid-cols-2 gap-2' },
-          createButton(
-            'secondary',
-            {
-              type: 'button',
-              className:
-                'text-xs py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700',
-              onclick: () => {
-                pages.push({
-                  id: `p-${Date.now()}`,
-                  title: `Page ${pages.length + 1} (Blank)`,
-                  rotation: 0,
-                  isBlank: true,
-                });
-                selectedPageIndex = pages.length - 1;
-                renderDocumentPreview();
-                renderToolControls();
-                showToast('Inserted blank page');
-              },
-            },
-            '+ Blank Page'
-          ),
-          createButton(
-            'secondary',
-            {
-              type: 'button',
-              className:
-                'text-xs py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700',
-              onclick: () => {
-                const current = pages[selectedPageIndex];
-                if (!current) return;
-                pages.splice(selectedPageIndex + 1, 0, {
-                  ...current,
-                  id: `p-${Date.now()}`,
-                  title: `${current.title} (Copy)`,
-                });
-                selectedPageIndex += 1;
-                renderDocumentPreview();
-                renderToolControls();
-                showToast('Duplicated active page');
-              },
-            },
-            '⧉ Duplicate'
-          )
-        )
-      );
-    } else if (activeTab === 'enhance') {
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-2' }, 'Scan Filter Presets'),
-        div(
-          { className: 'grid grid-cols-3 gap-1.5 mb-3' },
-          createPresetButton('Original', () => applyScanPreset('original'), scanPreset === 'original'),
-          createPresetButton('Magic Color', () => applyScanPreset('magic'), scanPreset === 'magic'),
-          createPresetButton('B&W Doc', () => applyScanPreset('bw'), scanPreset === 'bw')
-        ),
-        createSliderControl('Brightness', brightness, 50, 160, '%', (v) => {
-          brightness = v;
-          scanPreset = 'original';
-          applyVisualTransforms();
-        }),
-        createSliderControl('Contrast', contrast, 50, 200, '%', (v) => {
-          contrast = v;
-          scanPreset = 'original';
-          applyVisualTransforms();
-        }),
-        createSliderControl('Grayscale', grayscale, 0, 100, '%', (v) => {
-          grayscale = v;
-          scanPreset = 'original';
-          applyVisualTransforms();
-        })
-      );
-    } else if (activeTab === 'ocr') {
-      const langSelect = document.createElement('select');
-      langSelect.className =
-        'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 focus:border-cyan-500 focus:outline-none mb-2';
-      [
-        { value: 'eng', label: 'English (ENG)' },
-        { value: 'spa', label: 'Spanish (SPA)' },
-        { value: 'fra', label: 'French (FRA)' },
-        { value: 'deu', label: 'German (DEU)' },
-      ].forEach((opt) => {
-        const o = document.createElement('option');
-        o.value = opt.value;
-        o.textContent = opt.label;
-        if (opt.value === ocrLanguage) o.selected = true;
-        langSelect.append(o);
-      });
-      langSelect.onchange = () => {
-        ocrLanguage = langSelect.value;
-        showToast(`OCR language set to ${ocrLanguage.toUpperCase()}`);
-      };
+    const thumbnail = div({
+      className: `pdf-thumbnail ${isSelected ? 'is-selected' : ''}`,
+      role: 'button',
+      tabindex: 0,
+      'aria-label': `Select ${pageItem.title}`,
+      onclick: () => selectPage(index),
+    });
 
-      const textArea = document.createElement('textarea');
-      textArea.className =
-        'w-full h-44 rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-slate-200 font-mono focus:border-cyan-500 focus:outline-none resize-none';
-      textArea.value = extractedText;
-      textArea.oninput = (e) => {
-        extractedText = (e.target as HTMLTextAreaElement).value;
-      };
+    const pagePreview = div(
+      { className: 'pdf-thumbnail-preview' },
+      div({ className: 'pdf-thumbnail-lines' }),
+      div({ className: 'pdf-thumbnail-lines short' }),
+      div({ className: 'pdf-thumbnail-lines' }),
+      div({ className: 'pdf-thumbnail-lines medium' }),
+    );
 
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-1' }, 'OCR Recognition Language'),
-        langSelect,
-        p({ className: 'text-xs font-semibold text-slate-200 mb-1' }, 'Searchable Text Layer'),
-        textArea,
-        div(
-          { className: 'grid grid-cols-2 gap-2 pt-1' },
-          createButton(
-            'secondary',
-            {
-              type: 'button',
-              className: 'text-xs py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700',
-              onclick: async () => {
-                await navigator.clipboard?.writeText(extractedText);
-                showToast('Copied OCR text to clipboard', 'success');
-              },
-            },
-            'Copy Text'
-          ),
-          createButton(
-            'primary',
-            {
-              type: 'button',
-              className:
-                'text-xs py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-cyan-600/20',
-              onclick: () => {
-                ocrEnabled = true;
-                renderToolControls();
-                showToast('Embedded OCR layer into PDF', 'success');
-              },
-            },
-            'Sync Layer'
-          )
-        )
-      );
-    } else if (activeTab === 'deskew') {
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-2' }, 'Geometric Alignment & Deskew'),
-        createSliderControl('Fine Rotation Angle', deskewAngle, -15, 15, '°', (v) => {
-          deskewAngle = v;
-          applyVisualTransforms();
-        }),
-        div(
-          { className: 'grid grid-cols-2 gap-2 pt-2' },
-          createPresetButton('Auto-Align (0°)', () => {
-            deskewAngle = 0;
-            applyVisualTransforms();
-            renderToolControls();
-            showToast('Page auto-aligned to 0°');
-          }),
-          createPresetButton('Rotate +90°', () => {
-            if (pages[selectedPageIndex]) {
-              pages[selectedPageIndex].rotation = (pages[selectedPageIndex].rotation + 90) % 360;
-              applyVisualTransforms();
-              renderToolControls();
-            }
-          })
-        )
-      );
-    } else if (activeTab === 'merge') {
-      const queueList =
-        mergeQueue.length === 0
-          ? div({ className: 'py-3 text-slate-500' }, 'No extra documents queued')
-          : div(
-              { className: 'space-y-1.5 text-left max-h-36 overflow-y-auto' },
-              ...mergeQueue.map((item, idx) =>
-                div(
-                  {
-                    className:
-                      'flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[11px] text-slate-200',
-                  },
-                  span({ className: 'truncate max-w-[165px]' }, `${idx + 1}. ${item.name}`),
-                  button(
-                    {
-                      type: 'button',
-                      className: 'text-slate-400 hover:text-rose-400 pl-2',
-                      onclick: () => {
-                        mergeQueue = mergeQueue.filter((q) => q.id !== item.id);
-                        renderToolControls();
-                      },
-                    },
-                    '✕'
-                  )
-                )
-              )
-            );
+    const pageNumber = span(
+      { className: 'pdf-thumbnail-number' },
+      `${index + 1}`,
+    );
 
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-2' }, 'Merge Additional Documents'),
-        div(
-          { className: 'rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-xs text-slate-400 text-center space-y-2.5' },
-          queueList,
-          label(
-            {
-              className:
-                'cursor-pointer block w-full text-xs py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-xl border border-slate-700 transition-colors',
-            },
-            '+ Add PDFs or Scans',
-            mergeFileInput
-          ),
-          mergeQueue.length > 0
-            ? createButton(
-                'primary',
-                {
-                  type: 'button',
-                  className:
-                    'w-full text-xs py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl',
-                  onclick: () => {
-                    mergeQueue.forEach((m) => {
-                      pages.push({
-                        id: `merged-${m.id}`,
-                        title: `${m.name} (Merged)`,
-                        rotation: 0,
-                      });
-                    });
-                    const count = mergeQueue.length;
-                    mergeQueue = [];
-                    renderToolControls();
-                    showToast(`Merged ${count} document(s) into workspace`, 'success');
-                  },
-                },
-                `Merge ${mergeQueue.length} File(s) Now`
-              )
-            : ''
-        )
-      );
-    } else if (activeTab === 'export') {
-      const formatGrid = div(
-        { className: 'grid grid-cols-3 gap-2' },
-        createPresetButton('Searchable PDF', () => triggerExport('pdf')),
-        createPresetButton('JPG Images', () => triggerExport('jpg')),
-        createPresetButton('TXT Script', () => triggerExport('txt'))
-      );
-      toolContainer.append(
-        p({ className: 'text-xs font-semibold text-slate-200 mb-2' }, 'Choose Export Format'),
-        formatGrid
-      );
+    const pageName = span(
+      { className: 'pdf-thumbnail-name' },
+      pageItem.title,
+    );
+
+    const actions = div(
+      { className: 'pdf-thumbnail-actions' },
+      button(
+        {
+          type: 'button',
+          title: 'Move up',
+          disabled: index === 0,
+          onclick: (event: Event) => {
+            event.stopPropagation();
+            movePage(index, -1);
+          },
+        },
+        '↑',
+      ),
+      button(
+        {
+          type: 'button',
+          title: 'Move down',
+          disabled: index === pages.length - 1,
+          onclick: (event: Event) => {
+            event.stopPropagation();
+            movePage(index, 1);
+          },
+        },
+        '↓',
+      ),
+      button(
+        {
+          type: 'button',
+          title: 'Delete page',
+          onclick: (event: Event) => {
+            event.stopPropagation();
+            deletePage(index);
+          },
+        },
+        '×',
+      ),
+    );
+
+    thumbnail.append(pagePreview, pageNumber, pageName, actions);
+
+    thumbnail.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectPage(index);
+      }
+    });
+
+    return thumbnail;
+  }
+
+  function selectPage(index: number) {
+    if (index < 0 || index >= pages.length) {
+      return;
     }
 
-    // Persistent Summary Panel
-    toolContainer.append(
-      div(
-        { className: 'mt-5 border-t border-slate-800/80 pt-4' },
-        createDetailPanel('Scan summary', [
-          { label: 'File name', value: uploadedFileName || 'Sample_Invoice.pdf' },
-          { label: 'Pages', value: `${pages.length} pages` },
-          { label: 'Deskew / Rot', value: `${deskewAngle}° / ${pages[selectedPageIndex]?.rotation ?? 0}°` },
-          { label: 'OCR Status', value: ocrEnabled ? `Active (${ocrLanguage.toUpperCase()})` : 'Disabled' },
-        ])
-      )
+    selectedPageIndex = index;
+
+    renderDocumentPreview();
+    renderToolControls();
+  }
+
+  function movePage(index: number, direction: -1 | 1) {
+    const target = index + direction;
+
+    if (target < 0 || target >= pages.length) {
+      return;
+    }
+
+    [pages[index], pages[target]] = [pages[target], pages[index]];
+
+    selectedPageIndex = target;
+
+    renderDocumentPreview();
+    renderToolControls();
+  }
+
+  function deletePage(index: number) {
+    if (pages.length <= 1) {
+      showToast('At least one page is required');
+      return;
+    }
+
+    pages.splice(index, 1);
+
+    if (selectedPageIndex === index) {
+      selectedPageIndex = Math.min(index, pages.length - 1);
+    } else if (selectedPageIndex > index) {
+      selectedPageIndex--;
+    }
+
+    renderDocumentPreview();
+    renderToolControls();
+  }
+
+  function insertBlankPage() {
+    const page: ScannerPageItem = {
+      id: createId('page'),
+      title: `Page ${pages.length + 1} (Blank)`,
+      rotation: 0,
+      isBlank: true,
+    };
+
+    pages.splice(selectedPageIndex + 1, 0, page);
+    selectedPageIndex++;
+
+    renderDocumentPreview();
+    renderToolControls();
+
+    showToast('Blank page inserted', 'success');
+  }
+
+  function duplicatePage() {
+    const current = getActivePage();
+
+    if (!current) {
+      return;
+    }
+
+    const duplicate: ScannerPageItem = {
+      ...current,
+      id: createId('page'),
+      title: `${current.title} (Copy)`,
+    };
+
+    pages.splice(selectedPageIndex + 1, 0, duplicate);
+    selectedPageIndex++;
+
+    renderDocumentPreview();
+    renderToolControls();
+
+    showToast('Page duplicated', 'success');
+  }
+
+  // --------------------------------------------------
+  // Inspector rendering
+  // --------------------------------------------------
+
+  function renderToolControls() {
+    toolContainer.replaceChildren();
+
+    switch (activeTab) {
+      case 'pages':
+        renderPagesControls();
+        break;
+
+      case 'enhance':
+        renderEnhanceControls();
+        break;
+
+      case 'ocr':
+        renderOCRControls();
+        break;
+
+      case 'deskew':
+        renderDeskewControls();
+        break;
+
+      case 'merge':
+        renderMergeControls();
+        break;
+
+      case 'export':
+        renderExportControls();
+        break;
+    }
+
+    renderSummary();
+  }
+
+  function createSectionTitle(title: string, description?: string) {
+    return div(
+      { className: 'pdf-section-heading' },
+      p({ className: 'pdf-section-title' }, title),
+      description
+        ? p({ className: 'pdf-section-description' }, description)
+        : '',
     );
   }
 
-  function applyScanPreset(preset: 'original' | 'magic' | 'bw') {
+  function createControlGroup(...children: HTMLElement[]) {
+    return div(
+      { className: 'pdf-control-group' },
+      ...children,
+    );
+  }
+
+  function renderPagesControls() {
+    const pageList = div(
+      { className: 'pdf-page-list' },
+      ...pages.map((page, index) =>
+        createPageThumbnailItem(page, index),
+      ),
+    );
+
+    const actions = div(
+      { className: 'pdf-page-actions' },
+      createButton(
+        'secondary',
+        {
+          type: 'button',
+          className: 'pdf-button pdf-button-secondary',
+          onclick: insertBlankPage,
+        },
+        '+ Blank page',
+      ),
+      createButton(
+        'secondary',
+        {
+          type: 'button',
+          className: 'pdf-button pdf-button-secondary',
+          onclick: duplicatePage,
+        },
+        'Duplicate',
+      ),
+    );
+
+    toolContainer.append(
+      createSectionTitle(
+        'Document pages',
+        `${pages.length} pages in workspace`,
+      ),
+      pageList,
+      actions,
+    );
+  }
+
+  function renderEnhanceControls() {
+    toolContainer.append(
+      createSectionTitle(
+        'Image enhancement',
+        'Adjust the appearance of the document preview',
+      ),
+      createControlGroup(
+        p({ className: 'pdf-control-label' }, 'Filter presets'),
+        div(
+          { className: 'pdf-preset-grid' },
+          createPresetButton(
+            'Original',
+            () => applyScanPreset('original'),
+            scanPreset === 'original',
+          ),
+          createPresetButton(
+            'Magic color',
+            () => applyScanPreset('magic'),
+            scanPreset === 'magic',
+          ),
+          createPresetButton(
+            'Black & white',
+            () => applyScanPreset('bw'),
+            scanPreset === 'bw',
+          ),
+        ),
+      ),
+      createSliderControl(
+        'Brightness',
+        brightness,
+        50,
+        160,
+        '%',
+        (value) => {
+          brightness = value;
+          scanPreset = 'original';
+          applyVisualTransforms();
+        },
+      ),
+      createSliderControl(
+        'Contrast',
+        contrast,
+        50,
+        200,
+        '%',
+        (value) => {
+          contrast = value;
+          scanPreset = 'original';
+          applyVisualTransforms();
+        },
+      ),
+      createSliderControl(
+        'Grayscale',
+        grayscale,
+        0,
+        100,
+        '%',
+        (value) => {
+          grayscale = value;
+          scanPreset = 'original';
+          applyVisualTransforms();
+        },
+      ),
+    );
+  }
+
+  function renderOCRControls() {
+    const languageSelect = document.createElement('select');
+
+    languageSelect.className = 'pdf-select';
+    languageSelect.setAttribute('aria-label', 'OCR language');
+
+    OCR_LANGUAGES.forEach((language) => {
+      const option = document.createElement('option');
+
+      option.value = language.value;
+      option.textContent = language.label;
+      option.selected = language.value === ocrLanguage;
+
+      languageSelect.append(option);
+    });
+
+    languageSelect.addEventListener('change', () => {
+      ocrLanguage = languageSelect.value;
+      showToast(`Language set to ${ocrLanguage.toUpperCase()}`);
+    });
+
+    const textArea = document.createElement('textarea');
+
+    textArea.className = 'pdf-textarea';
+    textArea.value = extractedText;
+    textArea.placeholder = 'Extracted text will appear here...';
+    textArea.setAttribute('aria-label', 'Extracted OCR text');
+
+    textArea.addEventListener('input', () => {
+      extractedText = textArea.value;
+    });
+
+    toolContainer.append(
+      createSectionTitle(
+        'Text recognition',
+        'Manage the searchable text layer',
+      ),
+      createControlGroup(
+        p({ className: 'pdf-control-label' }, 'Recognition language'),
+        languageSelect,
+      ),
+      createControlGroup(
+        p({ className: 'pdf-control-label' }, 'Extracted text'),
+        textArea,
+      ),
+      div(
+        { className: 'pdf-button-grid' },
+        createButton(
+          'secondary',
+          {
+            type: 'button',
+            className: 'pdf-button pdf-button-secondary',
+            onclick: async () => {
+              try {
+                await navigator.clipboard.writeText(extractedText);
+                showToast('Text copied', 'success');
+              } catch {
+                showToast('Clipboard access unavailable');
+              }
+            },
+          },
+          'Copy text',
+        ),
+        createButton(
+          'primary',
+          {
+            type: 'button',
+            className: 'pdf-button pdf-button-primary',
+            onclick: () => {
+              ocrEnabled = true;
+              showToast('Text layer enabled', 'success');
+              renderToolControls();
+            },
+          },
+          'Enable layer',
+        ),
+      ),
+    );
+  }
+
+  function renderDeskewControls() {
+    toolContainer.append(
+      createSectionTitle(
+        'Page alignment',
+        'Adjust rotation and correct tilted scans',
+      ),
+      createSliderControl(
+        'Fine rotation',
+        deskewAngle,
+        -15,
+        15,
+        '°',
+        (value) => {
+          deskewAngle = value;
+          applyVisualTransforms();
+        },
+      ),
+      createControlGroup(
+        p({ className: 'pdf-control-label' }, 'Quick adjustments'),
+        div(
+          { className: 'pdf-preset-grid' },
+          createPresetButton(
+            'Reset angle',
+            () => {
+              deskewAngle = 0;
+              applyVisualTransforms();
+              renderToolControls();
+            },
+          ),
+          createPresetButton(
+            'Rotate 90°',
+            () => rotateActivePage(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  function renderMergeControls() {
+    const queueList = div({
+      className: 'pdf-merge-list',
+    });
+
+    if (mergeQueue.length === 0) {
+      queueList.append(
+        p(
+          { className: 'pdf-empty-message' },
+          'No additional documents queued',
+        ),
+      );
+    } else {
+      mergeQueue.forEach((item, index) => {
+        const row = div(
+          { className: 'pdf-merge-item' },
+          div(
+            { className: 'pdf-merge-file-info' },
+            span({ className: 'pdf-merge-number' }, `${index + 1}`),
+            div(
+              { className: 'pdf-merge-file-details' },
+              span({ className: 'pdf-merge-file-name' }, item.name),
+              span(
+                { className: 'pdf-merge-file-size' },
+                `${item.sizeMB} MB`,
+              ),
+            ),
+          ),
+          button(
+            {
+              type: 'button',
+              className: 'pdf-remove-button',
+              title: 'Remove file',
+              onclick: () => {
+                mergeQueue = mergeQueue.filter(
+                  (entry) => entry.id !== item.id,
+                );
+
+                renderToolControls();
+              },
+            },
+            createIcon('close'),
+          ),
+        );
+
+        queueList.append(row);
+      });
+    }
+
+    toolContainer.append(
+      createSectionTitle(
+        'Merge documents',
+        'Arrange additional documents for processing',
+      ),
+      queueList,
+      label(
+        { className: 'pdf-merge-upload' },
+        '+ Add PDFs or scans',
+        mergeFileInput,
+      ),
+      createButton(
+        'primary',
+        {
+          type: 'button',
+          className: 'pdf-button pdf-button-primary pdf-full-width',
+          disabled: mergeQueue.length === 0,
+          onclick: mergeDocuments,
+        },
+        `Add ${mergeQueue.length} file(s) to workspace`,
+      ),
+      p(
+        { className: 'pdf-helper-text' },
+        'Queued files are tracked separately. Actual PDF merging requires the server-side merge operation.',
+      ),
+    );
+  }
+
+  function renderExportControls() {
+    toolContainer.append(
+      createSectionTitle(
+        'Export document',
+        'Choose an output format',
+      ),
+      div(
+        { className: 'pdf-export-grid' },
+        createPresetButton(
+          'Searchable PDF',
+          () => triggerExport('pdf'),
+        ),
+        createPresetButton(
+          'JPG image',
+          () => triggerExport('jpg'),
+        ),
+        createPresetButton(
+          'Text file',
+          () => triggerExport('txt'),
+        ),
+      ),
+      createControlGroup(
+        p({ className: 'pdf-control-label' }, 'Export summary'),
+        div(
+          { className: 'pdf-export-summary' },
+          span({}, 'Document'),
+          strong({}, uploadedFileName || 'No document'),
+          span({}, 'Pages'),
+          strong({}, `${pages.length}`),
+          span({}, 'OCR'),
+          strong({}, ocrEnabled ? 'Enabled' : 'Disabled'),
+        ),
+      ),
+    );
+  }
+
+  function renderSummary() {
+    const page = getActivePage();
+
+    const summary = div(
+      { className: 'pdf-summary' },
+      p({ className: 'pdf-summary-title' }, 'Document summary'),
+      div(
+        { className: 'pdf-summary-row' },
+        span({}, 'File'),
+        strong({}, uploadedFileName || 'No document'),
+      ),
+      div(
+        { className: 'pdf-summary-row' },
+        span({}, 'Pages'),
+        strong({}, `${pages.length}`),
+      ),
+      div(
+        { className: 'pdf-summary-row' },
+        span({}, 'Rotation'),
+        strong(
+          {},
+          `${(page?.rotation ?? 0) + deskewAngle}°`,
+        ),
+      ),
+      div(
+        { className: 'pdf-summary-row' },
+        span({}, 'OCR'),
+        strong({}, ocrEnabled ? 'Enabled' : 'Disabled'),
+      ),
+    );
+
+    toolContainer.append(summary);
+  }
+
+  // --------------------------------------------------
+  // Enhancement
+  // --------------------------------------------------
+
+  function applyScanPreset(preset: ScanPreset) {
     scanPreset = preset;
+
     if (preset === 'original') {
       brightness = 100;
       contrast = 100;
@@ -696,211 +1273,333 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       brightness = 112;
       contrast = 132;
       grayscale = 0;
-    } else if (preset === 'bw') {
+    } else {
       brightness = 115;
       contrast = 175;
       grayscale = 100;
     }
+
     applyVisualTransforms();
     renderToolControls();
   }
 
-  async function triggerExport(format: 'pdf' | 'jpg' | 'txt') {
-    const baseName = (uploadedFileName || 'scanned-document').replace(/\.[^/.]+$/, '');
+  // --------------------------------------------------
+  // Rotation
+  // --------------------------------------------------
 
-    if (format === 'txt') {
-      const blob = new Blob([extractedText], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${baseName}-ocr.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`Downloaded ${baseName}-ocr.txt`, 'success');
+  function rotateActivePage() {
+    const page = getActivePage();
+
+    if (!page) {
       return;
     }
 
-    if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
-      const contentData = uploadedFileUrl ?? `data:${uploadedFileType === 'pdf' ? 'application/pdf' : 'image/png'};base64,`;
+    page.rotation = (page.rotation + 90) % 360;
+
+    applyVisualTransforms();
+    renderToolControls();
+  }
+
+  // --------------------------------------------------
+  // OCR
+  // --------------------------------------------------
+
+  function runOCR() {
+    if (!uploadedFile) {
+      showToast('Upload a document first');
+      return;
+    }
+
+    ocrEnabled = true;
+
+    switchTab('ocr');
+
+    showToast(
+      'OCR is enabled. Connect an OCR processing service to extract actual document text.',
+    );
+  }
+
+  // --------------------------------------------------
+  // Merge
+  // --------------------------------------------------
+
+  function mergeDocuments() {
+    if (!mergeQueue.length) {
+      return;
+    }
+
+    const queued = [...mergeQueue];
+
+    queued.forEach((item) => {
+      pages.push({
+        id: createId('page'),
+        title: `${item.name} (Queued)`,
+        rotation: 0,
+      });
+    });
+
+    selectedPageIndex = pages.length - 1;
+    mergeQueue = [];
+
+    renderDocumentPreview();
+    renderToolControls();
+
+    showToast(
+      `${queued.length} file(s) added to workspace queue`,
+      'success',
+    );
+  }
+
+  // --------------------------------------------------
+  // Export
+  // --------------------------------------------------
+
+  async function triggerExport(format: ExportFormat) {
+    if (!uploadedFile) {
+      showToast('Upload a document before exporting');
+      return;
+    }
+
+    const baseName = getBaseName();
+
+    if (format === 'txt') {
+      const blob = new Blob(
+        [extractedText],
+        { type: 'text/plain;charset=utf-8' },
+      );
+
+      downloadBlob(blob, `${baseName}-ocr.txt`);
+
+      showToast('Text file exported', 'success');
+      return;
+    }
+
+    const processingMode =
+      appStore.getState().mediaProcessingMode ?? 'browser';
+
+    if (processingMode === 'server') {
       try {
+        const dataUrl = await fileToDataUrl(uploadedFile);
+
         const result = await processMediaOnServer({
           operation: 'pdf-export',
           mediaType: 'pdf',
           fileName: `${baseName}-edited.${format}`,
-          dataUrl: contentData,
+          dataUrl,
           mode: 'server',
           metadata: {
             format,
             pageCount: pages.length,
             ocrEnabled,
             language: ocrLanguage,
+            deskewAngle,
+            brightness,
+            contrast,
+            grayscale,
+            pages: pages.map((page) => ({
+              id: page.id,
+              title: page.title,
+              rotation: page.rotation,
+              isBlank: page.isBlank ?? false,
+            })),
           },
         });
-        console.info('PDF export sent to backend:', result);
-        showToast(`Sent ${baseName} to server for processing`, 'success');
+
+        console.info('PDF export response:', result);
+
+        showToast('Document sent for server processing', 'success');
         return;
       } catch (error) {
-        console.error('PDF server processing failed:', error);
+        console.error('PDF processing failed:', error);
+        showToast('Server processing failed');
+        return;
       }
     }
 
-    if (uploadedFileUrl) {
-      const a = document.createElement('a');
-      a.href = uploadedFileUrl;
-      a.download = `${baseName}-edited.${format}`;
-      a.click();
+    if (format === 'pdf' && uploadedFileType === 'pdf') {
+      downloadBlob(
+        uploadedFile,
+        `${baseName}-edited.pdf`,
+      );
+
+      showToast(
+        'Original PDF downloaded. Preview adjustments are not embedded in browser export.',
+        'success',
+      );
+
+      return;
     }
-    showToast(`Exported document as ${format.toUpperCase()}`, 'success');
+
+    if (format === 'jpg' && uploadedFileType === 'image') {
+      downloadBlob(
+        uploadedFile,
+        `${baseName}-edited.jpg`,
+      );
+
+      showToast(
+        'Original image downloaded. Preview adjustments are not embedded in browser export.',
+        'success',
+      );
+
+      return;
+    }
+
+    showToast(
+      'This export format requires server-side document conversion.',
+    );
   }
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = filename;
+
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Unable to read document'));
+        }
+      };
+
+      reader.onerror = () => reject(
+        reader.error || new Error('File read failed'),
+      );
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // --------------------------------------------------
+  // Tab navigation
+  // --------------------------------------------------
 
   function switchTab(tab: ScanTab) {
     activeTab = tab;
-    sidePanelNav.querySelectorAll('button').forEach((btn, idx) => {
-      const isSelected = tabs[idx].id === tab;
-      btn.className = `inline-flex min-w-[70px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:px-2.5 sm:text-[10px] ${
-        isSelected
-          ? 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner'
-          : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
-      }`;
+
+    sidePanelNav.querySelectorAll('button').forEach((element, index) => {
+      const buttonElement = element as HTMLButtonElement;
+      const selected = TABS[index]?.id === tab;
+
+      buttonElement.classList.toggle('pdf-tab-active', selected);
+      buttonElement.classList.toggle('pdf-tab-inactive', !selected);
+      buttonElement.setAttribute(
+        'aria-selected',
+        String(selected),
+      );
     });
+
     renderToolControls();
   }
 
-  // --- Bottom HUD Event Listeners ---
+  // --------------------------------------------------
+  // HUD event listeners
+  // --------------------------------------------------
+
   zoomOutBtn.addEventListener('click', () => {
     zoomLevel = Math.max(50, zoomLevel - 15);
     applyVisualTransforms();
   });
+
   zoomInBtn.addEventListener('click', () => {
     zoomLevel = Math.min(220, zoomLevel + 15);
     applyVisualTransforms();
   });
+
   deskewLeftBtn.addEventListener('click', () => {
     deskewAngle = Math.max(-15, deskewAngle - 1);
     applyVisualTransforms();
-    if (activeTab === 'deskew') renderToolControls();
-  });
-  deskewRightBtn.addEventListener('click', () => {
-    deskewAngle = Math.min(15, deskewAngle + 1);
-    applyVisualTransforms();
-    if (activeTab === 'deskew') renderToolControls();
-  });
-  rotate90Btn.addEventListener('click', () => {
-    if (pages[selectedPageIndex]) {
-      pages[selectedPageIndex].rotation = (pages[selectedPageIndex].rotation + 90) % 360;
-      applyVisualTransforms();
+
+    if (activeTab === 'deskew') {
       renderToolControls();
     }
   });
-  ocrRunBtn.addEventListener('click', () => {
-    ocrEnabled = true;
-    switchTab('ocr');
-    showToast('OCR text extraction completed!', 'success');
+
+  deskewRightBtn.addEventListener('click', () => {
+    deskewAngle = Math.min(15, deskewAngle + 1);
+    applyVisualTransforms();
+
+    if (activeTab === 'deskew') {
+      renderToolControls();
+    }
   });
 
-  function createPageThumbnailItem(pageItem: ScannerPageItem, index: number) {
-    const isSelected = index === selectedPageIndex;
+  rotate90Btn.addEventListener('click', rotateActivePage);
 
-    return div(
-      {
-        className: `flex items-center justify-between rounded-xl border p-2 text-xs transition-colors cursor-pointer ${
-          isSelected
-            ? 'border-cyan-500/60 bg-slate-900 text-white'
-            : 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700'
-        }`,
-        onclick: () => {
-          selectedPageIndex = index;
-          renderDocumentPreview();
-          renderToolControls();
-        },
-      },
-      div(
-        { className: 'flex items-center gap-2 min-w-0' },
-        div(
-          {
-            className: `flex h-6 w-6 shrink-0 items-center justify-center rounded text-[10px] font-mono font-bold ${
-              isSelected ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-cyan-400'
-            }`,
-          },
-          (index + 1).toString()
-        ),
-        span({ className: 'truncate' }, pageItem.title)
-      ),
-      div(
-        { className: 'flex items-center gap-0.5 shrink-0' },
-        button(
-          {
-            type: 'button',
-            title: 'Move Up',
-            className: 'text-slate-400 hover:text-white text-[11px] px-1.5 py-0.5 disabled:opacity-30',
-            disabled: index === 0,
-            onclick: (e: Event) => {
-              e.stopPropagation();
-              if (index === 0) return;
-              [pages[index - 1], pages[index]] = [pages[index], pages[index - 1]];
-              selectedPageIndex = index - 1;
-              renderDocumentPreview();
-              renderToolControls();
-            },
-          },
-          '↑'
-        ),
-        button(
-          {
-            type: 'button',
-            title: 'Move Down',
-            className: 'text-slate-400 hover:text-white text-[11px] px-1.5 py-0.5 disabled:opacity-30',
-            disabled: index === pages.length - 1,
-            onclick: (e: Event) => {
-              e.stopPropagation();
-              if (index >= pages.length - 1) return;
-              [pages[index + 1], pages[index]] = [pages[index], pages[index + 1]];
-              selectedPageIndex = index + 1;
-              renderDocumentPreview();
-              renderToolControls();
-            },
-          },
-          '↓'
-        ),
-        button(
-          {
-            type: 'button',
-            title: 'Delete Page',
-            className: 'text-slate-500 hover:text-rose-400 text-xs px-1.5 py-0.5',
-            onclick: (e: Event) => {
-              e.stopPropagation();
-              if (pages.length <= 1) {
-                showToast('At least 1 page is required');
-                return;
-              }
-              pages.splice(index, 1);
-              selectedPageIndex = Math.min(selectedPageIndex, pages.length - 1);
-              renderDocumentPreview();
-              renderToolControls();
-            },
-          },
-          '✕'
-        )
-      )
-    );
-  }
+  ocrRunBtn.addEventListener('click', runOCR);
+
+  // --------------------------------------------------
+  // Reset
+  // --------------------------------------------------
 
   function resetEditor() {
     deskewAngle = 0;
     zoomLevel = 100;
+
     brightness = 100;
     contrast = 100;
     grayscale = 0;
+
     scanPreset = 'original';
-    pages = pages.map((pItem) => ({ ...pItem, rotation: 0 }));
+
+    pages = pages.map((page) => ({
+      ...page,
+      rotation: 0,
+    }));
+
     applyVisualTransforms();
     renderToolControls();
-    showToast('Reset all adjustments');
+
+    showToast('Adjustments reset', 'success');
   }
 
-  // Initial Mount
+  // --------------------------------------------------
+  // Cleanup
+  // --------------------------------------------------
+
+  function cleanup() {
+    if (destroyed) {
+      return;
+    }
+
+    destroyed = true;
+
+    document.removeEventListener(
+      'fullscreenchange',
+      updateFullscreenButton,
+    );
+
+    if (uploadedFileUrl) {
+      URL.revokeObjectURL(uploadedFileUrl);
+      uploadedFileUrl = null;
+    }
+
+    previewContainer.replaceChildren();
+    toastContainer.replaceChildren();
+  }
+
+  root.addEventListener('remove', cleanup, { once: true });
+
+  // --------------------------------------------------
+  // Initial render
+  // --------------------------------------------------
+
   renderDocumentPreview();
   renderToolControls();
+  updateFullscreenButton();
 
   return root;
 }

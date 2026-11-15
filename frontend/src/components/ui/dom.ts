@@ -298,6 +298,7 @@ export const a = (attrs?: ElementAttributes, ...children: ElementChild[]) => el(
 export const img = (attrs?: ElementAttributes) => el('img', attrs);
 export const video = (attrs?: ElementAttributes) => el('video', attrs);
 export const canvas = (attrs?: ElementAttributes) => el('canvas', attrs);
+export const strong = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('p', attrs, ...children);
 
 // SVG Tag Shorthands
 export const svg = (attrs?: ElementAttributes, ...children: ElementChild[]) => svgElement('svg', attrs, ...children);
