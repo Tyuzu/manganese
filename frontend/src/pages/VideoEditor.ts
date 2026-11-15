@@ -2969,6 +2969,82 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 20. SERVER AND BROWSER EXPORT
   // ============================================================
 
+  async function fallbackToServerExport(): Promise<boolean> {
+    if (!videoFile) {
+      return false;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(videoFile);
+
+      const result = await exportVideoWithFFmpeg({
+        operation: 'video-export',
+        mediaType: 'video',
+        fileName:
+          videoFile.name ||
+          `rendered-video-${Date.now()}.${exportFormat}`,
+        mode: 'server',
+        dataUrl,
+        metadata: {
+          resolution: exportResolution,
+          fps: exportFps,
+          format: exportFormat,
+          bitrate: exportBitrate,
+
+          trimStart,
+          trimEnd,
+
+          aspectRatio,
+          rotation,
+          flipH,
+          flipV,
+
+          playbackRate,
+          volume,
+
+          captionSegments,
+          captionText,
+          audioTracks: audioTracks.map((track) => ({
+            ...track,
+            dataUrl: track.dataUrl,
+          })),
+          captionTracks: captionTracks.map((track) => ({
+            ...track,
+            segments: cloneCaptionSegments(track.segments),
+          })),
+          activeCaptionTrackId,
+
+          filters: { ...filters },
+
+          transitionType: activeTransition,
+          blendMode: activeBlendMode,
+        },
+      });
+
+      console.warn(
+        'Browser export produced an empty file; server FFmpeg fallback was used.',
+        result,
+      );
+
+      if (result.output) {
+        await downloadVideoFromServer(
+          result.output,
+          result.fileName || 'dolomite-rendered.mp4',
+        );
+      }
+
+      alert(
+        result.message ||
+          'The browser export was empty, so the FFmpeg server fallback produced the final video.',
+      );
+
+      return true;
+    } catch (error) {
+      console.error('Server fallback export failed:', error);
+      return false;
+    }
+  }
+
   async function startVideoExport() {
     if (!videoFile || !videoUrl) {
       alert('Please import a video before rendering.');
@@ -3203,7 +3279,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       }
     };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const wasCancelled = exportCancelled;
 
       isRendering = false;
@@ -3245,7 +3321,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       renderChunks = [];
 
       if (!blob.size) {
-        alert('The render produced an empty video file.');
+        const fallbackSucceeded = await fallbackToServerExport();
+
+        if (fallbackSucceeded) {
+          renderChunks = [];
+          renderProgress = 0;
+          renderToolControls();
+          return;
+        }
+
+        alert(
+          'The render produced an empty video file and the FFmpeg fallback could not complete.',
+        );
         renderToolControls();
         return;
       }
