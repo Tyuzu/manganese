@@ -110,6 +110,17 @@ export interface MediaServerProcessRequest {
   metadata?: Record<string, unknown>;
 }
 
+export interface VideoExportStatusResponse {
+  ok: boolean;
+  jobId?: string;
+  status?: string;
+  message?: string;
+  fileName?: string;
+  output?: string;
+  progress?: number;
+  error?: string;
+}
+
 export function buildMediaOperationRequest(
   operation: string,
   mediaType: MediaServerProcessRequest['mediaType'],
@@ -141,7 +152,19 @@ export const api = {
 };
 
 export async function exportVideoWithFFmpeg(payload: MediaServerProcessRequest) {
-  return api.post<{ ok: boolean; mode: string; operation: string; message: string; fileName?: string; size?: number; output?: string }>(
+  return api.post<{
+    ok: boolean;
+    mode: string;
+    operation: string;
+    message: string;
+    fileName?: string;
+    size?: number;
+    output?: string;
+    status?: string;
+    jobId?: string;
+    progress?: number;
+    error?: string;
+  }>(
     '/video/export',
     {
       ...payload,
@@ -151,6 +174,10 @@ export async function exportVideoWithFFmpeg(payload: MediaServerProcessRequest) 
       metadata: payload.metadata ?? {},
     }
   );
+}
+
+export async function getVideoExportStatus(jobId: string) {
+  return api.get<VideoExportStatusResponse>(`/video/export/status?jobId=${encodeURIComponent(jobId)}`);
 }
 
 export async function downloadVideoFromServer(path: string, fileName?: string) {

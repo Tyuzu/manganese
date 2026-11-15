@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -31,7 +32,25 @@ type mediaResponse struct {
 	Size      int                    `json:"size"`
 	Output    string                 `json:"output,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Status    string                 `json:"status,omitempty"`
+	JobID     string                 `json:"jobId,omitempty"`
+	Progress  float64                `json:"progress,omitempty"`
+	Error     string                 `json:"error,omitempty"`
 }
+
+type exportJob struct {
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`
+	Message   string    `json:"message"`
+	FileName  string    `json:"fileName"`
+	Output    string    `json:"output,omitempty"`
+	Progress  float64   `json:"progress"`
+	Error     string    `json:"error,omitempty"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+var exportJobs sync.Map
 
 func decodeDataURL(dataURL string) ([]byte, error) {
 	if strings.TrimSpace(dataURL) == "" {
@@ -52,6 +71,32 @@ func decodeDataURL(dataURL string) ([]byte, error) {
 	}
 
 	return base64.RawStdEncoding.DecodeString(payload)
+}
+
+func metadataBoolValue(metadata map[string]interface{}, key string) bool {
+	if metadata == nil {
+		return false
+	}
+
+	value, found := metadata[key]
+	if !found || value == nil {
+		return false
+	}
+
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		return strings.EqualFold(strings.TrimSpace(typed), "true") || strings.EqualFold(strings.TrimSpace(typed), "1")
+	case float64:
+		return typed != 0
+	case int:
+		return typed != 0
+	case int64:
+		return typed != 0
+	default:
+		return false
+	}
 }
 
 func buildSubtitleSRT(raw interface{}) string {
@@ -303,7 +348,7 @@ func buildVideoFilterString(req mediaRequest) string {
 	}
 
 	if vignette := metadataFloat(req.Metadata, "vignette"); vignette > 0 {
-		parts = append(parts, fmt.Sprintf("eq=brightness=0.0:contrast=1.0:saturation=1.0:gamma=1.0:gamma_weight=1.0"))
+		parts = append(parts, "eq=brightness=0.0:contrast=1.0:saturation=1.0:gamma=1.0:gamma_weight=1.0")
 		_ = vignette
 	}
 
@@ -372,6 +417,77 @@ func buildVideoExportArgs(req mediaRequest, sourcePath string, audioInputs []str
 	)
 
 	return args
+}
+
+func queueVideoExport(req mediaRequest) (mediaResponse, error) {
+	if strings.TrimSpace(req.DataURL) == "" {
+		return mediaResponse{}, fmt.Errorf("missing source video payload")
+	}
+
+	jobID := fmt.Sprintf("video-%d", time.Now().UnixNano())
+	job := &exportJob{
+		ID:        jobID,
+		Status:    "queued",
+		Message:   "Video export queued on the server.",
+		FileName:  strings.TrimSpace(req.FileName),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if job.FileName == "" {
+		job.FileName = "dolomite-rendered.mp4"
+	}
+	exportJobs.Store(jobID, job)
+
+	go func() {
+		job.Status = "processing"
+		job.Message = "Rendering video on the server…"
+		job.Progress = 5
+		job.UpdatedAt = time.Now()
+		exportJobs.Store(jobID, job)
+
+		result, err := processVideoExport(req)
+		if err != nil {
+			job.Status = "failed"
+			job.Message = err.Error()
+			job.Error = err.Error()
+			job.Progress = 0
+			job.UpdatedAt = time.Now()
+			exportJobs.Store(jobID, job)
+			return
+		}
+
+		job.Status = "completed"
+		job.Message = result.Message
+		job.FileName = result.FileName
+		job.Output = result.Output
+		job.Progress = 100
+		job.UpdatedAt = time.Now()
+		exportJobs.Store(jobID, job)
+	}()
+
+	return mediaResponse{
+		OK:        true,
+		Mode:      req.Mode,
+		Operation: req.Operation,
+		Message:   "Video export queued on the server.",
+		FileName:  job.FileName,
+		Status:    job.Status,
+		JobID:     jobID,
+		Progress:  job.Progress,
+		Metadata:  req.Metadata,
+	}, nil
+}
+
+func getExportJobStatus(jobID string) (exportJob, bool) {
+	value, ok := exportJobs.Load(jobID)
+	if !ok {
+		return exportJob{}, false
+	}
+	job, ok := value.(*exportJob)
+	if !ok || job == nil {
+		return exportJob{}, false
+	}
+	return *job, true
 }
 
 func processVideoExport(req mediaRequest) (mediaResponse, error) {
@@ -568,14 +684,25 @@ func handleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType stri
 	}
 
 	if req.Operation == "video-export" || (req.MediaType == "video" && req.Operation == "video-export") {
-		result, err := processVideoExport(req)
-		if err != nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
-			return
+		if req.Mode == "server" && metadataBoolValue(req.Metadata, "async") {
+			result, err := queueVideoExport(req)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				return
+			}
+			resp = result
+		} else {
+			result, err := processVideoExport(req)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				return
+			}
+			resp = result
 		}
-		resp = result
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

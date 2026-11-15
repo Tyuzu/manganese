@@ -59,3 +59,28 @@ func TestBuildVideoExportArgsHonorsMetadata(t *testing.T) {
 		t.Fatalf("bitrate not encoded into ffmpeg args: %s", joined)
 	}
 }
+
+func TestQueueVideoExportCreatesStatusJob(t *testing.T) {
+	result, err := queueVideoExport(mediaRequest{
+		Operation: "video-export",
+		MediaType: "video",
+		Mode:      "server",
+		FileName:  "job-check.mp4",
+		DataURL:   "data:video/mp4;base64,AAAA",
+		Metadata: map[string]interface{}{
+			"async": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected async queue to be created without immediate error, got %v", err)
+	}
+	if result.JobID == "" {
+		t.Fatalf("expected job id to be set")
+	}
+	if result.Status != "queued" {
+		t.Fatalf("expected queued status, got %q", result.Status)
+	}
+	if !strings.HasPrefix(result.JobID, "video-") {
+		t.Fatalf("expected queue id prefix, got %q", result.JobID)
+	}
+}

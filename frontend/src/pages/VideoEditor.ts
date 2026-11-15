@@ -2232,6 +2232,53 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 20. SERVER AND BROWSER EXPORT
   // ============================================================
 
+  async function pollServerVideoExport(jobId: string, fileName: string): Promise<void> {
+    while (isRendering) {
+      try {
+        const status = await getVideoExportStatus(jobId);
+
+        if (status.status === 'completed') {
+          isRendering = false;
+          renderToolControls();
+          updateRenderProgressUI(100);
+
+          if (status.output) {
+            await downloadVideoFromServer(
+              status.output,
+              status.fileName || fileName || 'dolomite-rendered.mp4',
+            );
+          }
+
+          alert(
+            status.message ||
+              'The server render finished successfully.',
+          );
+          return;
+        }
+
+        if (status.status === 'failed' || status.error) {
+          isRendering = false;
+          renderToolControls();
+          updateRenderProgressUI(0);
+          alert(status.error || status.message || 'Server render failed.');
+          return;
+        }
+
+        const nextProgress = typeof status.progress === 'number'
+          ? clampValue(status.progress, 0, 100)
+          : status.status === 'processing'
+            ? 35
+            : 10;
+
+        updateRenderProgressUI(nextProgress);
+      } catch (error) {
+        console.warn('Server export status poll failed:', error);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+  }
+
   async function fallbackToServerExport(): Promise<boolean> {
     if (!videoFile) {
       return false;
@@ -2253,6 +2300,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           fps: exportFps,
           format: exportFormat,
           bitrate: exportBitrate,
+          async: true,
 
           trimStart,
           trimEnd,
@@ -2288,6 +2336,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         'Browser export produced an empty file; server FFmpeg fallback was used.',
         result,
       );
+
+      if (result.jobId) {
+        await pollServerVideoExport(
+          result.jobId,
+          result.fileName || videoFile.name || 'dolomite-rendered.mp4',
+        );
+        return true;
+      }
 
       if (result.output) {
         await downloadVideoFromServer(
@@ -2335,6 +2391,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       try {
         const dataUrl = await fileToDataUrl(videoFile);
 
+        isRendering = true;
+        renderToolControls();
+        updateRenderProgressUI(5);
+
         const result = await exportVideoWithFFmpeg({
           operation: 'video-export',
           mediaType: 'video',
@@ -2351,6 +2411,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             fps: exportFps,
             format: exportFormat,
             bitrate: exportBitrate,
+            async: true,
 
             trimStart,
             trimEnd,
@@ -2387,6 +2448,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           result,
         );
 
+        if (result.jobId) {
+          await pollServerVideoExport(
+            result.jobId,
+            result.fileName || videoFile.name || 'dolomite-rendered.mp4',
+          );
+          return;
+        }
+
         if (result.output) {
           try {
             await downloadVideoFromServer(
@@ -2404,6 +2473,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         );
       } catch (error) {
         console.error('Server video export failed:', error);
+
+        isRendering = false;
+        renderToolControls();
 
         alert(
           'Server render failed. Check the server connection or use browser rendering.',
