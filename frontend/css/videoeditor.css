@@ -1,0 +1,216 @@
+/* Video editor styles. This file replaces the Tailwind runtime for VideoEditor.ts. */
+:root {
+  --ve-bg: #0f172a;
+  --ve-panel: #1e293b;
+  --ve-border: #334155;
+  --ve-text: #e2e8f0;
+  --ve-muted: #94a3b8;
+  --ve-violet: #8b5cf6;
+  --ve-violet-light: #a78bfa;
+}
+
+/* Base editor surface and native controls */
+.ve-editor-surface {
+  box-sizing: border-box; width: min(100%, 1020px); max-height: 100%;
+  display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto;
+  color: #f8fafc; background: #34495e; border: 1px solid rgba(71,85,105,.7);
+  border-radius: 28px; box-shadow: 0 25px 60px rgba(15,23,42,.3);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.ve-editor-surface *, .ve-editor-surface *::before, .ve-editor-surface *::after { box-sizing: border-box; }
+.ve-editor-surface button, .ve-editor-surface input, .ve-editor-surface select, .ve-editor-surface textarea { font: inherit; }
+.ve-editor-surface button { cursor: pointer; }
+.ve-editor-surface button:disabled { cursor: not-allowed; opacity: .55; }
+.ve-editor-surface input, .ve-editor-surface select, .ve-editor-surface textarea { color: inherit; }
+.ve-editor-surface input[type="range"] { accent-color: var(--ve-violet); }
+.ve-editor-surface input[type="file"] { display: none; }
+.ve-editor-surface ::-webkit-scrollbar { width: 8px; height: 8px; }
+.ve-editor-surface ::-webkit-scrollbar-track { background: rgba(15,23,42,.25); }
+.ve-editor-surface ::-webkit-scrollbar-thumb { background: #475569; border-radius: 99px; }
+.ve-editor-surface ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* Layout */
+.ve-flex { display: flex; } .ve-inline-flex { display: inline-flex; } .ve-grid { display: grid; }
+.ve-block { display: block; } .ve-hidden { display: none !important; }
+.ve-flex-col { flex-direction: column; } .ve-flex-row { flex-direction: row; } .ve-flex-wrap { flex-wrap: wrap; }
+.ve-flex-1 { flex: 1 1 0%; } .ve-shrink-0 { flex-shrink: 0; } .ve-flex-shrink-0 { flex-shrink: 0; }
+.ve-items-center { align-items: center; } .ve-items-start { align-items: flex-start; }
+.ve-justify-center { justify-content: center; } .ve-justify-between { justify-content: space-between; }
+.ve-justify-end { justify-content: flex-end; } .ve-justify-start { justify-content: flex-start; }
+.ve-grid-cols-2 { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.ve-grid-cols-3 { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.ve-gap-1 { gap: .25rem; } .ve-gap-1\.5 { gap: .375rem; } .ve-gap-2 { gap: .5rem; }
+.ve-gap-2\.5 { gap: .625rem; } .ve-gap-3 { gap: .75rem; } .ve-gap-4 { gap: 1rem; } .ve-gap-5 { gap: 1.25rem; }
+.ve-space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: .25rem; }
+.ve-space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: .5rem; }
+.ve-space-y-2\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: .625rem; }
+.ve-space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+
+/* Positioning and sizing */
+.ve-relative { position: relative; } .ve-absolute { position: absolute; }
+.ve-inset-0 { inset: 0; } .ve-top-0 { top: 0; } .ve-bottom-0 { bottom: 0; }
+.ve-bottom-4 { bottom: 1rem; } .ve-right-4 { right: 1rem; } .ve-left-0 { left: 0; }
+.ve-z-0 { z-index: 0; } .ve-z-10 { z-index: 10; } .ve-z-20 { z-index: 20; } .ve-z-30 { z-index: 30; }
+.ve-w-full { width: 100%; } .ve-h-full { height: 100%; } .ve-min-w-0 { min-width: 0; } .ve-min-h-0 { min-height: 0; }
+.ve-w-0\.5 { width: 2px; } .ve-w-2\.5 { width: .625rem; } .ve-w-7 { width: 1.75rem; }
+.ve-w-8 { width: 2rem; } .ve-w-9 { width: 2.25rem; } .ve-w-16 { width: 4rem; }
+.ve-h-1\.5 { height: .375rem; } .ve-h-2 { height: .5rem; } .ve-h-6 { height: 1.5rem; }
+.ve-h-7 { height: 1.75rem; } .ve-h-8 { height: 2rem; } .ve-h-9 { height: 2.25rem; }
+.ve-h-10 { height: 2.5rem; } .ve-h-48 { height: 12rem; } .ve-min-h-screen { min-height: 100vh; }
+.ve-max-w-md { max-width: 28rem; } .ve-max-w-\[1020px\] { max-width: 1020px; }
+.ve-max-w-\[70\%\] { max-width: 70%; } .ve-max-w-\[60\%\] { max-width: 60%; }
+.ve-max-h-\[540px\] { max-height: 540px; } .ve-w-\[310px\] { width: 310px; }
+.ve-overflow-hidden { overflow: hidden; } .ve-overflow-x-hidden { overflow-x: hidden; }
+.ve-overflow-y-auto { overflow-y: auto; } .ve-overflow-x-auto { overflow-x: auto; }
+.ve-object-cover { object-fit: cover; } .ve-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Spacing */
+.ve-p-2 { padding: .5rem; } .ve-p-3 { padding: .75rem; } .ve-p-4 { padding: 1rem; }
+.ve-p-12 { padding: 3rem; } .ve-px-1\.5 { padding-left: .375rem; padding-right: .375rem; }
+.ve-px-2 { padding-left: .5rem; padding-right: .5rem; } .ve-px-3 { padding-left: .75rem; padding-right: .75rem; }
+.ve-px-4 { padding-left: 1rem; padding-right: 1rem; } .ve-py-1 { padding-top: .25rem; padding-bottom: .25rem; }
+.ve-py-2 { padding-top: .5rem; padding-bottom: .5rem; } .ve-py-2\.5 { padding-top: .625rem; padding-bottom: .625rem; }
+.ve-pb-2 { padding-bottom: .5rem; } .ve-pt-1 { padding-top: .25rem; } .ve-pt-2 { padding-top: .5rem; }
+.ve-pt-3 { padding-top: .75rem; } .ve-pt-4 { padding-top: 1rem; }
+.ve-mr-2 { margin-right: .5rem; } .ve-mb-1 { margin-bottom: .25rem; } .ve-mb-2 { margin-bottom: .5rem; }
+.ve-mb-3 { margin-bottom: .75rem; } .ve-mb-4 { margin-bottom: 1rem; } .ve-mt-1 { margin-top: .25rem; }
+.ve-mt-2 { margin-top: .5rem; } .ve-mt-3 { margin-top: .75rem; } .ve-mt-4 { margin-top: 1rem; } .ve-mt-6 { margin-top: 1.5rem; }
+
+/* Typography */
+.ve-text-center { text-align: center; } .ve-text-left { text-align: left; }
+.ve-text-xs { font-size: .75rem; line-height: 1rem; } .ve-text-sm { font-size: .875rem; line-height: 1.25rem; }
+.ve-text-lg { font-size: 1.125rem; line-height: 1.75rem; } .ve-text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.ve-font-medium { font-weight: 500; } .ve-font-semibold { font-weight: 600; } .ve-font-bold { font-weight: 700; }
+.ve-font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ve-uppercase { text-transform: uppercase; } .ve-tracking-wide { letter-spacing: .025em; }
+.ve-tracking-wider { letter-spacing: .05em; } .ve-leading-relaxed { line-height: 1.625; }
+.ve-text-white { color: #fff; } .ve-text-slate-50 { color: #f8fafc; } .ve-text-slate-100 { color: #f1f5f9; }
+.ve-text-slate-200 { color: #e2e8f0; } .ve-text-slate-300 { color: #cbd5e1; } .ve-text-slate-400 { color: #94a3b8; }
+.ve-text-slate-500 { color: #64748b; } .ve-text-violet-100 { color: #ede9fe; } .ve-text-violet-200 { color: #ddd6fe; }
+.ve-text-violet-300 { color: #c4b5fd; } .ve-text-violet-400 { color: #a78bfa; } .ve-text-sky-200 { color: #bae6fd; }
+.ve-text-sky-300 { color: #7dd3fc; } .ve-text-cyan-300 { color: #67e8f9; } .ve-text-amber-200 { color: #fde68a; }
+.ve-text-red-500 { color: #ef4444; }
+
+/* Surfaces, borders, shadows */
+.ve-rounded-lg { border-radius: .5rem; } .ve-rounded-xl { border-radius: .75rem; }
+.ve-rounded-2xl { border-radius: 1rem; } .ve-rounded-full { border-radius: 9999px; }
+.ve-border { border: 1px solid var(--ve-border); } .ve-border-2 { border-width: 2px; border-style: solid; }
+.ve-border-t { border-top: 1px solid var(--ve-border); } .ve-border-b { border-bottom: 1px solid var(--ve-border); }
+.ve-border-l-2 { border-left: 2px solid currentColor; } .ve-border-r-2 { border-right: 2px solid currentColor; }
+.ve-border-dashed { border-style: dashed; } .ve-border-transparent { border-color: transparent; }
+.ve-border-slate-700 { border-color: #334155; } .ve-border-slate-800 { border-color: #1e293b; }
+.ve-border-violet-500 { border-color: #8b5cf6; } .ve-border-white { border-color: #fff; }
+.ve-bg-transparent { background: transparent; } .ve-bg-white { background: #fff; }
+.ve-bg-slate-950 { background: #020617; } .ve-bg-slate-900 { background: #0f172a; }
+.ve-bg-slate-800 { background: #1e293b; } .ve-bg-slate-700 { background: #334155; }
+.ve-bg-violet-500 { background: #8b5cf6; } .ve-bg-violet-600 { background: #7c3aed; }
+.ve-bg-cyan-950 { background: #083344; } .ve-bg-sky-950 { background: #082f49; }
+.ve-bg-amber-500 { background: #f59e0b; } .ve-bg-red-600 { background: #dc2626; }
+.ve-bg-\[\#34495e\] { background: #34495e; } .ve-bg-\[\#2c3e50\] { background: #2c3e50; }
+.ve-shadow-sm { box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.ve-shadow-lg { box-shadow: 0 10px 15px rgba(0,0,0,.22); }
+.ve-shadow-inner { box-shadow: inset 0 2px 4px rgba(0,0,0,.18); }
+.ve-backdrop-blur-md { backdrop-filter: blur(12px); }
+.ve-opacity-40 { opacity: .4; } .ve-pointer-events-none { pointer-events: none; }
+.ve-cursor-pointer { cursor: pointer; } .ve-cursor-ew-resize { cursor: ew-resize; }
+.ve-select-none { user-select: none; } .ve-appearance-none { appearance: none; }
+.ve-transition { transition: color .15s, background-color .15s, border-color .15s, box-shadow .15s; }
+.ve-transition-all { transition: all .15s ease; } .ve-transition-colors { transition: color .15s, background-color .15s, border-color .15s; }
+.ve-transition-transform { transition: transform .15s ease; }
+
+/* Editor-specific utility values and translucent colors */
+.ve-bg-slate-900\/90 { background: rgba(15,23,42,.9); } .ve-bg-slate-900\/80 { background: rgba(15,23,42,.8); }
+.ve-bg-slate-900\/70 { background: rgba(15,23,42,.7); } .ve-bg-slate-900\/60 { background: rgba(15,23,42,.6); }
+.ve-bg-slate-900\/50 { background: rgba(15,23,42,.5); } .ve-bg-slate-900\/40 { background: rgba(15,23,42,.4); }
+.ve-bg-slate-800\/90 { background: rgba(30,41,59,.9); } .ve-bg-slate-800\/80 { background: rgba(30,41,59,.8); }
+.ve-bg-slate-800\/70 { background: rgba(30,41,59,.7); } .ve-bg-slate-950\/80 { background: rgba(2,6,23,.8); }
+.ve-bg-slate-950\/40 { background: rgba(2,6,23,.4); } .ve-bg-violet-600\/20 { background: rgba(124,58,237,.2); }
+.ve-bg-violet-500\/30 { background: rgba(139,92,246,.3); } .ve-bg-violet-500\/20 { background: rgba(139,92,246,.2); }
+.ve-bg-amber-500\/10 { background: rgba(245,158,11,.1); } .ve-bg-amber-500\/20 { background: rgba(245,158,11,.2); }
+.ve-bg-white\/5 { background: rgba(255,255,255,.05); } .ve-bg-cyan-950\/50 { background: rgba(8,51,68,.5); }
+.ve-bg-sky-950\/40 { background: rgba(8,47,73,.4); } .ve-bg-violet-950\/35 { background: rgba(46,16,101,.35); }
+.ve-text-slate-300\/80 { color: rgba(203,213,225,.8); } .ve-text-sky-300\/80 { color: rgba(125,211,252,.8); }
+.ve-text-violet-200\/80 { color: rgba(221,214,254,.8); }
+.ve-border-slate-700\/70 { border-color: rgba(51,65,85,.7); } .ve-border-slate-700\/60 { border-color: rgba(51,65,85,.6); }
+.ve-border-slate-700\/50 { border-color: rgba(51,65,85,.5); } .ve-border-slate-700\/40 { border-color: rgba(51,65,85,.4); }
+.ve-border-slate-800\/80 { border-color: rgba(30,41,59,.8); } .ve-border-violet-500\/70 { border-color: rgba(139,92,246,.7); }
+.ve-border-violet-400\/60 { border-color: rgba(167,139,250,.6); } .ve-border-cyan-800\/50 { border-color: rgba(21,94,117,.5); }
+.ve-border-sky-700\/50 { border-color: rgba(3,105,161,.5); } .ve-border-violet-700\/50 { border-color: rgba(109,40,217,.5); }
+.ve-border-amber-500\/40 { border-color: rgba(245,158,11,.4); } .ve-border-white\/5 { border-color: rgba(255,255,255,.05); }
+
+/* Fine-grained controls */
+.ve-editor-surface button, .ve-editor-surface select, .ve-editor-surface input:not([type="range"]), .ve-editor-surface textarea {
+  border-radius: .5rem;
+}
+.ve-editor-surface button:focus-visible, .ve-editor-surface input:focus-visible, .ve-editor-surface select:focus-visible, .ve-editor-surface textarea:focus-visible {
+  outline: 2px solid rgba(139,92,246,.75); outline-offset: 2px;
+}
+.ve-editor-tablist { display: flex; width: 100%; gap: .375rem; overflow-x: auto; border-bottom: 1px solid rgba(51,65,85,.7); background: rgba(15,23,42,.25); padding: .25rem .5rem .5rem; }
+.ve-editor-tablist button { white-space: nowrap; }
+.ve-editor-surface .ve-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.ve-editor-surface .ve-group:hover .ve-group-hover\:scale-110 { transform: scale(1.1); }
+
+/* Hover states used by the editor */
+.ve-hover\:bg-slate-700:hover { background: #334155; }
+.ve-hover\:bg-slate-900\/70:hover { background: rgba(15,23,42,.7); }
+.ve-hover\:bg-violet-500:hover { background: #8b5cf6; }
+.ve-hover\:bg-violet-500\/20:hover { background: rgba(139,92,246,.2); }
+.ve-hover\:bg-amber-500\/20:hover { background: rgba(245,158,11,.2); }
+.ve-hover\:bg-red-600:hover { background: #dc2626; }
+.ve-hover\:bg-white\/5:hover { background: rgba(255,255,255,.05); }
+.ve-hover\:border-violet-500:hover { border-color: #8b5cf6; }
+.ve-hover\:border-violet-400:hover { border-color: #a78bfa; }
+.ve-hover\:border-slate-500:hover { border-color: #64748b; }
+.ve-hover\:border-amber-400:hover { border-color: #fbbf24; }
+.ve-hover\:text-white:hover { color: #fff; } .ve-hover\:text-slate-100:hover { color: #f1f5f9; }
+.ve-hover\:text-violet-300:hover { color: #c4b5fd; }
+
+@media (min-width: 640px) {
+  .ve-sm\:flex-row { flex-direction: row; } .ve-sm\:flex-wrap { flex-wrap: wrap; }
+  .ve-sm\:items-center { align-items: center; } .ve-sm\:gap-2 { gap: .5rem; }
+  .ve-sm\:gap-3 { gap: .75rem; } .ve-sm\:gap-5 { gap: 1.25rem; }
+  .ve-sm\:px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .ve-sm\:px-5 { padding-left: 1.25rem; padding-right: 1.25rem; }
+  .ve-sm\:pb-2 { padding-bottom: .5rem; } .ve-sm\:pt-1 { padding-top: .25rem; }
+  .ve-sm\:p-4 { padding: 1rem; } .ve-sm\:p-8 { padding: 2rem; }
+  .ve-sm\:mb-3 { margin-bottom: .75rem; } .ve-sm\:ml-2 { margin-left: .5rem; }
+  .ve-sm\:min-w-\[95px\] { min-width: 95px; } .ve-sm\:min-h-\[56px\] { min-height: 56px; }
+}
+@media (min-width: 768px) { .ve-md\:w-\[310px\] { width: 310px; } }
+@media (min-width: 1024px) { .ve-lg\:p-10 { padding: 2.5rem; } }
+
+/* Arbitrary-value utilities used by the editor markup */
+.ve-group { position: relative; }
+.ve-text-\[10px\] { font-size: 10px; line-height: 1.35; }
+.ve-text-\[11px\] { font-size: 11px; line-height: 1.4; }
+.ve-tracking-\[0\.12em\] { letter-spacing: .12em; }
+.ve-tracking-\[0\.18em\] { letter-spacing: .18em; }
+.ve-rounded-\[18px\] { border-radius: 18px; }
+.ve-rounded-\[28px\] { border-radius: 28px; }
+.ve-border-\[\#34495e\] { border-color: #34495e; }
+.ve-bg-\[\#2c3e50\]\/70 { background: rgba(44,62,80,.7); }
+.ve-shadow-\[0_25px_60px_rgba\(15\,23\,42\,0\.3\)\] { box-shadow: 0 25px 60px rgba(15,23,42,.3); }
+.ve-shadow-violet-600\/20 { box-shadow: 0 10px 15px rgba(124,58,237,.2); }
+.ve-drop-shadow-md { filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+.ve-accent-violet-500 { accent-color: #8b5cf6; }
+.ve-focus\:outline-none:focus { outline: none; }
+.ve-focus\:border-violet-500:focus { border-color: #8b5cf6; }
+.ve-focus\:ring-2:focus { box-shadow: 0 0 0 2px rgba(139,92,246,.7); }
+.ve-focus\:ring-violet-500\/60:focus { box-shadow: 0 0 0 2px rgba(139,92,246,.6); }
+.ve-hover\:scale-110:hover { transform: scale(1.1); }
+
+/* Additional shades and borders used in compact controls */
+.ve-bg-slate-950\/80 { background: rgba(2,6,23,.8); }
+.ve-bg-slate-800\/80 { background: rgba(30,41,59,.8); }
+.ve-bg-violet-600\/20 { background: rgba(124,58,237,.2); }
+.ve-bg-red-600\/80 { background: rgba(220,38,38,.8); }
+.ve-text-cyan-300 { color: #67e8f9; }
+.ve-text-amber-200 { color: #fde68a; }
+.ve-border-slate-600 { border-color: #475569; }
+.ve-border-violet-700\/50 { border-color: rgba(109,40,217,.5); }
+.ve-border-cyan-800\/50 { border-color: rgba(21,94,117,.5); }
+
+@media (min-width: 640px) {
+  .ve-sm\:gap-1\.5 { gap: .375rem; }
+  .ve-sm\:min-h-\[56px\] { min-height: 56px; }
+}

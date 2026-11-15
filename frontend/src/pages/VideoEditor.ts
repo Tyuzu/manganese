@@ -1,3 +1,5 @@
+import '../../css/videoeditor.css';
+
 import {
   button,
   createButton,
@@ -174,8 +176,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       : 'Preview Controls: OFF';
 
     interactionToggleButton.className = enabled
-      ? 'rounded-xl border border-violet-500/70 bg-violet-600/20 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-violet-100 transition hover:bg-violet-500/20'
-      : 'rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 transition hover:border-slate-500 hover:text-white';
+      ? 've-rounded-xl ve-border ve-border-violet-500/70 ve-bg-violet-600/20 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.12em] ve-text-violet-100 ve-transition ve-hover:bg-violet-500/20'
+      : 've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-800/80 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.12em] ve-text-slate-300 ve-transition ve-hover:border-slate-500 ve-hover:text-white';
 
     if (!enabled) {
       viewportZoom.isDragging = false;
@@ -355,37 +357,37 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   const playheadLine = div({
     className:
-      'absolute top-0 bottom-0 w-0.5 bg-white z-30 pointer-events-none shadow-md',
+      've-absolute ve-top-0 ve-bottom-0 ve-w-0.5 ve-bg-white ve-z-30 ve-pointer-events-none shadow-md',
     style: 'left:0%',
   });
 
   const trimStartMarker = div({
     className:
-      'absolute top-0 bottom-0 w-2.5 bg-violet-400 border-r-2 border-white cursor-ew-resize z-20 hover:bg-violet-300 transition-colors shadow-lg',
+      've-absolute ve-top-0 ve-bottom-0 ve-w-2.5 bg-violet-400 ve-border-r-2 ve-border-white ve-cursor-ew-resize ve-z-20 hover:bg-violet-300 ve-transition-colors ve-shadow-lg',
     style: 'left:0%',
   });
 
   const trimEndMarker = div({
     className:
-      'absolute top-0 bottom-0 w-2.5 bg-violet-400 border-l-2 border-white cursor-ew-resize z-20 hover:bg-violet-300 transition-colors shadow-lg',
+      've-absolute ve-top-0 ve-bottom-0 ve-w-2.5 bg-violet-400 ve-border-l-2 ve-border-white ve-cursor-ew-resize ve-z-20 hover:bg-violet-300 ve-transition-colors ve-shadow-lg',
     style: 'left:100%',
   });
 
   const trimActiveZone = div({
     className:
-      'absolute top-0 bottom-0 bg-violet-500/30 border-t border-b border-violet-400/60 pointer-events-none z-10',
+      've-absolute ve-top-0 ve-bottom-0 ve-bg-violet-500/30 ve-border-t ve-border-b ve-border-violet-400/60 ve-pointer-events-none ve-z-10',
     style: 'left:0%;right:0%;',
   });
 
   const thumbnailStrip = div({
     className:
-      'absolute inset-0 flex opacity-40 pointer-events-none overflow-hidden',
+      've-absolute ve-inset-0 ve-flex ve-opacity-40 ve-pointer-events-none ve-overflow-hidden',
   });
 
   const videoTrackSegment = div(
     {
       className:
-        'relative h-10 rounded-lg bg-slate-800/90 border border-slate-700 flex items-center px-3 text-xs text-slate-300 font-medium overflow-hidden shadow-inner select-none',
+        've-relative ve-h-10 ve-rounded-lg ve-bg-slate-800/90 ve-border ve-border-slate-700 ve-flex ve-items-center ve-px-3 ve-text-xs ve-text-slate-300 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
     },
     thumbnailStrip,
     trimStartMarker,
@@ -394,27 +396,27 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     div(
       {
         className:
-          'truncate relative z-0 text-slate-200 text-[11px] font-semibold drop-shadow-md',
+          've-truncate ve-relative ve-z-0 ve-text-slate-200 ve-text-[11px] ve-font-semibold ve-drop-shadow-md',
       },
-      'Video Track 1 • Main Source Clip',
+      'Video Track ve-1 • Main Source Clip',
     ),
   );
 
   const audioTrackSegment = div(
     {
       className:
-        'relative h-8 rounded-lg bg-cyan-950/50 border border-cyan-800/50 flex items-center px-3 text-xs text-cyan-300 font-medium overflow-hidden shadow-inner select-none',
+        've-relative ve-h-8 ve-rounded-lg ve-bg-cyan-950/50 ve-border ve-border-cyan-800/50 ve-flex ve-items-center ve-px-3 ve-text-xs ve-text-cyan-300 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
     },
     div(
-      { className: 'truncate text-[11px]' },
-      'Audio Track 1 • Source Audio',
+      { className: 've-truncate ve-text-[11px]' },
+      'Audio Track ve-1 • Source Audio',
     ),
   );
 
   const timelineRuler = div(
     {
       className:
-        'h-6 border-b border-slate-800/80 bg-slate-950 flex items-center justify-between gap-2 px-3 text-[10px] font-mono text-slate-500 select-none sm:px-4',
+        've-h-6 ve-border-b ve-border-slate-800/80 ve-bg-slate-950 ve-flex ve-items-center ve-justify-between ve-gap-2 ve-px-3 ve-text-[10px] ve-font-mono ve-text-slate-500 ve-select-none ve-sm:px-4',
     },
     div({}, '00:00'),
     div({}, '00:15'),
@@ -427,7 +429,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   const timelineTrackArea = div({
     className:
-      'relative flex-1 p-3 space-y-2 overflow-y-auto cursor-pointer bg-slate-900/50',
+      've-relative ve-flex-1 ve-p-3 ve-space-y-2 ve-overflow-y-auto ve-cursor-pointer ve-bg-slate-900/50',
     onmousedown: (event: MouseEvent) => {
       if ((event.target as HTMLElement).closest('.no-timeline-scrub')) return;
 
@@ -538,17 +540,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'relative h-8 rounded-lg border border-sky-700/50 bg-sky-950/40 flex items-center justify-between px-3 text-[11px] text-sky-200 font-medium overflow-hidden shadow-inner select-none',
+              've-relative ve-h-8 ve-rounded-lg ve-border ve-border-sky-700/50 ve-bg-sky-950/40 ve-flex ve-items-center ve-justify-between ve-px-3 ve-text-[11px] ve-text-sky-200 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
           },
           div(
             {
-              className: 'truncate max-w-[70%]',
+              className: 've-truncate ve-max-w-[70%]',
             },
             `${track.label || 'Audio'} ${track.enabled ? '• Live' : '• Muted'}`,
           ),
           div(
             {
-              className: 'text-[10px] text-sky-300/80',
+              className: 've-text-[10px] ve-text-sky-300/80',
             },
             `${(track.volume * 100).toFixed(0)}%`,
           ),
@@ -561,17 +563,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'relative h-8 rounded-lg border border-violet-700/50 bg-violet-950/35 flex items-center justify-between px-3 text-[11px] text-violet-100 font-medium overflow-hidden shadow-inner select-none',
+              've-relative ve-h-8 ve-rounded-lg ve-border ve-border-violet-700/50 ve-bg-violet-950/35 ve-flex ve-items-center ve-justify-between ve-px-3 ve-text-[11px] ve-text-violet-100 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
           },
           div(
             {
-              className: 'truncate max-w-[70%]',
+              className: 've-truncate ve-max-w-[70%]',
             },
             `${track.label || 'Captions'} ${track.enabled ? '• Visible' : '• Hidden'}`,
           ),
           div(
             {
-              className: 'text-[10px] text-violet-200/80',
+              className: 've-text-[10px] ve-text-violet-200/80',
             },
             `${track.segments.length} cues`,
           ),
@@ -1305,7 +1307,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     const resolvedText = activeCaption?.text ?? captionText;
 
     if (!resolvedText.trim()) {
-      captionOverlay.classList.add('hidden');
+      captionOverlay.classList.add('ve-hidden');
       return;
     }
 
@@ -1337,7 +1339,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     captionOverlay.style.transform =
       'translate(-50%, -50%)';
 
-    captionOverlay.classList.remove('hidden');
+    captionOverlay.classList.remove('ve-hidden');
   }
 
   // ============================================================
@@ -1355,15 +1357,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     maskOverlay.replaceChildren();
 
     if (!visibleMasks.length) {
-      maskOverlay.classList.add('hidden');
+      maskOverlay.classList.add('ve-hidden');
       return;
     }
 
-    maskOverlay.classList.remove('hidden');
+    maskOverlay.classList.remove('ve-hidden');
 
     for (const mask of visibleMasks) {
       const element = div({
-        className: 'absolute pointer-events-none',
+        className: 've-absolute ve-pointer-events-none',
 
         style: [
           'position:absolute',
@@ -1451,7 +1453,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const timeDisplay = div(
     {
       className:
-        'min-w-0 flex-shrink-0 font-mono text-[11px] text-slate-300 text-center sm:min-w-[95px]',
+        've-min-w-0 ve-flex-shrink-0 ve-font-mono ve-text-[11px] ve-text-slate-300 ve-text-center ve-sm:min-w-[95px]',
     },
     '00:00 / 00:00',
   );
@@ -1513,7 +1515,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-800/80 text-base font-bold text-white transition hover:border-violet-500 hover:text-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500/60',
+        've-inline-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-800/80 text-base ve-font-bold ve-text-white ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300 ve-focus:outline-none ve-focus:ring-2 ve-focus:ring-violet-500/60',
       title: 'Play playback',
       onclick: togglePlay,
     },
@@ -1524,7 +1526,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'text-slate-400 hover:text-white text-xs px-1.5 py-1',
+        've-text-slate-400 ve-hover:text-white ve-text-xs ve-px-1.5 ve-py-1',
       title: 'Step backward one frame',
       onclick: () => stepFrames(-1),
     },
@@ -1535,7 +1537,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'text-slate-400 hover:text-white text-xs px-1.5 py-1',
+        've-text-slate-400 ve-hover:text-white ve-text-xs ve-px-1.5 ve-py-1',
       title: 'Step forward one frame',
       onclick: () => stepFrames(1),
     },
@@ -1550,7 +1552,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     step: '0.1',
 
     className:
-      'h-1.5 w-full flex-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+      've-h-1.5 ve-w-full ve-flex-1 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
 
     oninput: (event: Event) => {
       const target = event.target as HTMLInputElement;
@@ -1565,12 +1567,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const volumeSlider = input({
     type: 'range',
     min: '0',
-    max: '1',
+    max: 've-1',
     step: '0.05',
-    value: '1',
+    value: 've-1',
 
     className:
-      'h-1.5 w-16 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+      've-h-1.5 ve-w-16 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
 
     oninput: (event: Event) => {
       const value = Number(
@@ -1588,12 +1590,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const playerHud = div(
     {
       className:
-        'flex flex-col gap-2 rounded-xl border border-slate-700/50 bg-slate-900/90 p-3 backdrop-blur-md z-10 sm:min-h-[56px] sm:flex-row sm:items-center sm:gap-3 sm:px-5',
+        've-flex ve-flex-col ve-gap-2 ve-rounded-xl ve-border ve-border-slate-700/50 ve-bg-slate-900/90 ve-p-3 ve-backdrop-blur-md ve-z-10 ve-sm:min-h-[56px] ve-sm:flex-row ve-sm:items-center ve-sm:gap-3 ve-sm:px-5',
     },
 
     div(
       {
-        className: 'flex items-center gap-2',
+        className: 've-flex ve-items-center ve-gap-2',
       },
       stepBackwardBtn,
       playPauseBtn,
@@ -1606,12 +1608,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     div(
       {
         className:
-          'flex items-center gap-2 text-xs text-slate-400 sm:ml-2',
+          've-flex ve-items-center ve-gap-2 ve-text-xs ve-text-slate-400 ve-sm:ml-2',
       },
       span(
         {
           className:
-            'inline-flex h-7 w-7 items-center justify-center rounded-lg bg-slate-800/90 text-sm',
+            've-inline-flex ve-h-7 ve-w-7 ve-items-center ve-justify-center ve-rounded-lg ve-bg-slate-800/90 ve-text-sm',
         },
         '🔊',
       ),
@@ -1680,7 +1682,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     videoElement.volume = 1;
     videoElement.playbackRate = 1;
     volume = 1;
-    volumeSlider.value = '1';
+    volumeSlider.value = 've-1';
 
     renderToolControls();
     updateCaptions();
@@ -1860,7 +1862,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       canvas.height = 90;
 
       canvas.className =
-        'h-full w-full border-r border-slate-700/50 bg-slate-900/80 object-cover';
+        've-h-full ve-w-full border-r ve-border-slate-700/50 ve-bg-slate-900/80 ve-object-cover';
 
       thumbnailStrip.append(canvas);
 
@@ -2003,7 +2005,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function renderPlaybackCurveEditor() {
     const editor = div({
       className:
-        'mt-3 rounded-xl border border-slate-700 bg-slate-950/80 p-2',
+        've-mt-3 ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2',
     });
 
     const canvas = document.createElement('canvas');
@@ -2012,7 +2014,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     canvas.height = 110;
 
     canvas.className =
-      'w-full rounded-lg border border-slate-800 bg-slate-900';
+      've-w-full ve-rounded-lg ve-border ve-border-slate-800 ve-bg-slate-900';
 
     const redraw = () => {
       const ctx = canvas.getContext('2d');
@@ -2864,7 +2866,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     volume = 1;
     videoElement.volume = 1;
 
-    volumeSlider.value = '1';
+    volumeSlider.value = 've-1';
 
     aspectRatio = '16:9';
 
@@ -2949,14 +2951,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const fileInput = input({
     type: 'file',
     accept: 'video/*',
-    className: 'sr-only',
+    className: 've-sr-only',
     onchange: handleVideoUpload,
   });
 
   const uploadIcon = svgElement(
     'svg',
     {
-      class: 'w-8 h-8',
+      class: 've-w-8 ve-h-8',
       fill: 'none',
       stroke: 'currentColor',
       viewBox: '0 0 24 24',
@@ -2967,7 +2969,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         strokeLinecap: 'round',
         strokeLinejoin: 'round',
         strokeWidth: '1.5',
-        d: 'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z',
+        d: 'M15 10l4.553-2.276A1 ve-1 0 0121 8.618v6.764a1 ve-1 0 01-1.447.894L15 14M5 18h8a2 ve-2 0 002-2V8a2 ve-2 0 00-2-2H5a2 ve-2 0 00-2 2v8a2 ve-2 0 002 2z',
       },
     ),
   );
@@ -2975,27 +2977,27 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const emptyState = div(
     {
       className:
-        'flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 transition-all cursor-pointer w-full max-w-md',
+        've-flex ve-flex-col ve-items-center ve-justify-center ve-text-center ve-p-12 ve-border-2 ve-border-dashed ve-border-slate-700 ve-rounded-2xl ve-bg-slate-900/40 ve-hover:bg-slate-900/70 ve-transition-all ve-cursor-pointer ve-w-full ve-max-w-md',
     },
 
     div(
       {
         className:
-          'mb-3 rounded-2xl bg-slate-800/80 p-4 text-violet-400 border border-slate-700/50',
+          've-mb-3 ve-rounded-2xl ve-bg-slate-800/80 ve-p-4 ve-text-violet-400 ve-border ve-border-slate-700/50',
       },
       uploadIcon,
     ),
 
     p(
       {
-        className: 'text-sm font-semibold text-slate-200',
+        className: 've-text-sm ve-font-semibold ve-text-slate-200',
       },
       'Drop video clip here or click to import',
     ),
 
     p(
       {
-        className: 'mt-1 text-xs text-slate-400',
+        className: 've-mt-1 ve-text-xs ve-text-slate-400',
       },
       'Supports MP4, WebM, MOV and browser-compatible video formats',
     ),
@@ -3008,17 +3010,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   videoContainer.ondragover = (event: DragEvent) => {
     event.preventDefault();
 
-    videoContainer.classList.add('border-violet-500');
+    videoContainer.classList.add('ve-border-violet-500');
   };
 
   videoContainer.ondragleave = () => {
-    videoContainer.classList.remove('border-violet-500');
+    videoContainer.classList.remove('ve-border-violet-500');
   };
 
   videoContainer.ondrop = (event: DragEvent) => {
     event.preventDefault();
 
-    videoContainer.classList.remove('border-violet-500');
+    videoContainer.classList.remove('ve-border-violet-500');
 
     const file = event.dataTransfer?.files?.[0];
 
@@ -3038,19 +3040,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const quickActions = div(
     {
       className:
-        'flex flex-wrap justify-end gap-2 sm:gap-3 items-center',
+        've-flex ve-flex-wrap ve-justify-end ve-gap-2 ve-sm:gap-3 ve-items-center',
     },
 
     div(
       {
-        className: 'flex items-center gap-1.5 mr-2',
+        className: 've-flex ve-items-center ve-gap-1.5 ve-mr-2',
       },
 
       button(
         {
           type: 'button',
           className:
-            'p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all',
+            've-p-2 ve-rounded-xl ve-bg-slate-800/80 ve-hover:bg-slate-700 ve-text-slate-300 ve-hover:text-white ve-border ve-border-slate-700 ve-text-xs ve-font-bold ve-transition-all',
           title: 'Undo (Ctrl+Z)',
           onclick: undo,
         },
@@ -3061,7 +3063,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         {
           type: 'button',
           className:
-            'p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all',
+            've-p-2 ve-rounded-xl ve-bg-slate-800/80 ve-hover:bg-slate-700 ve-text-slate-300 ve-hover:text-white ve-border ve-border-slate-700 ve-text-xs ve-font-bold ve-transition-all',
           title: 'Redo (Ctrl+Y)',
           onclick: redo,
         },
@@ -3074,7 +3076,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     label(
       {
         className:
-          'cursor-pointer inline-flex items-center justify-center rounded-xl bg-slate-800/80 px-4 py-2 text-xs font-semibold text-slate-200 transition-all hover:bg-slate-700 hover:text-white border border-slate-700/60',
+          've-cursor-pointer ve-inline-flex ve-items-center ve-justify-center ve-rounded-xl ve-bg-slate-800/80 ve-px-4 ve-py-2 ve-text-xs ve-font-semibold ve-text-slate-200 ve-transition-all ve-hover:bg-slate-700 ve-hover:text-white ve-border ve-border-slate-700/60',
       },
 
       'Import Video',
@@ -3086,7 +3088,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       {
         type: 'button',
         className:
-          'rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/20',
+          've-rounded-xl ve-border ve-border-amber-500/40 ve-bg-amber-500/10 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.18em] ve-text-amber-200 ve-transition ve-hover:border-amber-400 ve-hover:bg-amber-500/20',
         onclick: flushVideoSession,
       },
       'Flush All',
@@ -3097,7 +3099,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       {
         type: 'button',
         className:
-          'bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-violet-600/20',
+          've-bg-violet-600 ve-hover:bg-violet-500 ve-text-white ve-font-semibold ve-text-xs ve-px-4 ve-py-2 ve-rounded-xl ve-shadow-lg ve-shadow-violet-600/20',
         onclick: () => switchTab('export'),
       },
       'Render Video',
@@ -3105,7 +3107,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   );
 
   const toolContainer = div({
-    className: 'space-y-4',
+    className: 've-space-y-4',
   });
 
   const tabs: { id: VideoTab; label: string }[] = [
@@ -3123,33 +3125,33 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     (tabId) => switchTab(tabId),
     {
       activeClassName:
-        'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner',
+        'border-slate-100/20 ve-bg-slate-900/60 ve-text-slate-50 ve-shadow-inner',
 
       inactiveClassName:
-        'border-transparent bg-transparent text-slate-300 hover:text-white hover:bg-white/5',
+        've-border-transparent ve-bg-transparent ve-text-slate-300 ve-hover:text-white ve-hover:bg-white/5',
 
       containerClassName:
-        'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4',
+        've-editor-tablist ve-flex ve-w-full ve-gap-1.5 ve-overflow-x-auto ve-border-b ve-border-slate-700/70 bg-slate-900/25 ve-px-2 ve-pb-2 ve-pt-1 ve-sm:gap-2 ve-sm:px-4',
     },
   );
 
   const editorTopBar = div(
     {
-      className: 'flex flex-col gap-3',
+      className: 've-flex ve-flex-col ve-gap-3',
     },
 
     sidePanelNav,
 
     createMediaProcessingModeSelector({
       label: 'Edit location',
-      className: 'w-full',
+      className: 've-w-full',
     }),
   );
 
   const sidePanel = div(
     {
       className:
-        'w-full shrink-0 rounded-[18px] border border-white/5 bg-[#2c3e50]/70 p-4 md:w-[310px] flex flex-col justify-between overflow-y-auto max-h-[540px]',
+        've-w-full ve-shrink-0 ve-rounded-[18px] ve-border ve-border-white/5 ve-bg-[#2c3e50]/70 ve-p-4 ve-md:w-[310px] ve-flex ve-flex-col ve-justify-between ve-overflow-y-auto ve-max-h-[540px]',
     },
     toolContainer,
   );
@@ -3157,7 +3159,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const timelineContainer = div(
     {
       className:
-        'h-48 shrink-0 flex flex-col border-t border-slate-700/50 bg-slate-900/80 overflow-hidden rounded-xl',
+        've-h-48 ve-shrink-0 ve-flex ve-flex-col ve-border-t ve-border-slate-700/50 ve-bg-slate-900/80 ve-overflow-hidden ve-rounded-xl',
     },
 
     timelineRuler,
@@ -3169,7 +3171,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-lg font-bold text-slate-100 shadow-lg transition hover:border-violet-500 hover:text-violet-300',
+        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-lg ve-font-bold ve-text-slate-100 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
       title: 'Zoom in',
       onclick: () => zoomViewport(1.15),
     },
@@ -3180,7 +3182,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-lg font-bold text-slate-100 shadow-lg transition hover:border-violet-500 hover:text-violet-300',
+        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-lg ve-font-bold ve-text-slate-100 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
       title: 'Zoom out',
       onclick: () => zoomViewport(1 / 1.15),
     },
@@ -3191,7 +3193,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     {
       type: 'button',
       className:
-        'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/90 text-xs font-bold uppercase tracking-wider text-slate-200 shadow-lg transition hover:border-violet-500 hover:text-violet-300',
+        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-xs ve-font-bold ve-uppercase ve-tracking-wider ve-text-slate-200 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
       title: 'Reset zoom',
       onclick: () => {
         viewportZoom.zoomLevel = 1;
@@ -3207,7 +3209,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const zoomControls = div(
     {
       className:
-        'absolute bottom-4 right-4 z-30 flex flex-col gap-2',
+        've-absolute ve-bottom-4 ve-right-4 ve-z-30 ve-flex ve-flex-col ve-gap-2',
     },
 
     zoomInButton,
@@ -3218,12 +3220,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const stage = div(
     {
       className:
-        'relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-[18px] border border-slate-700/40 bg-[#2c3e50] p-3 min-h-0 sm:p-4',
+        've-relative ve-flex ve-flex-1 ve-flex-col ve-overflow-y-auto ve-overflow-x-hidden ve-rounded-[18px] ve-border ve-border-slate-700/40 ve-bg-[#2c3e50] ve-p-3 ve-min-h-0 ve-sm:p-4',
     },
 
     div(
       {
-        className: 'mb-2 flex justify-end sm:mb-3',
+        className: 've-mb-2 ve-flex ve-justify-end ve-sm:mb-3',
       },
       quickActions,
     ),
@@ -3240,7 +3242,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   const workspace = div(
     {
       className:
-        'flex flex-col gap-4 p-4 sm:flex-row sm:gap-5',
+        've-flex ve-flex-col ve-gap-4 ve-p-4 ve-sm:flex-row ve-sm:gap-5',
     },
 
     sidePanel,
@@ -3274,10 +3276,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     onToggleFullscreen: () => undefined,
 
     rootClassName:
-      'min-h-screen p-2 sm:p-8 lg:p-10 flex items-center justify-center',
+      've-min-h-screen ve-p-2 ve-sm:p-8 ve-lg:p-10 ve-flex ve-items-center ve-justify-center',
 
     modalClassName:
-      'editor-surface w-full max-w-[1020px] rounded-[28px] border border-slate-700/70 bg-[#34495e] shadow-[0_25px_60px_rgba(15,23,42,0.3)] overflow-x-hidden overflow-y-auto flex flex-col',
+      've-editor-surface ve-w-full ve-max-w-[1020px] ve-rounded-[28px] ve-border ve-border-slate-700/70 ve-bg-[#34495e] ve-shadow-[0_25px_60px_rgba(15,23,42,0.3)] ve-overflow-x-hidden ve-overflow-y-auto ve-flex ve-flex-col',
   });
 
   const {
@@ -3316,7 +3318,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       isFullscreen ? 'calc(100vh - 180px)' : '540px';
 
     sidePanel.style.overflowY = 'auto';
-    sidePanel.style.overflowX = 'hidden';
+    sidePanel.style.overflowX = 've-hidden';
 
     stage.style.minHeight =
       isFullscreen ? 'calc(100vh - 180px)' : '';
@@ -3328,7 +3330,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       isFullscreen ? 'calc(100vh - 180px)' : '';
 
     stage.style.overflowY = 'auto';
-    stage.style.overflowX = 'hidden';
+    stage.style.overflowX = 've-hidden';
 
     videoContainer.style.minHeight =
       isFullscreen ? 'min(68vh, 70vh)' : '';
@@ -3342,7 +3344,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     videoContainer.style.width =
       isFullscreen ? '100%' : '';
 
-    videoContainer.style.overflow = 'hidden';
+    videoContainer.style.overflow = 've-hidden';
 
     if (isFullscreen) {
       videoElement.style.maxWidth = '100%';
@@ -3351,7 +3353,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       videoElement.style.height = '100%';
       videoElement.style.objectFit = 'contain';
       videoElement.style.margin = '0 auto';
-      videoElement.style.display = 'block';
+      videoElement.style.display = 've-block';
     } else {
       videoElement.style.maxWidth = '';
       videoElement.style.maxHeight = '';
@@ -3481,7 +3483,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     const valueDisplay = div(
       {
         className:
-          'text-xs font-mono text-violet-400 font-bold',
+          've-text-xs ve-font-mono ve-text-violet-400 ve-font-bold',
       },
       Number(value).toFixed(1),
     );
@@ -3494,7 +3496,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       step: '0.1',
 
       className:
-        'w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+        've-w-full ve-h-1.5 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
 
       oninput: (event: Event) => {
         const value = Number(
@@ -3513,19 +3515,19 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     return div(
       {
-        className: 'space-y-1',
+        className: 've-space-y-1',
       },
 
       div(
         {
           className:
-            'flex justify-between items-center',
+            've-flex ve-justify-between ve-items-center',
         },
 
         label(
           {
             className:
-              'text-xs font-medium text-slate-300',
+              've-text-xs ve-font-medium ve-text-slate-300',
           },
           title,
         ),
@@ -3545,7 +3547,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     const select = document.createElement('select');
 
     select.className =
-      'bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-violet-500';
+      've-bg-slate-950 ve-border ve-border-slate-700 ve-text-white ve-rounded-lg ve-px-2 ve-py-1 ve-text-xs ve-focus:outline-none ve-focus:border-violet-500';
 
     options.forEach((option) => {
       const element = document.createElement('option');
@@ -3573,7 +3575,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         type: 'button',
 
         className:
-          'rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-left text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white transition-all shadow-sm',
+          've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/80 ve-p-3 ve-text-left ve-text-xs ve-font-medium ve-text-slate-200 ve-hover:border-violet-500 ve-hover:text-white ve-transition-all ve-shadow-sm',
 
         onclick: onClick,
       },
@@ -3590,13 +3592,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     const card = div(
       {
         className:
-          'flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900/70 hover:border-violet-500 hover:bg-slate-900 cursor-pointer transition-all shadow-sm text-center group',
+          've-flex ve-flex-col ve-items-center ve-justify-center ve-p-3 ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/70 ve-hover:border-violet-500 hover:bg-slate-900 ve-cursor-pointer ve-transition-all ve-shadow-sm ve-text-center ve-group',
       },
 
       div(
         {
           className:
-            'text-2xl mb-1 group-hover:scale-110 transition-transform',
+            've-text-2xl ve-mb-1 ve-group-hover:scale-110 ve-transition-transform',
         },
         icon,
       ),
@@ -3604,7 +3606,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       p(
         {
           className:
-            'text-xs font-semibold text-slate-200',
+            've-text-xs ve-font-semibold ve-text-slate-200',
         },
         name,
       ),
@@ -3630,10 +3632,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       VideoEditorState['aspectRatio'],
       string
     > = {
-      '16:9': '16 / 9',
-      '9:16': '9 / 16',
-      '1:1': '1 / 1',
-      '4:5': '4 / 5',
+      '16:9': '16 / ve-9',
+      '9:16': 've-9 / 16',
+      '1:1': 've-1 / ve-1',
+      '4:5': 've-4 / ve-5',
     };
 
     videoElement.style.aspectRatio = ratios[ratio];
@@ -3650,8 +3652,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         element.className =
           `inline-flex min-w-[70px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
             isSelected
-              ? 'border-slate-100/20 bg-slate-900/60 text-slate-50 shadow-inner'
-              : 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
+              ? 'border-slate-100/20 ve-bg-slate-900/60 ve-text-slate-50 ve-shadow-inner'
+              : 've-border-transparent ve-bg-transparent ve-text-slate-300 ve-hover:text-slate-100'
           }`;
       });
 
@@ -3667,7 +3669,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       p(
         {
           className:
-            'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+            've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
         },
         'Timeline Trim & Speed',
       ),
@@ -3702,7 +3704,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       p(
         {
-          className: 'mt-3 text-xs font-semibold text-slate-300',
+          className: 've-mt-3 ve-text-xs ve-font-semibold ve-text-slate-300',
         },
         `Playback Speed: ${playbackRate.toFixed(2)}x`,
       ),
@@ -3711,7 +3713,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       div(
         {
-          className: 'pt-2 grid grid-cols-2 gap-2.5',
+          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
         },
         createPresetButton('Set Start Here', () => {
           trimStart = clampValue(videoElement.currentTime, 0, duration);
@@ -3734,18 +3736,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       div(
         {
-          className: 'pt-2 grid grid-cols-2 gap-2.5',
+          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
         },
         createPresetButton('Split Clip', splitClipAtPlayhead),
         createPresetButton('Delete Segment', deleteCurrentClipSegment),
       ),
 
-      div({ className: 'pt-2' },
+      div({ className: 've-pt-2' },
         div(
           {
-            className: 'flex justify-between items-center text-xs',
+            className: 've-flex ve-justify-between ve-items-center ve-text-xs',
           },
-          span({ className: 'text-slate-400' }, 'Transition'),
+          span({ className: 've-text-slate-400' }, 'Transition'),
           createSelectDropdown(
             ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
             activeTransition,
@@ -3759,7 +3761,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       p(
         {
-          className: 'mt-2 text-[10px] text-slate-500 leading-relaxed',
+          className: 've-mt-2 ve-text-[10px] ve-text-slate-500 ve-leading-relaxed',
         },
         'Clip splitting currently stores timeline segment metadata. True multi-clip concatenation and ripple rendering require a multi-source export pipeline.',
       ),
@@ -3769,7 +3771,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function renderFiltersTab() {
     const presetGrid = div(
       {
-        className: 'grid grid-cols-2 gap-3 mb-4',
+        className: 've-grid ve-grid-cols-2 ve-gap-3 ve-mb-4',
       },
       createThumbnailPresetCard('Normal', DEFAULT_FILTERS, '✨'),
       createThumbnailPresetCard('Cinematic', {
@@ -3826,9 +3828,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     );
 
     toolContainer.append(
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'One-Click Filter Presets'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'One-Click Filter Presets'),
       presetGrid,
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Basic Adjustments'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Basic Adjustments'),
       createSliderControl('Exposure', filters.exposure, 0, 200, (value) => { filters.exposure = value; applyVideoFilters(); }),
       createSliderControl('Brightness', filters.brightness, 0, 200, (value) => { filters.brightness = value; applyVideoFilters(); }),
       createSliderControl('Contrast', filters.contrast, 0, 200, (value) => { filters.contrast = value; applyVideoFilters(); }),
@@ -3837,7 +3839,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       createSliderControl('Tint', filters.tint, -50, 50, (value) => { filters.tint = value; applyVideoFilters(); }),
       createSliderControl('Highlights', filters.highlights, 0, 200, (value) => { filters.highlights = value; applyVideoFilters(); }),
       createSliderControl('Shadows', filters.shadows, 0, 200, (value) => { filters.shadows = value; applyVideoFilters(); }),
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Creative Effects'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Creative Effects'),
       createSliderControl('Blur (px)', filters.blur, 0, 20, (value) => { filters.blur = value; applyVideoFilters(); }),
       createSliderControl('Sharpen', filters.sharpen, 0, 100, (value) => { filters.sharpen = value; applyVideoFilters(); }),
       createSliderControl('Grayscale (%)', filters.grayscale, 0, 100, (value) => { filters.grayscale = value; applyVideoFilters(); }),
@@ -3845,13 +3847,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       createSliderControl('Vignette', filters.vignette, 0, 100, (value) => { filters.vignette = value; applyVideoFilters(); }),
       createSliderControl('Film Grain', filters.filmGrain, 0, 100, (value) => { filters.filmGrain = value; applyVideoFilters(); }),
       createSliderControl('Fade', filters.fade, 0, 100, (value) => { filters.fade = value; applyVideoFilters(); }),
-      p({ className: 'mt-2 text-[10px] text-slate-500' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
+      p({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
     );
   }
 
   function renderTransformTab() {
     const ratioGrid = div(
-      { className: 'grid grid-cols-2 gap-2.5' },
+      { className: 've-grid ve-grid-cols-2 ve-gap-2.5' },
       createPresetButton('16:9 Widescreen', () => { setAspectRatio('16:9'); pushState(); }),
       createPresetButton('9:16 Vertical / Reels', () => { setAspectRatio('9:16'); pushState(); }),
       createPresetButton('1:1 Square', () => { setAspectRatio('1:1'); pushState(); }),
@@ -3859,7 +3861,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     );
 
     const transformGrid = div(
-      { className: 'grid grid-cols-2 gap-2.5 mt-3' },
+      { className: 've-grid ve-grid-cols-2 ve-gap-2.5 ve-mt-3' },
       createPresetButton('Rotate 90°', () => { rotation = (rotation + 90) % 360; updateTransforms(); pushState(); }),
       createPresetButton('Flip Horizontal', () => { flipH = !flipH; updateTransforms(); pushState(); }),
       createPresetButton('Flip Vertical', () => { flipV = !flipV; updateTransforms(); pushState(); }),
@@ -3867,7 +3869,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     );
 
     const maskToolGrid = div(
-      { className: 'grid grid-cols-3 gap-2 mt-2' },
+      { className: 've-grid ve-grid-cols-3 ve-gap-2 ve-mt-2' },
       createPresetButton('Circle', () => { activeMaskTool = 'circle'; }),
       createPresetButton('Rectangle', () => { activeMaskTool = 'rect'; }),
       createPresetButton('Freehand', () => { activeMaskTool = 'freehand'; }),
@@ -3893,13 +3895,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     });
 
     toolContainer.append(
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Aspect Ratio Presets'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Aspect Ratio Presets'),
       ratioGrid,
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Rotation & Mirroring'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Rotation & Mirroring'),
       transformGrid,
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Shape Masks'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Shape Masks'),
       maskToolGrid,
-      div({ className: 'grid grid-cols-2 gap-2 pt-2' },
+      div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
         createPresetButton('Add Mask', () => {
           const maskId = Date.now() + Math.floor(Math.random() * 1000);
           const newMask: MaskItem = { id: maskId, type: activeMaskTool, x: 50, y: 50, width: 45, height: 45, radius: 28, feather: 14, opacity: 0.45, blur: 0, color: '#a78bfa', points: [{ x: 25, y: 20 }, { x: 72, y: 20 }, { x: 72, y: 72 }, { x: 25, y: 72 }] };
@@ -3915,16 +3917,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           pushState();
         }),
       ),
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, '3D LUT Grade'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, '3D LUT Grade'),
       lutUploadButton,
-      cubeLut ? div({ className: 'mt-2 text-[10px] text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 'mt-2 text-[10px] text-slate-500' }, 'No LUT loaded'),
-      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Preview Quality'),
-      div({ className: 'grid grid-cols-3 gap-2' },
+      cubeLut ? div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'No LUT loaded'),
+      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Preview Quality'),
+      div({ className: 've-grid ve-grid-cols-3 ve-gap-2' },
         createPresetButton('Full 100%', () => { previewQuality = '1'; pushState(); }),
         createPresetButton('Half 50%', () => { previewQuality = '0.5'; pushState(); }),
         createPresetButton('Quarter 25%', () => { previewQuality = '0.25'; pushState(); }),
       ),
-      p({ className: 'text-[10px] text-slate-500 mt-2' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
+      p({ className: 've-text-[10px] ve-text-slate-500 ve-mt-2' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
     );
   }
 
@@ -3993,25 +3995,25 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       const trackList = div(
         {
-          className: 'space-y-2 pt-3',
+          className: 've-space-y-2 ve-pt-3',
         },
         ...audioTracks.map((track) => {
           return div(
             {
               className:
-                'rounded-xl border border-slate-700 bg-slate-950/80 p-2 space-y-2',
+                've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2 ve-space-y-2',
             },
             div(
               {
                 className:
-                  'flex items-center justify-between gap-2 text-[11px] text-slate-200',
+                  've-flex ve-items-center ve-justify-between ve-gap-2 ve-text-[11px] ve-text-slate-200',
               },
-              span({ className: 'truncate max-w-[60%]' }, track.label),
+              span({ className: 've-truncate ve-max-w-[60%]' }, track.label),
               button(
                 {
                   type: 'button',
                   className:
-                    'rounded-lg border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-wide text-slate-300 hover:text-white',
+                    've-rounded-lg ve-border ve-border-slate-600 ve-px-2 ve-py-1 ve-text-[10px] ve-uppercase ve-tracking-wide ve-text-slate-300 ve-hover:text-white',
                   onclick: () => {
                     audioTracks = audioTracks.filter(
                       (item) => item.id !== track.id,
@@ -4041,7 +4043,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         p(
           {
             className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
           },
           'Master Audio Controls',
         ),
@@ -4064,7 +4066,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'pt-2 grid grid-cols-2 gap-2.5',
+              've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
           },
 
           createPresetButton(
@@ -4088,7 +4090,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
               videoElement.volume = 1;
 
-              volumeSlider.value = '1';
+              volumeSlider.value = 've-1';
 
               pushState();
               renderToolControls();
@@ -4099,12 +4101,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'mt-4 border-t border-slate-700/60 pt-3',
+              've-mt-4 ve-border-t ve-border-slate-700/60 ve-pt-3',
           },
           p(
             {
               className:
-                'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+                've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
             },
             'Audio Layers',
           ),
@@ -4157,7 +4159,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         value: captionText,
 
         className:
-          'w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none',
+          've-w-full ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950 ve-px-3 ve-py-2 ve-text-sm ve-text-white ve-focus:border-violet-500 ve-focus:outline-none',
 
         oninput: (event: Event) => {
           captionText = (
@@ -4228,24 +4230,24 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         p(
           {
             className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
           },
           'Timed Subtitles & Overlay Text',
         ),
 
         div(
           {
-            className: 'space-y-4',
+            className: 've-space-y-4',
           },
 
           div(
             {
-              className: 'space-y-1',
+              className: 've-space-y-1',
             },
             label(
               {
                 className:
-                  'block text-xs font-medium text-slate-400 mb-1',
+                  've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1',
               },
               'Active Caption Track',
             ),
@@ -4254,7 +4256,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
           div(
             {
-              className: 'grid grid-cols-2 gap-2 pt-2',
+              className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
             },
             createPresetButton(
               'New Track',
@@ -4310,7 +4312,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             label(
               {
                 className:
-                  'block text-xs font-medium text-slate-400 mb-1',
+                  've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1',
               },
               'Caption Content',
             ),
@@ -4333,13 +4335,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           div(
             {
               className:
-                'space-y-1',
+                've-space-y-1',
             },
 
             label(
               {
                 className:
-                  'text-xs font-medium text-slate-400',
+                  've-text-xs ve-font-medium ve-text-slate-400',
               },
               'Font Weight',
             ),
@@ -4350,13 +4352,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           div(
             {
               className:
-                'space-y-1',
+                've-space-y-1',
             },
 
             label(
               {
                 className:
-                  'text-xs font-medium text-slate-400',
+                  've-text-xs ve-font-medium ve-text-slate-400',
               },
               'Caption Background',
             ),
@@ -4367,7 +4369,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           div(
             {
               className:
-                'grid grid-cols-2 gap-2 pt-2',
+                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
             },
 
             createPresetButton(
@@ -4395,7 +4397,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           div(
             {
               className:
-                'grid grid-cols-2 gap-2 pt-2',
+                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
             },
 
             createPresetButton(
@@ -4467,7 +4469,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           div(
             {
               className:
-                'grid grid-cols-2 gap-2 pt-2',
+                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
             },
 
             createPresetButton(
@@ -4509,7 +4511,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       const progressLabel = p(
         {
           className:
-            'text-xs text-violet-300 font-semibold',
+            've-text-xs ve-text-violet-300 ve-font-semibold',
         },
         isRendering
           ? `Rendering Video... ${Math.round(renderProgress)}%`
@@ -4518,7 +4520,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       const progressFill = div({
         className:
-          'bg-violet-500 h-full transition-all',
+          've-bg-violet-500 ve-h-full ve-transition-all',
         style: `width:${renderProgress}%`,
       });
 
@@ -4528,7 +4530,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       const progressContainer = div(
         {
           className:
-            `space-y-2 text-center ${isRendering ? '' : 'hidden'}`,
+            `space-y-2 text-center ${isRendering ? '' : 've-hidden'}`,
         },
 
         progressLabel,
@@ -4536,7 +4538,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'w-full bg-slate-800 h-2 rounded-full overflow-hidden',
+              've-w-full ve-bg-slate-800 ve-h-2 ve-rounded-full ve-overflow-hidden',
           },
           progressFill,
         ),
@@ -4547,7 +4549,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             type: 'button',
 
             className:
-              'w-full text-xs py-2 bg-red-600/80 hover:bg-red-600 text-white font-semibold rounded-xl',
+              've-w-full ve-text-xs ve-py-2 ve-bg-red-600/80 ve-hover:bg-red-600 ve-text-white ve-font-semibold ve-rounded-xl',
 
             onclick: cancelVideoExport,
           },
@@ -4558,18 +4560,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       const exportSettings = div(
         {
           className:
-            'rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-xs space-y-2.5',
+            've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/80 ve-p-3 ve-text-xs ve-space-y-2.5',
         },
 
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Resolution',
           ),
@@ -4590,12 +4592,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Framerate',
           ),
@@ -4616,12 +4618,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Container',
           ),
@@ -4642,12 +4644,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Quality Preset',
           ),
@@ -4682,12 +4684,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Transition',
           ),
@@ -4715,12 +4717,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between items-center',
+              've-flex ve-justify-between ve-items-center',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Blend Mode',
           ),
@@ -4748,12 +4750,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'flex justify-between pt-1 border-t border-slate-800',
+              've-flex ve-justify-between ve-pt-1 ve-border-t ve-border-slate-800',
           },
 
           span(
             {
-              className: 'text-slate-400',
+              className: 've-text-slate-400',
             },
             'Trim Length',
           ),
@@ -4761,7 +4763,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           span(
             {
               className:
-                'font-semibold text-violet-300',
+                've-font-semibold ve-text-violet-300',
             },
             `${Math.max(
               0,
@@ -4775,7 +4777,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         p(
           {
             className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
           },
           'Export Engine',
         ),
@@ -4785,7 +4787,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         div(
           {
             className:
-              'grid grid-cols-2 gap-2 pt-3',
+              've-grid ve-grid-cols-2 ve-gap-2 ve-pt-3',
           },
 
           createPresetButton(
@@ -4808,18 +4810,18 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
                 type: 'button',
 
                 className:
-                  'w-full text-xs py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl transition-all shadow-lg shadow-violet-600/20',
+                  've-w-full ve-text-xs ve-py-2.5 ve-bg-violet-600 ve-hover:bg-violet-500 ve-text-white ve-font-semibold ve-rounded-xl ve-transition-all ve-shadow-lg ve-shadow-violet-600/20',
 
                 onclick: startVideoExport,
               },
               'Start Render Pipeline',
             )
-          : div({ className: 'hidden' }),
+          : div({ className: 've-hidden' }),
 
         p(
           {
             className:
-              'text-[10px] text-slate-500 leading-relaxed mt-2',
+              've-text-[10px] ve-text-slate-500 ve-leading-relaxed ve-mt-2',
           },
           'Browser rendering uses supported MediaRecorder codecs. MP4 is only offered when the browser genuinely supports MP4 recording. Server rendering can use FFmpeg for broader codec support.',
         ),
@@ -4834,7 +4836,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       div(
         {
           className:
-            'mt-6 border-t border-slate-700/60 pt-4',
+            've-mt-6 ve-border-t ve-border-slate-700/60 ve-pt-4',
         },
 
         createDetailPanel(
