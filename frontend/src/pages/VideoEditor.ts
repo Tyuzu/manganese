@@ -3511,6 +3511,272 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 26. DYNAMIC INSPECTOR PANELS
   // ============================================================
 
+  function renderTimelineTab() {
+    toolContainer.append(
+      p(
+        {
+          className:
+            'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+        },
+        'Timeline Trim & Speed',
+      ),
+
+      createSliderControl(
+        'Start Marker (s)',
+        trimStart,
+        0,
+        Math.max(1, duration),
+        (value) => {
+          trimStart = Math.min(value, (trimEnd || duration) - 0.5);
+          trimStart = Math.max(0, trimStart);
+          updateTrimMarkers();
+
+          if (videoElement.currentTime < trimStart) {
+            videoElement.currentTime = trimStart;
+          }
+        },
+      ),
+
+      createSliderControl(
+        'End Marker (s)',
+        trimEnd || duration,
+        0,
+        Math.max(1, duration),
+        (value) => {
+          trimEnd = Math.max(value, trimStart + 0.5);
+          trimEnd = Math.min(duration || trimEnd, trimEnd);
+          updateTrimMarkers();
+        },
+      ),
+
+      p(
+        {
+          className: 'mt-3 text-xs font-semibold text-slate-300',
+        },
+        `Playback Speed: ${playbackRate.toFixed(2)}x`,
+      ),
+
+      renderPlaybackCurveEditor(),
+
+      div(
+        {
+          className: 'pt-2 grid grid-cols-2 gap-2.5',
+        },
+        createPresetButton('Set Start Here', () => {
+          trimStart = clampValue(videoElement.currentTime, 0, duration);
+
+          if (trimStart >= trimEnd) {
+            trimStart = Math.max(0, trimEnd - 0.5);
+          }
+
+          updateTrimMarkers();
+          pushState();
+          renderToolControls();
+        }),
+        createPresetButton('Set End Here', () => {
+          trimEnd = clampValue(videoElement.currentTime, trimStart + 0.5, duration);
+          updateTrimMarkers();
+          pushState();
+          renderToolControls();
+        }),
+      ),
+
+      div(
+        {
+          className: 'pt-2 grid grid-cols-2 gap-2.5',
+        },
+        createPresetButton('Split Clip', splitClipAtPlayhead),
+        createPresetButton('Delete Segment', deleteCurrentClipSegment),
+      ),
+
+      div({ className: 'pt-2' },
+        div(
+          {
+            className: 'flex justify-between items-center text-xs',
+          },
+          span({ className: 'text-slate-400' }, 'Transition'),
+          createSelectDropdown(
+            ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
+            activeTransition,
+            (value) => {
+              activeTransition = value as ClipTransition;
+              pushState();
+            },
+          ),
+        ),
+      ),
+
+      p(
+        {
+          className: 'mt-2 text-[10px] text-slate-500 leading-relaxed',
+        },
+        'Clip splitting currently stores timeline segment metadata. True multi-clip concatenation and ripple rendering require a multi-source export pipeline.',
+      ),
+    );
+  }
+
+  function renderFiltersTab() {
+    const presetGrid = div(
+      {
+        className: 'grid grid-cols-2 gap-3 mb-4',
+      },
+      createThumbnailPresetCard('Normal', DEFAULT_FILTERS, '✨'),
+      createThumbnailPresetCard('Cinematic', {
+        exposure: 105,
+        brightness: 90,
+        contrast: 130,
+        saturate: 115,
+        temperature: -10,
+        tint: 5,
+        highlights: 90,
+        shadows: 110,
+        blur: 0,
+        sharpen: 10,
+        grayscale: 0,
+        sepia: 0,
+        vignette: 20,
+        filmGrain: 15,
+        fade: 5,
+      }, '🎬'),
+      createThumbnailPresetCard('Mono Noir', {
+        exposure: 100,
+        brightness: 105,
+        contrast: 140,
+        saturate: 0,
+        temperature: 0,
+        tint: 0,
+        highlights: 100,
+        shadows: 90,
+        blur: 0,
+        sharpen: 15,
+        grayscale: 100,
+        sepia: 0,
+        vignette: 30,
+        filmGrain: 25,
+        fade: 10,
+      }, '🎞️'),
+      createThumbnailPresetCard('Warm Vintage', {
+        exposure: 100,
+        brightness: 105,
+        contrast: 105,
+        saturate: 120,
+        temperature: 25,
+        tint: 10,
+        highlights: 105,
+        shadows: 95,
+        blur: 0,
+        sharpen: 0,
+        grayscale: 0,
+        sepia: 25,
+        vignette: 25,
+        filmGrain: 20,
+        fade: 15,
+      }, '🌅'),
+    );
+
+    toolContainer.append(
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'One-Click Filter Presets'),
+      presetGrid,
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Basic Adjustments'),
+      createSliderControl('Exposure', filters.exposure, 0, 200, (value) => { filters.exposure = value; applyVideoFilters(); }),
+      createSliderControl('Brightness', filters.brightness, 0, 200, (value) => { filters.brightness = value; applyVideoFilters(); }),
+      createSliderControl('Contrast', filters.contrast, 0, 200, (value) => { filters.contrast = value; applyVideoFilters(); }),
+      createSliderControl('Saturation', filters.saturate, 0, 200, (value) => { filters.saturate = value; applyVideoFilters(); }),
+      createSliderControl('Temperature', filters.temperature, -50, 50, (value) => { filters.temperature = value; applyVideoFilters(); }),
+      createSliderControl('Tint', filters.tint, -50, 50, (value) => { filters.tint = value; applyVideoFilters(); }),
+      createSliderControl('Highlights', filters.highlights, 0, 200, (value) => { filters.highlights = value; applyVideoFilters(); }),
+      createSliderControl('Shadows', filters.shadows, 0, 200, (value) => { filters.shadows = value; applyVideoFilters(); }),
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Creative Effects'),
+      createSliderControl('Blur (px)', filters.blur, 0, 20, (value) => { filters.blur = value; applyVideoFilters(); }),
+      createSliderControl('Sharpen', filters.sharpen, 0, 100, (value) => { filters.sharpen = value; applyVideoFilters(); }),
+      createSliderControl('Grayscale (%)', filters.grayscale, 0, 100, (value) => { filters.grayscale = value; applyVideoFilters(); }),
+      createSliderControl('Sepia (%)', filters.sepia, 0, 100, (value) => { filters.sepia = value; applyVideoFilters(); }),
+      createSliderControl('Vignette', filters.vignette, 0, 100, (value) => { filters.vignette = value; applyVideoFilters(); }),
+      createSliderControl('Film Grain', filters.filmGrain, 0, 100, (value) => { filters.filmGrain = value; applyVideoFilters(); }),
+      createSliderControl('Fade', filters.fade, 0, 100, (value) => { filters.fade = value; applyVideoFilters(); }),
+      p({ className: 'mt-2 text-[10px] text-slate-500' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
+    );
+  }
+
+  function renderTransformTab() {
+    const ratioGrid = div(
+      { className: 'grid grid-cols-2 gap-2.5' },
+      createPresetButton('16:9 Widescreen', () => { setAspectRatio('16:9'); pushState(); }),
+      createPresetButton('9:16 Vertical / Reels', () => { setAspectRatio('9:16'); pushState(); }),
+      createPresetButton('1:1 Square', () => { setAspectRatio('1:1'); pushState(); }),
+      createPresetButton('4:5 Social Feed', () => { setAspectRatio('4:5'); pushState(); }),
+    );
+
+    const transformGrid = div(
+      { className: 'grid grid-cols-2 gap-2.5 mt-3' },
+      createPresetButton('Rotate 90°', () => { rotation = (rotation + 90) % 360; updateTransforms(); pushState(); }),
+      createPresetButton('Flip Horizontal', () => { flipH = !flipH; updateTransforms(); pushState(); }),
+      createPresetButton('Flip Vertical', () => { flipV = !flipV; updateTransforms(); pushState(); }),
+      createPresetButton('Reset Transforms', () => { rotation = 0; flipH = false; flipV = false; updateTransforms(); pushState(); }),
+    );
+
+    const maskToolGrid = div(
+      { className: 'grid grid-cols-3 gap-2 mt-2' },
+      createPresetButton('Circle', () => { activeMaskTool = 'circle'; }),
+      createPresetButton('Rectangle', () => { activeMaskTool = 'rect'; }),
+      createPresetButton('Freehand', () => { activeMaskTool = 'freehand'; }),
+    );
+
+    const lutUploadButton = createPresetButton('Import .cube LUT', () => {
+      const filePicker = document.createElement('input');
+      filePicker.type = 'file';
+      filePicker.accept = '.cube,text/plain';
+      filePicker.onchange = async () => {
+        const file = filePicker.files?.[0];
+        if (!file) return;
+        const parsed = parseCubeLut(await file.text());
+        if (!parsed) {
+          alert('Could not parse a valid 3D LUT. Check the .cube file size and RGB data.');
+          return;
+        }
+        cubeLut = parsed;
+        pushState();
+        renderToolControls();
+      };
+      filePicker.click();
+    });
+
+    toolContainer.append(
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2' }, 'Aspect Ratio Presets'),
+      ratioGrid,
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Rotation & Mirroring'),
+      transformGrid,
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Shape Masks'),
+      maskToolGrid,
+      div({ className: 'grid grid-cols-2 gap-2 pt-2' },
+        createPresetButton('Add Mask', () => {
+          const maskId = Date.now() + Math.floor(Math.random() * 1000);
+          const newMask: MaskItem = { id: maskId, type: activeMaskTool, x: 50, y: 50, width: 45, height: 45, radius: 28, feather: 14, opacity: 0.45, blur: 0, color: '#a78bfa', points: [{ x: 25, y: 20 }, { x: 72, y: 20 }, { x: 72, y: 72 }, { x: 25, y: 72 }] };
+          masks.push(newMask);
+          pendingMask = null;
+          applyMaskOverlay();
+          pushState();
+        }),
+        createPresetButton('Clear Masks', () => {
+          masks = [];
+          pendingMask = null;
+          applyMaskOverlay();
+          pushState();
+        }),
+      ),
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, '3D LUT Grade'),
+      lutUploadButton,
+      cubeLut ? div({ className: 'mt-2 text-[10px] text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 'mt-2 text-[10px] text-slate-500' }, 'No LUT loaded'),
+      p({ className: 'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4' }, 'Preview Quality'),
+      div({ className: 'grid grid-cols-3 gap-2' },
+        createPresetButton('Full 100%', () => { previewQuality = '1'; pushState(); }),
+        createPresetButton('Half 50%', () => { previewQuality = '0.5'; pushState(); }),
+        createPresetButton('Quarter 25%', () => { previewQuality = '0.25'; pushState(); }),
+      ),
+      p({ className: 'text-[10px] text-slate-500 mt-2' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
+    );
+  }
+
   function renderToolControls() {
     toolContainer.replaceChildren();
     renderTimelineRows();
@@ -3519,177 +3785,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     renderProgressFill = null;
 
     if (activeTab === 'timeline') {
-      toolContainer.append(
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
-          },
-          'Timeline Trim & Speed',
-        ),
-
-        createSliderControl(
-          'Start Marker (s)',
-          trimStart,
-          0,
-          Math.max(1, duration),
-
-          (value) => {
-            trimStart = Math.min(
-              value,
-              (trimEnd || duration) - 0.5,
-            );
-
-            trimStart = Math.max(0, trimStart);
-
-            updateTrimMarkers();
-
-            if (
-              videoElement.currentTime < trimStart
-            ) {
-              videoElement.currentTime = trimStart;
-            }
-          },
-        ),
-
-        createSliderControl(
-          'End Marker (s)',
-          trimEnd || duration,
-          0,
-          Math.max(1, duration),
-
-          (value) => {
-            trimEnd = Math.max(
-              value,
-              trimStart + 0.5,
-            );
-
-            trimEnd = Math.min(
-              duration || trimEnd,
-              trimEnd,
-            );
-
-            updateTrimMarkers();
-          },
-        ),
-
-        p(
-          {
-            className:
-              'mt-3 text-xs font-semibold text-slate-300',
-          },
-          `Playback Speed: ${playbackRate.toFixed(2)}x`,
-        ),
-
-        renderPlaybackCurveEditor(),
-
-        div(
-          {
-            className:
-              'pt-2 grid grid-cols-2 gap-2.5',
-          },
-
-          createPresetButton(
-            'Set Start Here',
-            () => {
-              trimStart = clampValue(
-                videoElement.currentTime,
-                0,
-                duration,
-              );
-
-              if (trimStart >= trimEnd) {
-                trimStart = Math.max(
-                  0,
-                  trimEnd - 0.5,
-                );
-              }
-
-              updateTrimMarkers();
-              pushState();
-              renderToolControls();
-            },
-          ),
-
-          createPresetButton(
-            'Set End Here',
-            () => {
-              trimEnd = clampValue(
-                videoElement.currentTime,
-                trimStart + 0.5,
-                duration,
-              );
-
-              updateTrimMarkers();
-              pushState();
-              renderToolControls();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              'pt-2 grid grid-cols-2 gap-2.5',
-          },
-
-          createPresetButton(
-            'Split Clip',
-            splitClipAtPlayhead,
-          ),
-
-          createPresetButton(
-            'Delete Segment',
-            deleteCurrentClipSegment,
-          ),
-        ),
-
-        div(
-          {
-            className: 'pt-2',
-          },
-
-          div(
-            {
-              className:
-                'flex justify-between items-center text-xs',
-            },
-
-            span(
-              {
-                className: 'text-slate-400',
-              },
-              'Transition',
-            ),
-
-            createSelectDropdown(
-              [
-                'none',
-                'crossfade',
-                'dip-to-black',
-                'wipe',
-                'slide',
-              ],
-
-              activeTransition,
-
-              (value) => {
-                activeTransition = value as ClipTransition;
-
-                pushState();
-              },
-            ),
-          ),
-        ),
-
-        p(
-          {
-            className:
-              'mt-2 text-[10px] text-slate-500 leading-relaxed',
-          },
-          'Clip splitting currently stores timeline segment metadata. True multi-clip concatenation and ripple rendering require a multi-source export pipeline.',
-        ),
-      );
+      renderTimelineTab();
     }
 
     // ----------------------------------------------------------
@@ -3697,285 +3793,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'filters') {
-      const presetGrid = div(
-        {
-          className:
-            'grid grid-cols-2 gap-3 mb-4',
-        },
-
-        createThumbnailPresetCard(
-          'Normal',
-          DEFAULT_FILTERS,
-          '✨',
-        ),
-
-        createThumbnailPresetCard(
-          'Cinematic',
-          {
-            exposure: 105,
-            brightness: 90,
-            contrast: 130,
-            saturate: 115,
-            temperature: -10,
-            tint: 5,
-            highlights: 90,
-            shadows: 110,
-            blur: 0,
-            sharpen: 10,
-            grayscale: 0,
-            sepia: 0,
-            vignette: 20,
-            filmGrain: 15,
-            fade: 5,
-          },
-          '🎬',
-        ),
-
-        createThumbnailPresetCard(
-          'Mono Noir',
-          {
-            exposure: 100,
-            brightness: 105,
-            contrast: 140,
-            saturate: 0,
-            temperature: 0,
-            tint: 0,
-            highlights: 100,
-            shadows: 90,
-            blur: 0,
-            sharpen: 15,
-            grayscale: 100,
-            sepia: 0,
-            vignette: 30,
-            filmGrain: 25,
-            fade: 10,
-          },
-          '🎞️',
-        ),
-
-        createThumbnailPresetCard(
-          'Warm Vintage',
-          {
-            exposure: 100,
-            brightness: 105,
-            contrast: 105,
-            saturate: 120,
-            temperature: 25,
-            tint: 10,
-            highlights: 105,
-            shadows: 95,
-            blur: 0,
-            sharpen: 0,
-            grayscale: 0,
-            sepia: 25,
-            vignette: 25,
-            filmGrain: 20,
-            fade: 15,
-          },
-          '🌅',
-        ),
-      );
-
-      toolContainer.append(
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
-          },
-          'One-Click Filter Presets',
-        ),
-
-        presetGrid,
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          'Basic Adjustments',
-        ),
-
-        createSliderControl(
-          'Exposure',
-          filters.exposure,
-          0,
-          200,
-          (value) => {
-            filters.exposure = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Brightness',
-          filters.brightness,
-          0,
-          200,
-          (value) => {
-            filters.brightness = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Contrast',
-          filters.contrast,
-          0,
-          200,
-          (value) => {
-            filters.contrast = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Saturation',
-          filters.saturate,
-          0,
-          200,
-          (value) => {
-            filters.saturate = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Temperature',
-          filters.temperature,
-          -50,
-          50,
-          (value) => {
-            filters.temperature = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Tint',
-          filters.tint,
-          -50,
-          50,
-          (value) => {
-            filters.tint = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Highlights',
-          filters.highlights,
-          0,
-          200,
-          (value) => {
-            filters.highlights = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Shadows',
-          filters.shadows,
-          0,
-          200,
-          (value) => {
-            filters.shadows = value;
-            applyVideoFilters();
-          },
-        ),
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          'Creative Effects',
-        ),
-
-        createSliderControl(
-          'Blur (px)',
-          filters.blur,
-          0,
-          20,
-          (value) => {
-            filters.blur = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Sharpen',
-          filters.sharpen,
-          0,
-          100,
-          (value) => {
-            filters.sharpen = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Grayscale (%)',
-          filters.grayscale,
-          0,
-          100,
-          (value) => {
-            filters.grayscale = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Sepia (%)',
-          filters.sepia,
-          0,
-          100,
-          (value) => {
-            filters.sepia = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Vignette',
-          filters.vignette,
-          0,
-          100,
-          (value) => {
-            filters.vignette = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Film Grain',
-          filters.filmGrain,
-          0,
-          100,
-          (value) => {
-            filters.filmGrain = value;
-            applyVideoFilters();
-          },
-        ),
-
-        createSliderControl(
-          'Fade',
-          filters.fade,
-          0,
-          100,
-          (value) => {
-            filters.fade = value;
-            applyVideoFilters();
-          },
-        ),
-
-        p(
-          {
-            className:
-              'mt-2 text-[10px] text-slate-500',
-          },
-          'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.',
-        ),
-      );
+      renderFiltersTab();
     }
 
     // ----------------------------------------------------------
@@ -3983,322 +3801,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'transform') {
-      const ratioGrid = div(
-        {
-          className:
-            'grid grid-cols-2 gap-2.5',
-        },
-
-        createPresetButton(
-          '16:9 Widescreen',
-          () => {
-            setAspectRatio('16:9');
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          '9:16 Vertical / Reels',
-          () => {
-            setAspectRatio('9:16');
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          '1:1 Square',
-          () => {
-            setAspectRatio('1:1');
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          '4:5 Social Feed',
-          () => {
-            setAspectRatio('4:5');
-            pushState();
-          },
-        ),
-      );
-
-      const transformGrid = div(
-        {
-          className:
-            'grid grid-cols-2 gap-2.5 mt-3',
-        },
-
-        createPresetButton(
-          'Rotate 90°',
-          () => {
-            rotation = (rotation + 90) % 360;
-            updateTransforms();
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          'Flip Horizontal',
-          () => {
-            flipH = !flipH;
-            updateTransforms();
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          'Flip Vertical',
-          () => {
-            flipV = !flipV;
-            updateTransforms();
-            pushState();
-          },
-        ),
-
-        createPresetButton(
-          'Reset Transforms',
-          () => {
-            rotation = 0;
-            flipH = false;
-            flipV = false;
-
-            updateTransforms();
-            pushState();
-          },
-        ),
-      );
-
-      const maskToolGrid = div(
-        {
-          className:
-            'grid grid-cols-3 gap-2 mt-2',
-        },
-
-        createPresetButton(
-          'Circle',
-          () => {
-            activeMaskTool = 'circle';
-          },
-        ),
-
-        createPresetButton(
-          'Rectangle',
-          () => {
-            activeMaskTool = 'rect';
-          },
-        ),
-
-        createPresetButton(
-          'Freehand',
-          () => {
-            activeMaskTool = 'freehand';
-          },
-        ),
-      );
-
-      const lutUploadButton = createPresetButton(
-        'Import .cube LUT',
-        () => {
-          const filePicker =
-            document.createElement('input');
-
-          filePicker.type = 'file';
-          filePicker.accept = '.cube,text/plain';
-
-          filePicker.onchange = async () => {
-            const file = filePicker.files?.[0];
-
-            if (!file) return;
-
-            const parsed = parseCubeLut(
-              await file.text(),
-            );
-
-            if (!parsed) {
-              alert(
-                'Could not parse a valid 3D LUT. Check the .cube file size and RGB data.',
-              );
-
-              return;
-            }
-
-            cubeLut = parsed;
-
-            pushState();
-            renderToolControls();
-          };
-
-          filePicker.click();
-        },
-      );
-
-      toolContainer.append(
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
-          },
-          'Aspect Ratio Presets',
-        ),
-
-        ratioGrid,
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          'Rotation & Mirroring',
-        ),
-
-        transformGrid,
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          'Shape Masks',
-        ),
-
-        maskToolGrid,
-
-        div(
-          {
-            className:
-              'grid grid-cols-2 gap-2 pt-2',
-          },
-
-          createPresetButton(
-            'Add Mask',
-            () => {
-              const maskId =
-                Date.now() +
-                Math.floor(Math.random() * 1000);
-
-              const newMask: MaskItem = {
-                id: maskId,
-
-                type: activeMaskTool,
-
-                x: 50,
-                y: 50,
-
-                width: 45,
-                height: 45,
-
-                radius: 28,
-
-                feather: 14,
-
-                opacity: 0.45,
-
-                blur: 0,
-
-                color: '#a78bfa',
-
-                points: [
-                  { x: 25, y: 20 },
-                  { x: 72, y: 20 },
-                  { x: 72, y: 72 },
-                  { x: 25, y: 72 },
-                ],
-              };
-
-              masks.push(newMask);
-
-              pendingMask = null;
-
-              applyMaskOverlay();
-              pushState();
-            },
-          ),
-
-          createPresetButton(
-            'Clear Masks',
-            () => {
-              masks = [];
-              pendingMask = null;
-
-              applyMaskOverlay();
-              pushState();
-            },
-          ),
-        ),
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          '3D LUT Grade',
-        ),
-
-        lutUploadButton,
-
-        cubeLut
-          ? div(
-              {
-                className:
-                  'mt-2 text-[10px] text-slate-300',
-              },
-              `Loaded LUT: ${cubeLut.size}³`,
-            )
-          : div(
-              {
-                className:
-                  'mt-2 text-[10px] text-slate-500',
-              },
-              'No LUT loaded',
-            ),
-
-        p(
-          {
-            className:
-              'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2 mt-4',
-          },
-          'Preview Quality',
-        ),
-
-        div(
-          {
-            className:
-              'grid grid-cols-3 gap-2',
-          },
-
-          createPresetButton(
-            'Full 100%',
-            () => {
-              previewQuality = '1';
-              pushState();
-            },
-          ),
-
-          createPresetButton(
-            'Half 50%',
-            () => {
-              previewQuality = '0.5';
-              pushState();
-            },
-          ),
-
-          createPresetButton(
-            'Quarter 25%',
-            () => {
-              previewQuality = '0.25';
-              pushState();
-            },
-          ),
-        ),
-
-        p(
-          {
-            className:
-              'text-[10px] text-slate-500 mt-2',
-          },
-          'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.',
-        ),
-      );
+      renderTransformTab();
     }
 
     // ----------------------------------------------------------
