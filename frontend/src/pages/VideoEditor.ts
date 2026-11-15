@@ -4891,6 +4891,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   return root;
 }
+
 export interface ExportStatusResponse {
   ok: boolean;
   jobId: string;
