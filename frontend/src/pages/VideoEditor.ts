@@ -2,10 +2,8 @@ import '../../css/videoeditor.css';
 
 import {
   button,
-  createButton,
   div,
   input,
-  label,
   p,
   span,
   svgElement,
@@ -15,20 +13,13 @@ import { appStore } from '../appState';
 import { downloadVideoFromServer, exportVideoWithFFmpeg } from '../api';
 
 import {
-  bindEditorFullscreenButton,
   createDetailPanel,
-  createEditorFooter,
-  createEditorShell,
   createEditorTabNav,
-  createMediaProcessingModeSelector,
 } from './shared';
 import {
   DEFAULT_CAPTION_STYLE,
   DEFAULT_FILTERS,
   DEFAULT_PLAYBACK_CURVE,
-  PROJECT_DATABASE,
-  PROJECT_ID,
-  PROJECT_STORE,
   type AudioTrack,
   type BlendMode,
   type CaptionStyle,
@@ -39,23 +30,17 @@ import {
   type PlaybackCurve,
   type TimedCaption,
   type TimelineClipSegment,
-  type StoredProject,
   type VideoEditorState,
   type VideoFilters,
   type VideoTab,
 } from './video-editor/types';
 import { createVideoStageElements } from './video-editor/dom';
 import { buildSrtFromSegments, parseSrtText } from './video-editor/captions';
-import {
-  dataUrlToFile,
-  fileToDataUrl,
-  openProjectDatabase,
-} from './video-editor/storage';
+import { fileToDataUrl } from './video-editor/storage';
 import {
   drawExportFrame,
   getExportDimensions,
   getSupportedRecorderMimeType,
-  parseCubeLut,
 } from './video-editor/rendering';
 import {
   clampValue,
@@ -65,17 +50,33 @@ import {
   formatTime,
 } from './video-editor/utils';
 import {
-  clampViewportZoom as constrainViewportZoom,
-  setPreviewInteractionState,
-  zoomViewport as applyViewportZoom,
-} from './video-editor/preview';
-import {
   stepVideoFrame,
   syncPlaybackButton,
   togglePlayback,
 } from './video-editor/transport';
 import { createTimelinePanel } from './video-editor/timeline';
 import { createExportPanel } from './video-editor/export';
+import { createEditorControls } from './video-editor/controls';
+import { createVideoEditorPanels } from './video-editor/panels';
+import { createVideoEditorLayout } from './video-editor/layout';
+import { bindEditorShortcuts } from './video-editor/shortcuts';
+import { bindVideoPreviewInteraction } from './video-editor/interaction';
+import {
+  serializeEditorState as serializeProjectState,
+} from './video-editor/project-state';
+import {
+  createProjectDownloadBlob,
+  importEditorProjectFile,
+  loadEditorProject,
+  saveEditorProject,
+} from './video-editor/project-io';
+import { createProjectHistory } from './video-editor/history';
+import {
+  cancelVideoExport as cancelVideoExportController,
+  flushVideoSession as flushVideoSessionController,
+  resetEditor as resetEditorController,
+  seekVideoTo as seekVideoToController,
+} from './video-editor/media';
 
 export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
@@ -174,141 +175,32 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   } = createVideoStageElements();
 
   videoElement.volume = volume;
-  interactionToggleButton.onclick = () => setInteractionMode(!interactionModeEnabled);
+
+  const { zoomViewport, clampViewportZoom } = bindVideoPreviewInteraction({
+    videoElement,
+    videoContainer: videoContainer as HTMLDivElement,
+    captionOverlay,
+    interactionToggleButton,
+    viewportZoom,
+    getInteractionMode: () => interactionModeEnabled,
+    setInteractionMode: (enabled: boolean) => {
+      interactionModeEnabled = enabled;
+    },
+    getCaptionX: () => captionX,
+    setCaptionX: (value: number) => {
+      captionX = value;
+    },
+    getCaptionY: () => captionY,
+    setCaptionY: (value: number) => {
+      captionY = value;
+    },
+    pushState,
+    applyVideoFilters,
+  });
 
   // ============================================================
   // 3. VIDEO PREVIEW INTERACTION
   // ============================================================
-
-  function setInteractionMode(enabled: boolean) {
-    interactionModeEnabled = enabled;
-    setPreviewInteractionState(
-      enabled,
-      interactionToggleButton,
-      viewportZoom,
-    );
-  }
-
-  let isDraggingCaption = false;
-  let captionDragOffsetX = 0;
-  let captionDragOffsetY = 0;
-
-  captionOverlay.onmousedown = (event: MouseEvent) => {
-    if (interactionModeEnabled) return;
-
-    isDraggingCaption = true;
-
-    const rect = captionOverlay.getBoundingClientRect();
-
-    captionDragOffsetX = event.clientX - rect.left;
-    captionDragOffsetY = event.clientY - rect.top;
-
-    event.stopPropagation();
-  };
-
-  window.addEventListener('mousemove', (event: MouseEvent) => {
-    if (!isDraggingCaption) return;
-
-    const parentRect = videoContainer.getBoundingClientRect();
-
-    captionX = clampValue(
-      ((event.clientX - captionDragOffsetX - parentRect.left) /
-        parentRect.width) *
-        100,
-      0,
-      100,
-    );
-
-    captionY = clampValue(
-      ((event.clientY - captionDragOffsetY - parentRect.top) /
-        parentRect.height) *
-        100,
-      0,
-      100,
-    );
-
-    captionOverlay.style.left = `${captionX}%`;
-    captionOverlay.style.top = `${captionY}%`;
-
-    captionOverlay.style.transform = 'translate(-50%, -50%)';
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (!isDraggingCaption) return;
-
-    isDraggingCaption = false;
-    pushState();
-  });
-
-  videoContainer.onwheel = (event: WheelEvent) => {
-    if (!videoElement.src || !interactionModeEnabled) return;
-
-    event.preventDefault();
-
-    zoomViewport(
-      event.deltaY < 0 ? 1.12 : 0.88,
-      event.clientX,
-      event.clientY,
-    );
-  };
-
-  videoContainer.onmousedown = (event: MouseEvent) => {
-    if (
-      !videoElement.src ||
-      !interactionModeEnabled ||
-      viewportZoom.zoomLevel <= 1
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-
-    viewportZoom.isDragging = true;
-
-    viewportZoom.startX = event.clientX - viewportZoom.panX;
-    viewportZoom.startY = event.clientY - viewportZoom.panY;
-  };
-
-  window.addEventListener('mousemove', (event: MouseEvent) => {
-    if (
-      !interactionModeEnabled ||
-      !viewportZoom.isDragging ||
-      !videoElement.src ||
-      viewportZoom.zoomLevel <= 1
-    ) {
-      return;
-    }
-
-    viewportZoom.panX = event.clientX - viewportZoom.startX;
-    viewportZoom.panY = event.clientY - viewportZoom.startY;
-
-    constrainViewportZoom(videoElement, videoContainer, viewportZoom);
-    applyVideoFilters();
-  });
-
-  window.addEventListener('mouseup', () => {
-    viewportZoom.isDragging = false;
-  });
-
-  function clampViewportZoom() {
-    constrainViewportZoom(videoElement, videoContainer, viewportZoom);
-  }
-
-  function zoomViewport(
-    factor: number,
-    x?: number,
-    y?: number,
-  ) {
-    applyViewportZoom(
-      videoElement,
-      videoContainer,
-      viewportZoom,
-      factor,
-      () => applyVideoFilters(),
-      x,
-      y,
-    );
-  }
 
   // ============================================================
   // 4. VIDEO TIMELINE AND PLAYBACK UI
@@ -442,10 +334,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 5. PROJECT STATE, HISTORY AND SERIALIZATION
   // ============================================================
 
-  let history: VideoEditorState[] = [];
-  let historyIndex = -1;
-
   let projectDb: IDBDatabase | null = null;
+
+  const projectHistory = createProjectHistory({
+    createSnapshot: serializeEditorState,
+    restoreSnapshot: (state: Partial<VideoEditorState>) => {
+      restoreState(state);
+    },
+    onSnapshot: () => {
+      void persistProjectState();
+    },
+  });
 
   let cachedVideoFile: File | null = null;
   let cachedVideoDataUrl: string | null = null;
@@ -544,104 +443,39 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function serializeEditorState(): VideoEditorState {
-    return {
+    return serializeProjectState({
       trimStart,
       trimEnd,
       playbackRate,
       volume,
-
       aspectRatio,
-
       rotation,
       flipH,
       flipV,
-
       previewQuality,
-
       captionText,
-      captionSegments: cloneCaptionSegments(captionSegments),
-      audioTracks: audioTracks.map((track) => ({
-        ...track,
-        dataUrl: track.dataUrl,
-      })),
-      captionTracks: captionTracks.map((track) => ({
-        ...track,
-        segments: cloneCaptionSegments(track.segments),
-      })),
+      captionSegments,
+      audioTracks,
+      captionTracks,
       activeCaptionTrackId,
-
-      transitionType: activeTransition,
-      clipSegments: clipSegments.map((segment) => ({ ...segment })),
-
-      blendMode: activeBlendMode,
-
-      masks: cloneMasks(masks),
-
-      playbackCurve: {
-        p0: { ...playbackCurve.p0 },
-        p1: { ...playbackCurve.p1 },
-        p2: { ...playbackCurve.p2 },
-        p3: { ...playbackCurve.p3 },
-      },
-
-      cubeLut: cubeLut
-        ? {
-            size: cubeLut.size,
-            values: [...cubeLut.values],
-          }
-        : null,
-
+      activeTransition,
+      clipSegments,
+      activeBlendMode,
+      masks,
+      playbackCurve,
+      cubeLut,
       captionSize,
       captionWeight,
       captionBg,
       captionShadow,
       captionX,
       captionY,
-
-      filters: { ...filters },
-    };
-  }
-
-  function cloneEditorState(
-    state: VideoEditorState,
-  ): VideoEditorState {
-    return {
-      ...state,
-      captionSegments: cloneCaptionSegments(state.captionSegments),
-      clipSegments: state.clipSegments.map((segment) => ({ ...segment })),
-      masks: cloneMasks(state.masks),
-      playbackCurve: {
-        p0: { ...state.playbackCurve.p0 },
-        p1: { ...state.playbackCurve.p1 },
-        p2: { ...state.playbackCurve.p2 },
-        p3: { ...state.playbackCurve.p3 },
-      },
-      cubeLut: state.cubeLut
-        ? {
-            size: state.cubeLut.size,
-            values: [...state.cubeLut.values],
-          }
-        : null,
-      filters: { ...state.filters },
-    };
+      filters,
+    });
   }
 
   function pushState() {
-    const currentState = serializeEditorState();
-
-    history = history.slice(0, historyIndex + 1);
-
-    history.push(cloneEditorState(currentState));
-
-    const MAX_HISTORY = 100;
-
-    if (history.length > MAX_HISTORY) {
-      history.shift();
-    }
-
-    historyIndex = history.length - 1;
-
-    void persistProjectState();
+    projectHistory.pushState();
   }
 
   function restoreState(
@@ -855,155 +689,54 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   async function persistProjectState() {
-    if (!('indexedDB' in window)) return;
-
     try {
-      const db =
-        projectDb ??
-        (await openProjectDatabase(
-          PROJECT_DATABASE,
-          PROJECT_STORE,
-        ));
-
-      projectDb = db;
-
-      let videoDataUrl: string | null = null;
-
-      if (videoFile) {
-        if (
-          cachedVideoFile === videoFile &&
-          cachedVideoDataUrl
-        ) {
-          videoDataUrl = cachedVideoDataUrl;
-        } else {
-          videoDataUrl = await fileToDataUrl(videoFile);
-
-          cachedVideoFile = videoFile;
-          cachedVideoDataUrl = videoDataUrl;
-        }
-      }
-
-      const payload: StoredProject = {
-        id: PROJECT_ID,
-
-        videoDataUrl,
-
-        fileName: videoFile?.name ?? null,
-        fileType: videoFile?.type ?? null,
-
-        savedAt: Date.now(),
-
-        state: serializeEditorState(),
-      };
-
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(
-          PROJECT_STORE,
-          'readwrite',
-        );
-
-        tx.objectStore(PROJECT_STORE).put(payload);
-
-        tx.oncomplete = () => resolve();
-
-        tx.onerror = () => {
-          reject(
-            tx.error ?? new Error('Project save failed.'),
-          );
-        };
-
-        tx.onabort = () => {
-          reject(
-            tx.error ?? new Error('Project save was aborted.'),
-          );
-        };
+      const result = await saveEditorProject({
+        projectDb,
+        videoFile,
+        cachedVideoFile,
+        cachedVideoDataUrl,
+        serializer: () => serializeEditorState(),
       });
+
+      projectDb = result.projectDb;
+      cachedVideoFile = result.cachedVideoFile;
+      cachedVideoDataUrl = result.cachedVideoDataUrl;
     } catch (error) {
       console.warn('Unable to save editor state:', error);
     }
   }
 
   async function hydrateProjectState() {
-    if (!('indexedDB' in window)) return;
-
     try {
-      const db =
-        projectDb ??
-        (await openProjectDatabase(
-          PROJECT_DATABASE,
-          PROJECT_STORE,
-        ));
+      const result = await loadEditorProject({
+        projectDb,
+        restoreState,
+        setVideoFile,
+      });
 
-      projectDb = db;
+      projectDb = result.projectDb;
 
-      const entry = await new Promise<StoredProject | undefined>(
-        (resolve, reject) => {
-          const tx = db.transaction(
-            PROJECT_STORE,
-            'readonly',
-          );
+      if (!result.restoredState) return;
 
-          const request = tx
-            .objectStore(PROJECT_STORE)
-            .get(PROJECT_ID);
+      if (result.restoredFile && result.restoredVideoDataUrl) {
+        cachedVideoFile = result.restoredFile;
+        cachedVideoDataUrl = result.restoredVideoDataUrl;
 
-          request.onsuccess = () => {
-            resolve(request.result as StoredProject | undefined);
-          };
-
-          request.onerror = () => {
-            reject(
-              request.error ?? new Error('Project restore failed.'),
-            );
-          };
-        },
-      );
-
-      if (!entry?.state) return;
-
-      if (entry.videoDataUrl && entry.fileName) {
-        const restoredFile = await dataUrlToFile(
-          entry.videoDataUrl,
-          entry.fileName,
-          entry.fileType,
-        );
-
-        cachedVideoFile = restoredFile;
-        cachedVideoDataUrl = entry.videoDataUrl;
-
-        setVideoFile(restoredFile, entry.state);
-
+        setVideoFile(result.restoredFile, result.restoredState);
         return;
       }
 
-      restoreState(entry.state);
+      restoreState(result.restoredState);
     } catch (error) {
       console.warn('Unable to restore editor state:', error);
     }
   }
 
   function exportProjectFile() {
-    const snapshot = {
-      version: 2,
-      exportedAt: new Date().toISOString(),
-
-      source: videoFile
-        ? {
-            name: videoFile.name,
-            type: videoFile.type,
-            size: videoFile.size,
-          }
-        : null,
-
-      state: serializeEditorState(),
-    };
-
-    const blob = new Blob(
-      [JSON.stringify(snapshot, null, 2)],
-      {
-        type: 'application/json;charset=utf-8',
-      },
-    );
+    const blob = createProjectDownloadBlob({
+      videoFile,
+      serializer: () => serializeEditorState(),
+    });
 
     const url = URL.createObjectURL(blob);
 
@@ -1031,19 +764,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       if (!file) return;
 
       try {
-        const parsed = JSON.parse(await file.text());
+        const state = await importEditorProjectFile(file);
 
-        const state = parsed.state ?? parsed;
+        restoreState(state);
 
-        if (!state || typeof state !== 'object') {
-          throw new Error('Invalid project data.');
-        }
-
-        restoreState(state as Partial<VideoEditorState>);
-
-        history = [];
-        historyIndex = -1;
-
+        projectHistory.resetHistory();
         pushState();
 
         activeTab = 'timeline';
@@ -1075,26 +800,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   function undo() {
-    if (historyIndex <= 0) return;
+    if (projectHistory.historyIndex <= 0) return;
 
-    historyIndex -= 1;
-
-    restoreState(
-      cloneEditorState(history[historyIndex]),
-    );
-
+    projectHistory.undo();
     renderToolControls();
   }
 
   function redo() {
-    if (historyIndex >= history.length - 1) return;
+    if (projectHistory.historyIndex >= projectHistory.history.length - 1) return;
 
-    historyIndex += 1;
-
-    restoreState(
-      cloneEditorState(history[historyIndex]),
-    );
-
+    projectHistory.redo();
     renderToolControls();
   }
 
@@ -1551,69 +1266,93 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   function flushVideoSession() {
-    if (renderAnimationFrame) {
-      cancelAnimationFrame(renderAnimationFrame);
-      renderAnimationFrame = 0;
-    }
-
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
-
-    exportCancelled = true;
-    isRendering = false;
-    renderChunks = [];
-    renderProgress = 0;
-    history = [];
-    historyIndex = -1;
-
-    if (videoUrl) {
-      URL.revokeObjectURL(videoUrl);
-      videoUrl = null;
-    }
-
-    videoFile = null;
-    currentTime = 0;
-    duration = 0;
-    trimStart = 0;
-    trimEnd = 0;
-
-    videoElement.pause();
-    videoElement.removeAttribute('src');
-    videoElement.load();
-
-    captionText = '';
-    captionSegments = [];
-    audioTracks = [];
-    captionTracks = [
-      {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        label: 'Primary Captions',
-        color: '#a78bfa',
-        enabled: true,
-        segments: [],
+    flushVideoSessionController({
+      videoElement,
+      videoContainer,
+      videoUrl,
+      setVideoUrl: (next) => {
+        videoUrl = next;
       },
-    ];
-    activeCaptionTrackId = captionTracks[0].id;
-
-    masks = [];
-    pendingMask = null;
-    clipSegments = [];
-    playbackCurve = structuredClone(DEFAULT_PLAYBACK_CURVE);
-    cubeLut = null;
-    Object.assign(filters, DEFAULT_FILTERS);
-
-    setAspectRatio('16:9');
-    videoElement.volume = 1;
-    videoElement.playbackRate = 1;
-    volume = 1;
-    volumeSlider.value = 've-1';
-
-    renderToolControls();
-    updateCaptions();
-    updateTrimMarkers();
-    applyMaskOverlay();
-    applyVideoFilters();
+      setVideoFile: (next) => {
+        videoFile = next;
+      },
+      getVideoFile: () => videoFile,
+      getDuration: () => duration,
+      setDuration: (next) => {
+        duration = next;
+      },
+      setTrimStart: (next) => {
+        trimStart = next;
+      },
+      setTrimEnd: (next) => {
+        trimEnd = next;
+      },
+      setCurrentTime: (next) => {
+        currentTime = next;
+      },
+      setCaptionText: (next) => {
+        captionText = next;
+      },
+      setCaptionSegments: (next) => {
+        captionSegments = next;
+      },
+      setAudioTracks: (next) => {
+        audioTracks = next;
+      },
+      setCaptionTracks: (next) => {
+        captionTracks = next;
+      },
+      setMasks: (next) => {
+        masks = next;
+      },
+      setPendingMask: (next) => {
+        pendingMask = next;
+      },
+      setClipSegments: (next) => {
+        clipSegments = next;
+      },
+      setPlaybackCurve: (next) => {
+        playbackCurve = next;
+      },
+      setCubeLut: (next) => {
+        cubeLut = next;
+      },
+      setAspectRatio,
+      setVolume: (next) => {
+        volume = next;
+      },
+      setRenderAnimationFrame: (next) => {
+        renderAnimationFrame = next;
+      },
+      getRenderAnimationFrame: () => renderAnimationFrame,
+      setMediaRecorder: (next) => {
+        mediaRecorder = next;
+      },
+      getMediaRecorder: () => mediaRecorder,
+      setExportCancelled: (next) => {
+        exportCancelled = next;
+      },
+      setIsRendering: (next) => {
+        isRendering = next;
+      },
+      setRenderChunks: (next) => {
+        renderChunks = next;
+      },
+      setRenderProgress: (next) => {
+        renderProgress = next;
+      },
+      resetHistory: () => projectHistory.resetHistory(),
+      renderToolControls,
+      updateCaptions,
+      updateTrimMarkers,
+      applyMaskOverlay,
+      applyVideoFilters,
+      volumeSlider,
+      getFilters: () => filters,
+      setFilters: (next) => {
+        Object.assign(filters, next);
+      },
+    });
   }
 
   function setVideoFile(
@@ -1694,7 +1433,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       renderToolControls();
 
-      if (history.length === 0) {
+      if (projectHistory.history.length === 0) {
         pushState();
       }
     };
@@ -2445,53 +2184,37 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function seekVideoTo(seconds: number): Promise<void> {
-    return new Promise((resolve) => {
-      const target = clampValue(seconds, 0, duration);
-
-      if (Math.abs(videoElement.currentTime - target) < 0.01) {
-        resolve();
-        return;
-      }
-
-      const handleSeeked = () => resolve();
-
-      videoElement.addEventListener(
-        'seeked',
-        handleSeeked,
-        { once: true },
-      );
-
-      videoElement.currentTime = target;
+    return seekVideoToController({
+      videoElement,
+      duration,
+      seconds,
     });
   }
 
   function cancelVideoExport() {
-    if (!isRendering) return;
-
-    exportCancelled = true;
-
-    isRendering = false;
-
-    if (renderAnimationFrame) {
-      cancelAnimationFrame(renderAnimationFrame);
-      renderAnimationFrame = 0;
-    }
-
-    videoElement.pause();
-
-    if (
-      mediaRecorder &&
-      mediaRecorder.state !== 'inactive'
-    ) {
-      mediaRecorder.stop();
-    } else {
-      renderChunks = [];
-      renderProgress = 0;
-      exportCancelled = false;
-      renderToolControls();
-    }
-
-    syncPlaybackUI();
+    cancelVideoExportController({
+      videoElement,
+      getIsRendering: () => isRendering,
+      setExportCancelled: (next) => {
+        exportCancelled = next;
+      },
+      setIsRendering: (next) => {
+        isRendering = next;
+      },
+      getRenderAnimationFrame: () => renderAnimationFrame,
+      setRenderAnimationFrame: (next) => {
+        renderAnimationFrame = next;
+      },
+      getMediaRecorder: () => mediaRecorder,
+      setRenderChunks: (next) => {
+        renderChunks = next;
+      },
+      setRenderProgress: (next) => {
+        renderProgress = next;
+      },
+      renderToolControls,
+      syncPlaybackUI,
+    });
   }
 
   // ============================================================
@@ -2499,95 +2222,108 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   function resetEditor() {
-    videoElement.pause();
-
-    syncPlaybackUI();
-
-    trimStart = 0;
-    trimEnd = duration || 0;
-
-    playbackRate = 1;
-    videoElement.playbackRate = 1;
-
-    volume = 1;
-    videoElement.volume = 1;
-
-    volumeSlider.value = 've-1';
-
-    aspectRatio = '16:9';
-
-    rotation = 0;
-    flipH = false;
-    flipV = false;
-
-    previewQuality = '1';
-
-    viewportZoom.zoomLevel = 1;
-    viewportZoom.panX = 0;
-    viewportZoom.panY = 0;
-
-    captionText = '';
-    captionSegments = [];
-    audioTracks = [];
-    captionTracks = [
-      {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        label: 'Primary Captions',
-        color: '#a78bfa',
-        enabled: true,
-        segments: [],
+    resetEditorController({
+      videoElement,
+      duration,
+      setTrimStart: (next) => {
+        trimStart = next;
       },
-    ];
-    activeCaptionTrackId = captionTracks[0].id;
-
-    captionSize = DEFAULT_CAPTION_STYLE.size;
-    captionWeight = DEFAULT_CAPTION_STYLE.weight;
-    captionBg = DEFAULT_CAPTION_STYLE.background;
-    captionShadow = DEFAULT_CAPTION_STYLE.shadow;
-    captionX = DEFAULT_CAPTION_STYLE.x;
-    captionY = DEFAULT_CAPTION_STYLE.y;
-
-    activeTransition = 'crossfade';
-
-    activeBlendMode = 'screen';
-
-    masks = [];
-    pendingMask = null;
-
-    playbackCurve = structuredClone(
-      DEFAULT_PLAYBACK_CURVE,
-    );
-
-    cubeLut = null;
-
-    Object.assign(filters, DEFAULT_FILTERS);
-
-    clipSegments = duration
-      ? [
-          {
-            id: 1,
-            start: 0,
-            end: duration,
-            label: 'Main Clip',
-          },
-        ]
-      : [];
-
-    if (videoElement.src) {
-      videoElement.currentTime = 0;
-    }
-
-    setAspectRatio('16:9');
-
-    updateTransforms();
-    updateCaptions();
-    updateTrimMarkers();
-    applyMaskOverlay();
-    applyVideoFilters();
-
-    pushState();
-
-    renderToolControls();
+      setTrimEnd: (next) => {
+        trimEnd = next;
+      },
+      setPlaybackRate: (next) => {
+        playbackRate = next;
+      },
+      setVolume: (next) => {
+        volume = next;
+      },
+      setAspectRatio,
+      setRotation: (next) => {
+        rotation = next;
+      },
+      setFlipH: (next) => {
+        flipH = next;
+      },
+      setFlipV: (next) => {
+        flipV = next;
+      },
+      setPreviewQuality: (next) => {
+        previewQuality = next;
+      },
+      setCaptionText: (next) => {
+        captionText = next;
+      },
+      setCaptionSegments: (next) => {
+        captionSegments = next;
+      },
+      setAudioTracks: (next) => {
+        audioTracks = next;
+      },
+      setCaptionTracks: (next) => {
+        captionTracks = next;
+      },
+      setActiveCaptionTrackId: (next) => {
+        activeCaptionTrackId = next;
+      },
+      setCaptionSize: (next) => {
+        captionSize = next;
+      },
+      setCaptionWeight: (next) => {
+        captionWeight = next;
+      },
+      setCaptionBg: (next) => {
+        captionBg = next;
+      },
+      setCaptionShadow: (next) => {
+        captionShadow = next;
+      },
+      setCaptionX: (next) => {
+        captionX = next;
+      },
+      setCaptionY: (next) => {
+        captionY = next;
+      },
+      setActiveTransition: (next) => {
+        activeTransition = next;
+      },
+      setActiveBlendMode: (next) => {
+        activeBlendMode = next;
+      },
+      setMasks: (next) => {
+        masks = next;
+      },
+      setPendingMask: (next) => {
+        pendingMask = next;
+      },
+      setPlaybackCurve: (next) => {
+        playbackCurve = next;
+      },
+      setCubeLut: (next) => {
+        cubeLut = next;
+      },
+      setFilters: (next) => {
+        Object.assign(filters, next);
+      },
+      setClipSegments: (next) => {
+        clipSegments = next;
+      },
+      setViewportZoom: (next) => {
+        viewportZoom.zoomLevel = next.zoomLevel;
+        viewportZoom.panX = next.panX;
+        viewportZoom.panY = next.panY;
+        viewportZoom.isDragging = next.isDragging;
+        viewportZoom.startX = next.startX;
+        viewportZoom.startY = next.startY;
+      },
+      pushState,
+      renderToolControls,
+      updateTransforms,
+      updateCaptions,
+      updateTrimMarkers,
+      applyMaskOverlay,
+      applyVideoFilters,
+      volumeSlider,
+    });
   }
 
   // ============================================================
@@ -2677,80 +2413,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       return;
     }
 
-    history = [];
-    historyIndex = -1;
+    projectHistory.resetHistory();
 
     setVideoFile(file);
   };
-
-  const quickActions = div(
-    {
-      className:
-        've-flex ve-flex-wrap ve-justify-end ve-gap-2 ve-sm:gap-3 ve-items-center',
-    },
-
-    div(
-      {
-        className: 've-flex ve-items-center ve-gap-1.5 ve-mr-2',
-      },
-
-      button(
-        {
-          type: 'button',
-          className:
-            've-p-2 ve-rounded-xl ve-bg-slate-800/80 ve-hover:bg-slate-700 ve-text-slate-300 ve-hover:text-white ve-border ve-border-slate-700 ve-text-xs ve-font-bold ve-transition-all',
-          title: 'Undo (Ctrl+Z)',
-          onclick: undo,
-        },
-        '↶',
-      ),
-
-      button(
-        {
-          type: 'button',
-          className:
-            've-p-2 ve-rounded-xl ve-bg-slate-800/80 ve-hover:bg-slate-700 ve-text-slate-300 ve-hover:text-white ve-border ve-border-slate-700 ve-text-xs ve-font-bold ve-transition-all',
-          title: 'Redo (Ctrl+Y)',
-          onclick: redo,
-        },
-        '↷',
-      ),
-    ),
-
-    interactionToggleButton,
-
-    label(
-      {
-        className:
-          've-cursor-pointer ve-inline-flex ve-items-center ve-justify-center ve-rounded-xl ve-bg-slate-800/80 ve-px-4 ve-py-2 ve-text-xs ve-font-semibold ve-text-slate-200 ve-transition-all ve-hover:bg-slate-700 ve-hover:text-white ve-border ve-border-slate-700/60',
-      },
-
-      'Import Video',
-
-      fileInput,
-    ),
-
-    button(
-      {
-        type: 'button',
-        className:
-          've-rounded-xl ve-border ve-border-amber-500/40 ve-bg-amber-500/10 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.18em] ve-text-amber-200 ve-transition ve-hover:border-amber-400 ve-hover:bg-amber-500/20',
-        onclick: flushVideoSession,
-      },
-      'Flush All',
-    ),
-
-    createButton(
-      'primary',
-      {
-        type: 'button',
-        className:
-          've-bg-violet-600 ve-hover:bg-violet-500 ve-text-white ve-font-semibold ve-text-xs ve-px-4 ve-py-2 ve-rounded-xl ve-shadow-lg ve-shadow-violet-600/20',
-        onclick: () => switchTab('export'),
-      },
-      'Render Video',
-    ),
-  );
 
   const toolContainer = div({
     className: 've-space-y-4',
@@ -2781,27 +2447,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     },
   );
 
-  const editorTopBar = div(
-    {
-      className: 've-flex ve-flex-col ve-gap-3',
-    },
-
-    sidePanelNav,
-
-    createMediaProcessingModeSelector({
-      label: 'Edit location',
-      className: 've-w-full',
-    }),
-  );
-
-  const sidePanel = div(
-    {
-      className:
-        've-w-full ve-shrink-0 ve-rounded-[18px] ve-border ve-border-white/5 ve-bg-[#2c3e50]/70 ve-p-4 ve-md:w-[310px] ve-flex ve-flex-col ve-justify-between ve-overflow-y-auto ve-max-h-[540px]',
-    },
-    toolContainer,
-  );
-
   const timelineContainer = div(
     {
       className:
@@ -2813,461 +2458,203 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     timelineTrackArea,
   );
 
-  const zoomInButton = button(
-    {
-      type: 'button',
-      className:
-        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-lg ve-font-bold ve-text-slate-100 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
-      title: 'Zoom in',
-      onclick: () => zoomViewport(1.15),
-    },
-    '+',
-  );
-
-  const zoomOutButton = button(
-    {
-      type: 'button',
-      className:
-        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-lg ve-font-bold ve-text-slate-100 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
-      title: 'Zoom out',
-      onclick: () => zoomViewport(1 / 1.15),
-    },
-    '−',
-  );
-
-  const resetZoomButton = button(
-    {
-      type: 'button',
-      className:
-        've-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/90 ve-text-xs ve-font-bold ve-uppercase ve-tracking-wider ve-text-slate-200 ve-shadow-lg ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300',
-      title: 'Reset zoom',
-      onclick: () => {
-        viewportZoom.zoomLevel = 1;
-        viewportZoom.panX = 0;
-        viewportZoom.panY = 0;
-
-        applyVideoFilters();
-      },
-    },
-    '1:1',
-  );
-
-  const zoomControls = div(
-    {
-      className:
-        've-absolute ve-bottom-4 ve-right-4 ve-z-30 ve-flex ve-flex-col ve-gap-2',
-    },
-
-    zoomInButton,
-    zoomOutButton,
-    resetZoomButton,
-  );
-
-  const stage = div(
-    {
-      className:
-        've-relative ve-flex ve-flex-1 ve-flex-col ve-overflow-y-auto ve-overflow-x-hidden ve-rounded-[18px] ve-border ve-border-slate-700/40 ve-bg-[#2c3e50] ve-p-3 ve-min-h-0 ve-sm:p-4',
-    },
-
-    div(
-      {
-        className: 've-mb-2 ve-flex ve-justify-end ve-sm:mb-3',
-      },
-      quickActions,
-    ),
-
+  const { root } = createVideoEditorLayout({
+    fileInput,
+    interactionToggleButton,
+    toolContainer,
     videoContainer,
-
-    zoomControls,
-
     playerHud,
-
     timelineContainer,
-  );
-
-  const workspace = div(
-    {
-      className:
-        've-flex ve-flex-col ve-gap-4 ve-p-4 ve-sm:flex-row ve-sm:gap-5',
+    sidePanelNav,
+    onUndo: undo,
+    onRedo: redo,
+    onFlushVideo: flushVideoSession,
+    onRenderVideo: () => switchTab('export'),
+    zoomIn: () => zoomViewport(1.15),
+    zoomOut: () => zoomViewport(1 / 1.15),
+    resetZoom: () => {
+      viewportZoom.zoomLevel = 1;
+      viewportZoom.panX = 0;
+      viewportZoom.panY = 0;
+      applyVideoFilters();
     },
-
-    sidePanel,
-    stage,
-  );
+    resetEditor,
+    startVideoExport,
+  });
 
   // ============================================================
   // 23. EDITOR SHELL AND FULLSCREEN
   // ============================================================
 
-  const modalFooter = createEditorFooter(
-    resetEditor,
-    startVideoExport,
-  );
-
-  const {
-    root,
-    modal,
-    fullscreenButton,
-  } = createEditorShell({
-    title: 'Video Studio Pro',
-
-    nav: editorTopBar,
-
-    workspace,
-
-    footer: modalFooter,
-
-    onReset: resetEditor,
-
-    onToggleFullscreen: () => undefined,
-
-    rootClassName:
-      've-min-h-screen ve-p-2 ve-sm:p-8 ve-lg:p-10 ve-flex ve-items-center ve-justify-center',
-
-    modalClassName:
-      've-editor-surface ve-w-full ve-max-w-[1020px] ve-rounded-[28px] ve-border ve-border-slate-700/70 ve-bg-[#34495e] ve-shadow-[0_25px_60px_rgba(15,23,42,0.3)] ve-overflow-x-hidden ve-overflow-y-auto ve-flex ve-flex-col',
-  });
-
-  const {
-    toggleFullscreen,
-    refreshFullscreenButton,
-  } = bindEditorFullscreenButton({
-    modal,
-    fullscreenButton,
-  });
-
-  fullscreenButton.onclick = toggleFullscreen;
-
-  const syncFullscreenLayout = () => {
-    const isFullscreen =
-      document.fullscreenElement === modal;
-
-    modal.style.maxWidth =
-      isFullscreen ? '100vw' : '';
-
-    modal.style.width =
-      isFullscreen ? '100vw' : '';
-
-    modal.style.height =
-      isFullscreen ? '100vh' : '';
-
-    modal.style.borderRadius =
-      isFullscreen ? '0' : '';
-
-    sidePanel.style.minHeight =
-      isFullscreen ? '0' : '';
-
-    sidePanel.style.height =
-      isFullscreen ? 'calc(100vh - 180px)' : '';
-
-    sidePanel.style.maxHeight =
-      isFullscreen ? 'calc(100vh - 180px)' : '540px';
-
-    sidePanel.style.overflowY = 'auto';
-    sidePanel.style.overflowX = 've-hidden';
-
-    stage.style.minHeight =
-      isFullscreen ? 'calc(100vh - 180px)' : '';
-
-    stage.style.height =
-      isFullscreen ? 'calc(100vh - 180px)' : '';
-
-    stage.style.maxHeight =
-      isFullscreen ? 'calc(100vh - 180px)' : '';
-
-    stage.style.overflowY = 'auto';
-    stage.style.overflowX = 've-hidden';
-
-    videoContainer.style.minHeight =
-      isFullscreen ? 'min(68vh, 70vh)' : '';
-
-    videoContainer.style.height =
-      isFullscreen ? 'calc(100vh - 235px)' : '';
-
-    videoContainer.style.maxHeight =
-      isFullscreen ? '100%' : '';
-
-    videoContainer.style.width =
-      isFullscreen ? '100%' : '';
-
-    videoContainer.style.overflow = 've-hidden';
-
-    if (isFullscreen) {
-      videoElement.style.maxWidth = '100%';
-      videoElement.style.maxHeight = '100%';
-      videoElement.style.width = 'auto';
-      videoElement.style.height = '100%';
-      videoElement.style.objectFit = 'contain';
-      videoElement.style.margin = '0 auto';
-      videoElement.style.display = 've-block';
-    } else {
-      videoElement.style.maxWidth = '';
-      videoElement.style.maxHeight = '';
-      videoElement.style.width = '';
-      videoElement.style.height = '';
-      videoElement.style.objectFit = '';
-      videoElement.style.margin = '';
-      videoElement.style.display = '';
-    }
-  };
-
-  const updateFullscreenButton = () => {
-    refreshFullscreenButton();
-    syncFullscreenLayout();
-  };
-
-  document.addEventListener(
-    'fullscreenchange',
-    updateFullscreenButton,
-  );
-
-  updateFullscreenButton();
 
   // ============================================================
   // 24. KEYBOARD SHORTCUTS
   // ============================================================
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    const target = event.target as HTMLElement | null;
-
-    const tagName = target?.tagName?.toLowerCase();
-
-    if (
-      tagName === 'input' ||
-      tagName === 'textarea' ||
-      tagName === 'select' ||
-      target?.isContentEditable
-    ) {
-      return;
-    }
-
-    const key = event.key.toLowerCase();
-
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      key === 'z'
-    ) {
-      event.preventDefault();
-
-      if (event.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
-
-      return;
-    }
-
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      key === 'y'
-    ) {
-      event.preventDefault();
-      redo();
-      return;
-    }
-
-    if (!interactionModeEnabled) return;
-
-    if (event.code === 'Space') {
-      event.preventDefault();
-      togglePlay();
-    } else if (key === '+' || key === '=') {
-      event.preventDefault();
-      zoomViewport(1.15);
-    } else if (key === '-' || key === '_') {
-      event.preventDefault();
-      zoomViewport(1 / 1.15);
-    } else if (key === 'r') {
-      event.preventDefault();
-
-      rotation = (rotation + 90) % 360;
-
-      updateTransforms();
-      pushState();
-    } else if (key === 'h') {
-      event.preventDefault();
-
-      flipH = !flipH;
-
-      updateTransforms();
-      pushState();
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-
-      if (duration) {
-        videoElement.currentTime = Math.min(
-          duration,
-          videoElement.currentTime + 5,
-        );
-      }
-    } else if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-
-      if (duration) {
-        videoElement.currentTime = Math.max(
-          0,
-          videoElement.currentTime - 5,
-        );
-      }
-    }
-  };
-
-  window.addEventListener('keydown', handleKeyDown);
+  bindEditorShortcuts({
+    undo,
+    redo,
+    togglePlay,
+    zoomViewport,
+    updateTransforms,
+    pushState,
+    duration: () => duration,
+    interactionModeEnabled: () => interactionModeEnabled,
+    videoElement,
+    setRotation: (next) => {
+      rotation = next;
+    },
+    rotationValue: () => rotation,
+    flipHValue: () => flipH,
+    setFlipH: (next) => {
+      flipH = next;
+    },
+  });
 
   // ============================================================
   // 25. REUSABLE UI CONTROLS
   // ============================================================
 
-  function createSliderControl(
-    title: string,
-    value: number,
-    min: number,
-    max: number,
-    onChange: (value: number) => void,
-  ) {
-    const valueDisplay = div(
-      {
-        className:
-          've-text-xs ve-font-mono ve-text-violet-400 ve-font-bold',
-      },
-      Number(value).toFixed(1),
-    );
+  const {
+    createSliderControl,
+    createSelectDropdown,
+    createPresetButton,
+    createThumbnailPresetCard,
+  } = createEditorControls({
+    pushState,
+    renderToolControls,
+    applyVideoFilters,
+    filters,
+  });
 
-    const slider = input({
-      type: 'range',
-      min: String(min),
-      max: String(max),
-      value: String(value),
-      step: '0.1',
-
-      className:
-        've-w-full ve-h-1.5 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
-
-      oninput: (event: Event) => {
-        const value = Number(
-          (event.target as HTMLInputElement).value,
-        );
-
-        valueDisplay.textContent = value.toFixed(1);
-
-        onChange(value);
-      },
-
-      onchange: () => {
-        pushState();
-      },
-    });
-
-    return div(
-      {
-        className: 've-space-y-1',
-      },
-
-      div(
-        {
-          className:
-            've-flex ve-justify-between ve-items-center',
-        },
-
-        label(
-          {
-            className:
-              've-text-xs ve-font-medium ve-text-slate-300',
-          },
-          title,
-        ),
-
-        valueDisplay,
-      ),
-
-      slider,
-    );
-  }
-
-  function createSelectDropdown(
-    options: string[],
-    selected: string,
-    onChange: (value: string) => void,
-  ) {
-    const select = document.createElement('select');
-
-    select.className =
-      've-bg-slate-950 ve-border ve-border-slate-700 ve-text-white ve-rounded-lg ve-px-2 ve-py-1 ve-text-xs ve-focus:outline-none ve-focus:border-violet-500';
-
-    options.forEach((option) => {
-      const element = document.createElement('option');
-
-      element.value = option;
-      element.textContent = option.toUpperCase();
-      element.selected = option === selected;
-
-      select.append(element);
-    });
-
-    select.onchange = () => {
-      onChange(select.value);
-    };
-
-    return select;
-  }
-
-  function createPresetButton(
-    name: string,
-    onClick: () => void,
-  ) {
-    return button(
-      {
-        type: 'button',
-
-        className:
-          've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/80 ve-p-3 ve-text-left ve-text-xs ve-font-medium ve-text-slate-200 ve-hover:border-violet-500 ve-hover:text-white ve-transition-all ve-shadow-sm',
-
-        onclick: onClick,
-      },
-
-      name,
-    );
-  }
-
-  function createThumbnailPresetCard(
-    name: string,
-    presetValues: Partial<VideoFilters>,
-    icon: string,
-  ) {
-    const card = div(
-      {
-        className:
-          've-flex ve-flex-col ve-items-center ve-justify-center ve-p-3 ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/70 ve-hover:border-violet-500 hover:bg-slate-900 ve-cursor-pointer ve-transition-all ve-shadow-sm ve-text-center ve-group',
-      },
-
-      div(
-        {
-          className:
-            've-text-2xl ve-mb-1 ve-group-hover:scale-110 ve-transition-transform',
-        },
-        icon,
-      ),
-
-      p(
-        {
-          className:
-            've-text-xs ve-font-semibold ve-text-slate-200',
-        },
-        name,
-      ),
-    );
-
-    card.onclick = () => {
-      Object.assign(filters, presetValues);
-
-      applyVideoFilters();
-      pushState();
-      renderToolControls();
-    };
-
-    return card;
-  }
+  const editorPanels = createVideoEditorPanels({
+    toolContainer,
+    filters,
+    volume,
+    setVolume: (next) => {
+      volume = next;
+      videoElement.volume = volume;
+      if (volumeSlider) {
+        volumeSlider.value = String(volume);
+      }
+    },
+    audioTracks,
+    setAudioTracks: (next) => {
+      audioTracks = next;
+    },
+    captionTracks,
+    setCaptionTracks: (next) => {
+      captionTracks = next;
+    },
+    captionSegments,
+    setCaptionSegments: (next) => {
+      captionSegments = next;
+    },
+    captionText,
+    setCaptionText: (next) => {
+      captionText = next;
+    },
+    activeCaptionTrackId,
+    setActiveCaptionTrackId: (next) => {
+      activeCaptionTrackId = next;
+    },
+    captionSize,
+    setCaptionSize: (next) => {
+      captionSize = next;
+    },
+    captionWeight,
+    setCaptionWeight: (next) => {
+      captionWeight = next;
+    },
+    captionBg,
+    setCaptionBg: (next) => {
+      captionBg = next;
+    },
+    captionShadow,
+    setCaptionShadow: (next) => {
+      captionShadow = next;
+    },
+    setCaptionX: (next) => {
+      captionX = next;
+    },
+    setCaptionY: (next) => {
+      captionY = next;
+    },
+    currentTime,
+    duration,
+    rotation,
+    setRotation: (next) => {
+      rotation = next;
+    },
+    flipH,
+    setFlipH: (next) => {
+      flipH = next;
+    },
+    flipV,
+    setFlipV: (next) => {
+      flipV = next;
+    },
+    setPreviewQuality: (next) => {
+      previewQuality = next;
+    },
+    activeMaskTool,
+    setActiveMaskTool: (next) => {
+      activeMaskTool = next;
+    },
+    masks,
+    setMasks: (next) => {
+      masks = next;
+    },
+    setPendingMask: (next) => {
+      pendingMask = next;
+    },
+    cubeLut,
+    setCubeLut: (next) => {
+      cubeLut = next;
+    },
+    setAspectRatio,
+    updateTransforms,
+    getCurrentCaptionStyle,
+    ensureCaptionTrack,
+    syncCurrentCaptionTrack,
+    importSubtitleFile,
+    exportSubtitleFile,
+    pushState,
+    renderToolControls,
+    applyVideoFilters,
+    applyMaskOverlay,
+    updateCaptions,
+    videoElement,
+    volumeSlider,
+    activeTransition,
+    setActiveTransition: (next) => {
+      activeTransition = next;
+    },
+    activeBlendMode,
+    setActiveBlendMode: (next) => {
+      activeBlendMode = next;
+    },
+    exportResolution,
+    exportFps,
+    exportFormat,
+    exportBitrate,
+    setExportResolution: (next) => {
+      exportResolution = next;
+    },
+    setExportFps: (next) => {
+      exportFps = next;
+    },
+    setExportFormat: (next) => {
+      exportFormat = next;
+    },
+    setExportBitrate: (next) => {
+      exportBitrate = next;
+    },
+    createSliderControl,
+    createSelectDropdown,
+    createPresetButton,
+    createThumbnailPresetCard,
+  });
 
   function setAspectRatio(
     ratio: VideoEditorState['aspectRatio'],
@@ -3356,165 +2743,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function renderFiltersTab() {
-    const presetGrid = div(
-      {
-        className: 've-grid ve-grid-cols-2 ve-gap-3 ve-mb-4',
-      },
-      createThumbnailPresetCard('Normal', DEFAULT_FILTERS, '✨'),
-      createThumbnailPresetCard('Cinematic', {
-        exposure: 105,
-        brightness: 90,
-        contrast: 130,
-        saturate: 115,
-        temperature: -10,
-        tint: 5,
-        highlights: 90,
-        shadows: 110,
-        blur: 0,
-        sharpen: 10,
-        grayscale: 0,
-        sepia: 0,
-        vignette: 20,
-        filmGrain: 15,
-        fade: 5,
-      }, '🎬'),
-      createThumbnailPresetCard('Mono Noir', {
-        exposure: 100,
-        brightness: 105,
-        contrast: 140,
-        saturate: 0,
-        temperature: 0,
-        tint: 0,
-        highlights: 100,
-        shadows: 90,
-        blur: 0,
-        sharpen: 15,
-        grayscale: 100,
-        sepia: 0,
-        vignette: 30,
-        filmGrain: 25,
-        fade: 10,
-      }, '🎞️'),
-      createThumbnailPresetCard('Warm Vintage', {
-        exposure: 100,
-        brightness: 105,
-        contrast: 105,
-        saturate: 120,
-        temperature: 25,
-        tint: 10,
-        highlights: 105,
-        shadows: 95,
-        blur: 0,
-        sharpen: 0,
-        grayscale: 0,
-        sepia: 25,
-        vignette: 25,
-        filmGrain: 20,
-        fade: 15,
-      }, '🌅'),
-    );
-
-    toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'One-Click Filter Presets'),
-      presetGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Basic Adjustments'),
-      createSliderControl('Exposure', filters.exposure, 0, 200, (value) => { filters.exposure = value; applyVideoFilters(); }),
-      createSliderControl('Brightness', filters.brightness, 0, 200, (value) => { filters.brightness = value; applyVideoFilters(); }),
-      createSliderControl('Contrast', filters.contrast, 0, 200, (value) => { filters.contrast = value; applyVideoFilters(); }),
-      createSliderControl('Saturation', filters.saturate, 0, 200, (value) => { filters.saturate = value; applyVideoFilters(); }),
-      createSliderControl('Temperature', filters.temperature, -50, 50, (value) => { filters.temperature = value; applyVideoFilters(); }),
-      createSliderControl('Tint', filters.tint, -50, 50, (value) => { filters.tint = value; applyVideoFilters(); }),
-      createSliderControl('Highlights', filters.highlights, 0, 200, (value) => { filters.highlights = value; applyVideoFilters(); }),
-      createSliderControl('Shadows', filters.shadows, 0, 200, (value) => { filters.shadows = value; applyVideoFilters(); }),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Creative Effects'),
-      createSliderControl('Blur (px)', filters.blur, 0, 20, (value) => { filters.blur = value; applyVideoFilters(); }),
-      createSliderControl('Sharpen', filters.sharpen, 0, 100, (value) => { filters.sharpen = value; applyVideoFilters(); }),
-      createSliderControl('Grayscale (%)', filters.grayscale, 0, 100, (value) => { filters.grayscale = value; applyVideoFilters(); }),
-      createSliderControl('Sepia (%)', filters.sepia, 0, 100, (value) => { filters.sepia = value; applyVideoFilters(); }),
-      createSliderControl('Vignette', filters.vignette, 0, 100, (value) => { filters.vignette = value; applyVideoFilters(); }),
-      createSliderControl('Film Grain', filters.filmGrain, 0, 100, (value) => { filters.filmGrain = value; applyVideoFilters(); }),
-      createSliderControl('Fade', filters.fade, 0, 100, (value) => { filters.fade = value; applyVideoFilters(); }),
-      p({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
-    );
+    editorPanels.renderFiltersTab();
   }
 
   function renderTransformTab() {
-    const ratioGrid = div(
-      { className: 've-grid ve-grid-cols-2 ve-gap-2.5' },
-      createPresetButton('16:9 Widescreen', () => { setAspectRatio('16:9'); pushState(); }),
-      createPresetButton('9:16 Vertical / Reels', () => { setAspectRatio('9:16'); pushState(); }),
-      createPresetButton('1:1 Square', () => { setAspectRatio('1:1'); pushState(); }),
-      createPresetButton('4:5 Social Feed', () => { setAspectRatio('4:5'); pushState(); }),
-    );
-
-    const transformGrid = div(
-      { className: 've-grid ve-grid-cols-2 ve-gap-2.5 ve-mt-3' },
-      createPresetButton('Rotate 90°', () => { rotation = (rotation + 90) % 360; updateTransforms(); pushState(); }),
-      createPresetButton('Flip Horizontal', () => { flipH = !flipH; updateTransforms(); pushState(); }),
-      createPresetButton('Flip Vertical', () => { flipV = !flipV; updateTransforms(); pushState(); }),
-      createPresetButton('Reset Transforms', () => { rotation = 0; flipH = false; flipV = false; updateTransforms(); pushState(); }),
-    );
-
-    const maskToolGrid = div(
-      { className: 've-grid ve-grid-cols-3 ve-gap-2 ve-mt-2' },
-      createPresetButton('Circle', () => { activeMaskTool = 'circle'; }),
-      createPresetButton('Rectangle', () => { activeMaskTool = 'rect'; }),
-      createPresetButton('Freehand', () => { activeMaskTool = 'freehand'; }),
-    );
-
-    const lutUploadButton = createPresetButton('Import .cube LUT', () => {
-      const filePicker = document.createElement('input');
-      filePicker.type = 'file';
-      filePicker.accept = '.cube,text/plain';
-      filePicker.onchange = async () => {
-        const file = filePicker.files?.[0];
-        if (!file) return;
-        const parsed = parseCubeLut(await file.text());
-        if (!parsed) {
-          alert('Could not parse a valid 3D LUT. Check the .cube file size and RGB data.');
-          return;
-        }
-        cubeLut = parsed;
-        pushState();
-        renderToolControls();
-      };
-      filePicker.click();
-    });
-
-    toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Aspect Ratio Presets'),
-      ratioGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Rotation & Mirroring'),
-      transformGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Shape Masks'),
-      maskToolGrid,
-      div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
-        createPresetButton('Add Mask', () => {
-          const maskId = Date.now() + Math.floor(Math.random() * 1000);
-          const newMask: MaskItem = { id: maskId, type: activeMaskTool, x: 50, y: 50, width: 45, height: 45, radius: 28, feather: 14, opacity: 0.45, blur: 0, color: '#a78bfa', points: [{ x: 25, y: 20 }, { x: 72, y: 20 }, { x: 72, y: 72 }, { x: 25, y: 72 }] };
-          masks.push(newMask);
-          pendingMask = null;
-          applyMaskOverlay();
-          pushState();
-        }),
-        createPresetButton('Clear Masks', () => {
-          masks = [];
-          pendingMask = null;
-          applyMaskOverlay();
-          pushState();
-        }),
-      ),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, '3D LUT Grade'),
-      lutUploadButton,
-      cubeLut ? div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'No LUT loaded'),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Preview Quality'),
-      div({ className: 've-grid ve-grid-cols-3 ve-gap-2' },
-        createPresetButton('Full 100%', () => { previewQuality = '1'; pushState(); }),
-        createPresetButton('Half 50%', () => { previewQuality = '0.5'; pushState(); }),
-        createPresetButton('Quarter 25%', () => { previewQuality = '0.25'; pushState(); }),
-      ),
-      p({ className: 've-text-[10px] ve-text-slate-500 ve-mt-2' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
-    );
+    editorPanels.renderTransformTab();
   }
 
   function renderToolControls() {
@@ -3549,161 +2782,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'audio') {
-      const addAudioTrack = () => {
-        const input = document.createElement('input');
-
-        input.type = 'file';
-        input.accept = 'audio/*,video/*';
-
-        input.onchange = async () => {
-          const file = input.files?.[0];
-
-          if (!file) return;
-
-          const dataUrl = await fileToDataUrl(file);
-
-          audioTracks.push({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            label: file.name.replace(/\.[^.]+$/, ''),
-            fileName: file.name,
-            dataUrl,
-            volume: 1,
-            trimStart: 0,
-            trimEnd: duration || 0,
-            enabled: true,
-          });
-
-          pushState();
-          renderToolControls();
-        };
-
-        input.click();
-      };
-
-      const trackList = div(
-        {
-          className: 've-space-y-2 ve-pt-3',
-        },
-        ...audioTracks.map((track) => {
-          return div(
-            {
-              className:
-                've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2 ve-space-y-2',
-            },
-            div(
-              {
-                className:
-                  've-flex ve-items-center ve-justify-between ve-gap-2 ve-text-[11px] ve-text-slate-200',
-              },
-              span({ className: 've-truncate ve-max-w-[60%]' }, track.label),
-              button(
-                {
-                  type: 'button',
-                  className:
-                    've-rounded-lg ve-border ve-border-slate-600 ve-px-2 ve-py-1 ve-text-[10px] ve-uppercase ve-tracking-wide ve-text-slate-300 ve-hover:text-white',
-                  onclick: () => {
-                    audioTracks = audioTracks.filter(
-                      (item) => item.id !== track.id,
-                    );
-                    pushState();
-                    renderToolControls();
-                  },
-                },
-                'Remove',
-              ),
-            ),
-            createSliderControl(
-              'Level (%)',
-              track.volume * 100,
-              0,
-              200,
-              (value) => {
-                track.volume = clampValue(value / 100, 0, 2);
-                pushState();
-              },
-            ),
-          );
-        }),
-      );
-
-      toolContainer.append(
-        p(
-          {
-            className:
-              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-          },
-          'Master Audio Controls',
-        ),
-
-        createSliderControl(
-          'Volume (%)',
-          volume * 100,
-          0,
-          100,
-
-          (value) => {
-            volume = value / 100;
-
-            videoElement.volume = volume;
-
-            volumeSlider.value = String(volume);
-          },
-        ),
-
-        div(
-          {
-            className:
-              've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
-          },
-
-          createPresetButton(
-            'Mute Audio',
-            () => {
-              volume = 0;
-
-              videoElement.volume = 0;
-
-              volumeSlider.value = '0';
-
-              pushState();
-              renderToolControls();
-            },
-          ),
-
-          createPresetButton(
-            'Full Volume',
-            () => {
-              volume = 1;
-
-              videoElement.volume = 1;
-
-              volumeSlider.value = 've-1';
-
-              pushState();
-              renderToolControls();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-mt-4 ve-border-t ve-border-slate-700/60 ve-pt-3',
-          },
-          p(
-            {
-              className:
-                've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-            },
-            'Audio Layers',
-          ),
-          createPresetButton(
-            'Add Audio Track',
-            addAudioTrack,
-          ),
-          audioTracks.length ? trackList : null,
-        ),
-      );
+      editorPanels.renderAudioTab();
     }
 
     // ----------------------------------------------------------
@@ -3711,383 +2790,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'captions') {
-      const captionTrackOptions = captionTracks.map((track) => track.label);
-      const selectedCaptionTrack =
-        captionTracks.find((track) => track.id === activeCaptionTrackId) ??
-        captionTracks[0] ??
-        null;
-
-      if (!selectedCaptionTrack) {
-        captionTracks = [
-          {
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            label: 'Primary Captions',
-            color: '#a78bfa',
-            enabled: true,
-            segments: cloneCaptionSegments(captionSegments),
-          },
-        ];
-      }
-
-      const activeTrack =
-        captionTracks.find((track) => track.id === activeCaptionTrackId) ??
-        captionTracks[0];
-
-      if (activeTrack) {
-        activeCaptionTrackId = activeTrack.id;
-        captionSegments = cloneCaptionSegments(activeTrack.segments);
-      }
-
-      const textInput = input({
-        type: 'text',
-
-        placeholder: 'Subtitle / caption text...',
-
-        value: captionText,
-
-        className:
-          've-w-full ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950 ve-px-3 ve-py-2 ve-text-sm ve-text-white ve-focus:border-violet-500 ve-focus:outline-none',
-
-        oninput: (event: Event) => {
-          captionText = (
-            event.target as HTMLInputElement
-          ).value;
-
-          updateCaptions();
-        },
-
-        onchange: () => {
-          syncCurrentCaptionTrack();
-          pushState();
-        },
-      });
-
-      const weightDropdown = createSelectDropdown(
-        ['400', '500', '600', '700', '800', '900'],
-        captionWeight,
-
-        (value) => {
-          captionWeight = value;
-
-          updateCaptions();
-          pushState();
-        },
-      );
-
-      const backgroundDropdown = createSelectDropdown(
-        [
-          'transparent',
-          'rgba(0,0,0,0.4)',
-          'rgba(0,0,0,0.6)',
-          'rgba(0,0,0,0.8)',
-          'rgba(255,255,255,0.6)',
-        ],
-
-        captionBg,
-
-        (value) => {
-          captionBg = value;
-
-          updateCaptions();
-          pushState();
-        },
-      );
-
-      const trackDropdown = createSelectDropdown(
-        captionTrackOptions.length
-          ? captionTrackOptions
-          : ['Primary Captions'],
-        activeTrack?.label ?? 'Primary Captions',
-        (value) => {
-          const chosenTrack = captionTracks.find(
-            (track) => track.label === value,
-          );
-
-          if (!chosenTrack) return;
-
-          activeCaptionTrackId = chosenTrack.id;
-          captionSegments = cloneCaptionSegments(chosenTrack.segments);
-          captionText = chosenTrack.segments[0]?.text ?? captionText;
-          updateCaptions();
-          renderToolControls();
-        },
-      );
-
-      toolContainer.append(
-        p(
-          {
-            className:
-              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-          },
-          'Timed Subtitles & Overlay Text',
-        ),
-
-        div(
-          {
-            className: 've-space-y-4',
-          },
-
-          div(
-            {
-              className: 've-space-y-1',
-            },
-            label(
-              {
-                className:
-                  've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1',
-              },
-              'Active Caption Track',
-            ),
-            trackDropdown,
-          ),
-
-          div(
-            {
-              className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
-            },
-            createPresetButton(
-              'New Track',
-              () => {
-                const nextId = Date.now() + Math.floor(Math.random() * 1000);
-                const newTrack: CaptionTrack = {
-                  id: nextId,
-                  label: `Captions ${captionTracks.length + 1}`,
-                  color: '#c084fc',
-                  enabled: true,
-                  segments: [],
-                };
-
-                captionTracks.push(newTrack);
-                activeCaptionTrackId = nextId;
-                captionSegments = [];
-                captionText = '';
-                updateCaptions();
-                pushState();
-                renderToolControls();
-              },
-            ),
-            createPresetButton(
-              'Remove Track',
-              () => {
-                if (captionTracks.length <= 1) {
-                  captionSegments = [];
-                  captionText = '';
-                  captionTracks[0].segments = [];
-                  updateCaptions();
-                  pushState();
-                  renderToolControls();
-                  return;
-                }
-
-                captionTracks = captionTracks.filter(
-                  (track) => track.id !== activeCaptionTrackId,
-                );
-
-                activeCaptionTrackId = captionTracks[0].id;
-                captionSegments = cloneCaptionSegments(captionTracks[0].segments);
-                captionText = captionSegments[0]?.text ?? '';
-                updateCaptions();
-                pushState();
-                renderToolControls();
-              },
-            ),
-          ),
-
-          div(
-            {},
-
-            label(
-              {
-                className:
-                  've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1',
-              },
-              'Caption Content',
-            ),
-
-            textInput,
-          ),
-
-          createSliderControl(
-            'Font Size (px)',
-            captionSize,
-            12,
-            64,
-
-            (value) => {
-              captionSize = value;
-              updateCaptions();
-            },
-          ),
-
-          div(
-            {
-              className:
-                've-space-y-1',
-            },
-
-            label(
-              {
-                className:
-                  've-text-xs ve-font-medium ve-text-slate-400',
-              },
-              'Font Weight',
-            ),
-
-            weightDropdown,
-          ),
-
-          div(
-            {
-              className:
-                've-space-y-1',
-            },
-
-            label(
-              {
-                className:
-                  've-text-xs ve-font-medium ve-text-slate-400',
-              },
-              'Caption Background',
-            ),
-
-            backgroundDropdown,
-          ),
-
-          div(
-            {
-              className:
-                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
-            },
-
-            createPresetButton(
-              'Toggle Shadow',
-              () => {
-                captionShadow = !captionShadow;
-
-                updateCaptions();
-                pushState();
-              },
-            ),
-
-            createPresetButton(
-              'Center Position',
-              () => {
-                captionX = 50;
-                captionY = 85;
-
-                updateCaptions();
-                pushState();
-              },
-            ),
-          ),
-
-          div(
-            {
-              className:
-                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
-            },
-
-            createPresetButton(
-              'Add Timed Cue',
-              () => {
-                const start = Math.max(
-                  0,
-                  currentTime,
-                );
-
-                const end = Math.min(
-                  duration || start + 3,
-                  start + 3,
-                );
-
-                if (end <= start) {
-                  alert(
-                    'Move the playhead earlier to create a timed cue.',
-                  );
-
-                  return;
-                }
-
-                const track = ensureCaptionTrack();
-                const cue: TimedCaption = {
-                  id:
-                    Math.max(
-                      0,
-                      ...track.segments.map(
-                        (segment) => segment.id,
-                      ),
-                    ) + 1,
-
-                  start,
-                  end,
-
-                  text: captionText || 'New caption',
-
-                  style: getCurrentCaptionStyle(),
-                };
-
-                track.segments.push(cue);
-                track.segments.sort((a, b) => a.start - b.start);
-                captionSegments = cloneCaptionSegments(track.segments);
-
-                updateCaptions();
-
-                pushState();
-                renderToolControls();
-              },
-            ),
-
-            createPresetButton(
-              'Clear Cues',
-              () => {
-                const track = ensureCaptionTrack();
-                track.segments = [];
-                captionSegments = [];
-                captionText = '';
-
-                updateCaptions();
-
-                pushState();
-                renderToolControls();
-              },
-            ),
-          ),
-
-          div(
-            {
-              className:
-                've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2',
-            },
-
-            createPresetButton(
-              'Import SRT/VTT',
-              () => {
-                const filePicker =
-                  document.createElement('input');
-
-                filePicker.type = 'file';
-                filePicker.accept =
-                  '.srt,.vtt,text/plain';
-
-                filePicker.onchange = async () => {
-                  const file = filePicker.files?.[0];
-
-                  if (file) {
-                    await importSubtitleFile(file);
-                  }
-                };
-
-                filePicker.click();
-              },
-            ),
-
-            createPresetButton(
-              'Export .SRT',
-              exportSubtitleFile,
-            ),
-          ),
-        ),
-      );
+      editorPanels.renderCaptionsTab();
     }
 
     // ----------------------------------------------------------
@@ -4183,7 +2886,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
             {
               label: 'History Stack',
-              value: `${historyIndex + 1} / ${history.length}`,
+              value: `${projectHistory.historyIndex + 1} / ${projectHistory.history.length}`,
             },
 
             {
