@@ -283,7 +283,7 @@ func processVideoExport(req mediaRequest) (mediaResponse, error) {
 	return response, nil
 }
 
-func serveExportFile(w http.ResponseWriter, r *http.Request, filePath string) {
+func serveExportFile(w http.ResponseWriter, _ *http.Request, filePath string) {
 	if strings.TrimSpace(filePath) == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -377,10 +377,6 @@ func handleMediaOperation(w http.ResponseWriter, r *http.Request, mediaType stri
 		}
 		resp = result
 	}
-	if req.Mode == "server" {
-		resp.Output = resp.Output
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
