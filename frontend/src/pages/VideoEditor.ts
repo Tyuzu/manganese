@@ -64,6 +64,18 @@ import {
   cubicBezierValue,
   formatTime,
 } from './video-editor/utils';
+import {
+  clampViewportZoom as constrainViewportZoom,
+  setPreviewInteractionState,
+  zoomViewport as applyViewportZoom,
+} from './video-editor/preview';
+import {
+  stepVideoFrame,
+  syncPlaybackButton,
+  togglePlayback,
+} from './video-editor/transport';
+import { createTimelinePanel } from './video-editor/timeline';
+import { createExportPanel } from './video-editor/export';
 
 export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
@@ -170,18 +182,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function setInteractionMode(enabled: boolean) {
     interactionModeEnabled = enabled;
-
-    interactionToggleButton.textContent = enabled
-      ? 'Preview Controls: ON'
-      : 'Preview Controls: OFF';
-
-    interactionToggleButton.className = enabled
-      ? 've-rounded-xl ve-border ve-border-violet-500/70 ve-bg-violet-600/20 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.12em] ve-text-violet-100 ve-transition ve-hover:bg-violet-500/20'
-      : 've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-800/80 ve-px-3 ve-py-2 ve-text-[10px] ve-font-bold ve-uppercase ve-tracking-[0.12em] ve-text-slate-300 ve-transition ve-hover:border-slate-500 ve-hover:text-white';
-
-    if (!enabled) {
-      viewportZoom.isDragging = false;
-    }
+    setPreviewInteractionState(
+      enabled,
+      interactionToggleButton,
+      viewportZoom,
+    );
   }
 
   let isDraggingCaption = false;
@@ -240,7 +245,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     event.preventDefault();
 
-    zoomViewport(event.deltaY < 0 ? 1.12 : 0.88, event.clientX, event.clientY);
+    zoomViewport(
+      event.deltaY < 0 ? 1.12 : 0.88,
+      event.clientX,
+      event.clientY,
+    );
   };
 
   videoContainer.onmousedown = (event: MouseEvent) => {
@@ -273,7 +282,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     viewportZoom.panX = event.clientX - viewportZoom.startX;
     viewportZoom.panY = event.clientY - viewportZoom.startY;
 
-    clampViewportZoom();
+    constrainViewportZoom(videoElement, videoContainer, viewportZoom);
     applyVideoFilters();
   });
 
@@ -282,33 +291,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   });
 
   function clampViewportZoom() {
-    const baseWidth = videoElement.offsetWidth || videoContainer.clientWidth || 1;
-    const baseHeight = videoElement.offsetHeight || videoContainer.clientHeight || 1;
-
-    const zoomWidth = baseWidth * viewportZoom.zoomLevel;
-    const zoomHeight = baseHeight * viewportZoom.zoomLevel;
-
-    const maxPanX = Math.max(
-      0,
-      (zoomWidth - videoContainer.clientWidth) / 2,
-    );
-
-    const maxPanY = Math.max(
-      0,
-      (zoomHeight - videoContainer.clientHeight) / 2,
-    );
-
-    viewportZoom.panX = clampValue(
-      viewportZoom.panX,
-      -maxPanX,
-      maxPanX,
-    );
-
-    viewportZoom.panY = clampValue(
-      viewportZoom.panY,
-      -maxPanY,
-      maxPanY,
-    );
+    constrainViewportZoom(videoElement, videoContainer, viewportZoom);
   }
 
   function zoomViewport(
@@ -316,39 +299,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     x?: number,
     y?: number,
   ) {
-    if (!videoElement.src) return;
-
-    const rect = videoContainer.getBoundingClientRect();
-
-    const centerX =
-      typeof x === 'number' ? x : rect.left + rect.width / 2;
-
-    const centerY =
-      typeof y === 'number' ? y : rect.top + rect.height / 2;
-
-    const previousZoom = viewportZoom.zoomLevel;
-
-    const nextZoom = clampValue(
-      previousZoom * factor,
-      1,
-      4,
+    applyViewportZoom(
+      videoElement,
+      videoContainer,
+      viewportZoom,
+      factor,
+      () => applyVideoFilters(),
+      x,
+      y,
     );
-
-    if (nextZoom === previousZoom) return;
-
-    const offsetX = centerX - (rect.left + rect.width / 2);
-    const offsetY = centerY - (rect.top + rect.height / 2);
-
-    viewportZoom.zoomLevel = nextZoom;
-
-    viewportZoom.panX +=
-      offsetX * (1 - previousZoom / nextZoom);
-
-    viewportZoom.panY +=
-      offsetY * (1 - previousZoom / nextZoom);
-
-    clampViewportZoom();
-    applyVideoFilters();
   }
 
   // ============================================================
@@ -1465,50 +1424,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       !videoElement.ended;
 
     isPlaying = isActive;
-
-    playPauseBtn.textContent = isPlaying ? '❚❚' : '▶';
-
-    playPauseBtn.title = isPlaying
-      ? 'Pause playback'
-      : 'Play playback';
-
-    playPauseBtn.setAttribute(
-      'aria-label',
-      isPlaying ? 'Pause video' : 'Play video',
-    );
+    syncPlaybackButton(playPauseBtn, videoElement, isPlaying);
   }
 
   function togglePlay() {
-    if (!videoElement.src) return;
-
-    if (isPlaying) {
-      videoElement.pause();
-      syncPlaybackUI();
-      return;
-    }
-
-    void videoElement.play().catch((error) => {
-      console.warn('Video playback failed:', error);
-      syncPlaybackUI();
-    });
-
-    syncPlaybackUI();
+    togglePlayback(videoElement, syncPlaybackUI);
   }
 
   function stepFrames(delta: number) {
-    if (!videoElement.src) return;
-
-    videoElement.pause();
-
+    stepVideoFrame(videoElement, duration, delta);
     syncPlaybackUI();
-
-    const frameDuration = 1 / 30;
-
-    videoElement.currentTime = clampValue(
-      videoElement.currentTime + delta * frameDuration,
-      0,
-      duration,
-    );
   }
 
   const playPauseBtn = button(
@@ -1928,287 +1853,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 15. CLIP OPERATIONS
   // ============================================================
 
-  function splitClipAtPlayhead() {
-    if (
-      !duration ||
-      currentTime <= 0 ||
-      currentTime >= duration
-    ) {
-      return;
-    }
-
-    const currentSegment = clipSegments.find(
-      (segment) =>
-        currentTime > segment.start &&
-        currentTime < segment.end,
-    );
-
-    if (!currentSegment) {
-      alert('Place the playhead inside a timeline clip first.');
-      return;
-    }
-
-    const left: TimelineClipSegment = {
-      ...currentSegment,
-      end: currentTime,
-    };
-
-    const right: TimelineClipSegment = {
-      id: Date.now(),
-      start: currentTime,
-      end: currentSegment.end,
-      label: `${currentSegment.label} B`,
-    };
-
-    clipSegments = [
-      ...clipSegments.filter(
-        (segment) => segment.id !== currentSegment.id,
-      ),
-      left,
-      right,
-    ].sort((a, b) => a.start - b.start);
-
-    pushState();
-    renderToolControls();
-  }
-
-  function deleteCurrentClipSegment() {
-    if (clipSegments.length <= 1) {
-      alert(
-        'The last remaining source segment cannot be deleted.',
-      );
-      return;
-    }
-
-    const targetIndex = clipSegments.findIndex(
-      (segment) =>
-        currentTime >= segment.start &&
-        currentTime < segment.end,
-    );
-
-    if (targetIndex < 0) return;
-
-    const removed = clipSegments[targetIndex];
-
-    clipSegments = clipSegments.filter(
-      (segment) => segment.id !== removed.id,
-    );
-
-    pushState();
-    renderToolControls();
-  }
-
   // ============================================================
-  // 16. PLAYBACK CURVE UI
-  // ============================================================
-
-  function renderPlaybackCurveEditor() {
-    const editor = div({
-      className:
-        've-mt-3 ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2',
-    });
-
-    const canvas = document.createElement('canvas');
-
-    canvas.width = 280;
-    canvas.height = 110;
-
-    canvas.className =
-      've-w-full ve-rounded-lg ve-border ve-border-slate-800 ve-bg-slate-900';
-
-    const redraw = () => {
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) return;
-
-      const width = canvas.width;
-      const height = canvas.height;
-
-      ctx.clearRect(0, 0, width, height);
-
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 1;
-
-      for (let index = 0; index <= 4; index += 1) {
-        const x = (index / 4) * width;
-
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
-      }
-
-      for (let index = 0; index <= 4; index += 1) {
-        const y = (index / 4) * height;
-
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-      }
-
-      ctx.beginPath();
-
-      for (let index = 0; index <= 100; index += 1) {
-        const t = index / 100;
-
-        const x =
-          cubicBezierValue(
-            t,
-            playbackCurve.p0.x,
-            playbackCurve.p1.x,
-            playbackCurve.p2.x,
-            playbackCurve.p3.x,
-          ) * width;
-
-        const y =
-          height -
-          cubicBezierValue(
-            t,
-            playbackCurve.p0.y,
-            playbackCurve.p1.y,
-            playbackCurve.p2.y,
-            playbackCurve.p3.y,
-          ) *
-            height;
-
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      }
-
-      ctx.strokeStyle = '#a78bfa';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      for (const point of [
-        playbackCurve.p1,
-        playbackCurve.p2,
-      ]) {
-        ctx.beginPath();
-
-        ctx.arc(
-          point.x * width,
-          height - point.y * height,
-          5,
-          0,
-          Math.PI * 2,
-        );
-
-        ctx.fillStyle = '#f8fafc';
-        ctx.fill();
-
-        ctx.strokeStyle = '#a78bfa';
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = '#e2e8f0';
-      ctx.font = '11px sans-serif';
-
-      ctx.fillText('0.25x', 6, height - 7);
-      ctx.fillText('4x', width - 24, 12);
-    };
-
-    let activeHandle: 'p1' | 'p2' | null = null;
-
-    canvas.onpointerdown = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-
-      const x = clampValue(
-        (event.clientX - rect.left) / rect.width,
-        0,
-        1,
-      );
-
-      const y = clampValue(
-        1 - (event.clientY - rect.top) / rect.height,
-        0,
-        1,
-      );
-
-      const handles = [
-        {
-          name: 'p1' as const,
-          point: playbackCurve.p1,
-        },
-        {
-          name: 'p2' as const,
-          point: playbackCurve.p2,
-        },
-      ];
-
-      let nearestDistance = 0.15;
-
-      for (const handle of handles) {
-        const distance = Math.hypot(
-          handle.point.x - x,
-          handle.point.y - y,
-        );
-
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          activeHandle = handle.name;
-        }
-      }
-
-      if (activeHandle) {
-        canvas.setPointerCapture(event.pointerId);
-      }
-    };
-
-    canvas.onpointermove = (event: PointerEvent) => {
-      if (!activeHandle) return;
-
-      const rect = canvas.getBoundingClientRect();
-
-      playbackCurve[activeHandle].x = clampValue(
-        (event.clientX - rect.left) / rect.width,
-        0,
-        1,
-      );
-
-      playbackCurve[activeHandle].y = clampValue(
-        1 - (event.clientY - rect.top) / rect.height,
-        0,
-        1,
-      );
-
-      playbackRate = Number(
-        getPlaybackRateAtTime(0.5).toFixed(2),
-      );
-
-      updatePlaybackRateFromCurve();
-
-      redraw();
-    };
-
-    canvas.onpointerup = () => {
-      if (!activeHandle) return;
-
-      activeHandle = null;
-
-      pushState();
-      renderToolControls();
-    };
-
-    canvas.onpointercancel = () => {
-      activeHandle = null;
-    };
-
-    redraw();
-
-    editor.append(canvas);
-
-    return editor;
-  }
-
-  // ============================================================
-  // 17. LUT IMPORT
+  // 16. LUT IMPORT
   // ============================================================
 
   function updateRenderProgressUI(progress: number) {
@@ -3665,107 +3311,48 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   function renderTimelineTab() {
-    toolContainer.append(
-      p(
-        {
-          className:
-            've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-        },
-        'Timeline Trim & Speed',
-      ),
-
-      createSliderControl(
-        'Start Marker (s)',
+    const timelinePanel = createTimelinePanel({
+      state: {
         trimStart,
-        0,
-        Math.max(1, duration),
-        (value) => {
-          trimStart = Math.min(value, (trimEnd || duration) - 0.5);
-          trimStart = Math.max(0, trimStart);
-          updateTrimMarkers();
+        trimEnd,
+        duration,
+        playbackRate,
+        activeTransition,
+        currentTime,
+        clipSegments,
+        playbackCurve,
+        videoElement,
+      },
+      toolContainer,
+      createSliderControl,
+      createSelectDropdown,
+      createPresetButton,
+      setTrimStart: (value) => {
+        trimStart = value;
+      },
+      setTrimEnd: (value) => {
+        trimEnd = value;
+      },
+      setActiveTransition: (value) => {
+        activeTransition = value;
+      },
+      setPlaybackCurve: (curve) => {
+        playbackCurve = curve;
+      },
+      setPlaybackRate: (value) => {
+        playbackRate = value;
+      },
+      getPlaybackRateAtTime,
+      updatePlaybackRateFromCurve,
+      renderToolControls,
+      pushState,
+      updateTrimMarkers,
+      updateCaptions,
+      applyVideoFilters,
+      renderTimelineRows,
+    });
 
-          if (videoElement.currentTime < trimStart) {
-            videoElement.currentTime = trimStart;
-          }
-        },
-      ),
-
-      createSliderControl(
-        'End Marker (s)',
-        trimEnd || duration,
-        0,
-        Math.max(1, duration),
-        (value) => {
-          trimEnd = Math.max(value, trimStart + 0.5);
-          trimEnd = Math.min(duration || trimEnd, trimEnd);
-          updateTrimMarkers();
-        },
-      ),
-
-      p(
-        {
-          className: 've-mt-3 ve-text-xs ve-font-semibold ve-text-slate-300',
-        },
-        `Playback Speed: ${playbackRate.toFixed(2)}x`,
-      ),
-
-      renderPlaybackCurveEditor(),
-
-      div(
-        {
-          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
-        },
-        createPresetButton('Set Start Here', () => {
-          trimStart = clampValue(videoElement.currentTime, 0, duration);
-
-          if (trimStart >= trimEnd) {
-            trimStart = Math.max(0, trimEnd - 0.5);
-          }
-
-          updateTrimMarkers();
-          pushState();
-          renderToolControls();
-        }),
-        createPresetButton('Set End Here', () => {
-          trimEnd = clampValue(videoElement.currentTime, trimStart + 0.5, duration);
-          updateTrimMarkers();
-          pushState();
-          renderToolControls();
-        }),
-      ),
-
-      div(
-        {
-          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
-        },
-        createPresetButton('Split Clip', splitClipAtPlayhead),
-        createPresetButton('Delete Segment', deleteCurrentClipSegment),
-      ),
-
-      div({ className: 've-pt-2' },
-        div(
-          {
-            className: 've-flex ve-justify-between ve-items-center ve-text-xs',
-          },
-          span({ className: 've-text-slate-400' }, 'Transition'),
-          createSelectDropdown(
-            ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
-            activeTransition,
-            (value) => {
-              activeTransition = value as ClipTransition;
-              pushState();
-            },
-          ),
-        ),
-      ),
-
-      p(
-        {
-          className: 've-mt-2 ve-text-[10px] ve-text-slate-500 ve-leading-relaxed',
-        },
-        'Clip splitting currently stores timeline segment metadata. True multi-clip concatenation and ripple rendering require a multi-source export pipeline.',
-      ),
-    );
+    timelinePanel.renderTimelineTab();
   }
 
   function renderFiltersTab() {
@@ -4508,324 +4095,52 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'export') {
-      const progressLabel = p(
-        {
-          className:
-            've-text-xs ve-text-violet-300 ve-font-semibold',
+      const exportPanel = createExportPanel({
+        toolContainer,
+        renderProgress,
+        isRendering,
+        trimStart,
+        trimEnd,
+        duration,
+        exportResolution,
+        exportFps,
+        exportFormat,
+        exportBitrate,
+        activeTransition,
+        activeBlendMode,
+        renderProgressLabel,
+        renderProgressFill,
+        renderToolControls,
+        setExportResolution: (value) => {
+          exportResolution = value;
         },
-        isRendering
-          ? `Rendering Video... ${Math.round(renderProgress)}%`
-          : 'Ready to render',
-      );
-
-      const progressFill = div({
-        className:
-          've-bg-violet-500 ve-h-full ve-transition-all',
-        style: `width:${renderProgress}%`,
+        setExportFps: (value) => {
+          exportFps = value;
+        },
+        setExportFormat: (value) => {
+          exportFormat = value;
+        },
+        setExportBitrate: (value) => {
+          exportBitrate = value;
+        },
+        setActiveTransition: (value) => {
+          activeTransition = value;
+        },
+        setActiveBlendMode: (value) => {
+          activeBlendMode = value;
+        },
+        createSelectDropdown,
+        createPresetButton,
+        pushState,
+        startVideoExport,
+        cancelVideoExport,
+        exportProjectFile,
+        importProjectFile,
+        aspectRatio,
       });
 
-      renderProgressLabel = progressLabel;
-      renderProgressFill = progressFill;
-
-      const progressContainer = div(
-        {
-          className:
-            `space-y-2 text-center ${isRendering ? '' : 've-hidden'}`,
-        },
-
-        progressLabel,
-
-        div(
-          {
-            className:
-              've-w-full ve-bg-slate-800 ve-h-2 ve-rounded-full ve-overflow-hidden',
-          },
-          progressFill,
-        ),
-
-        createButton(
-          'secondary',
-          {
-            type: 'button',
-
-            className:
-              've-w-full ve-text-xs ve-py-2 ve-bg-red-600/80 ve-hover:bg-red-600 ve-text-white ve-font-semibold ve-rounded-xl',
-
-            onclick: cancelVideoExport,
-          },
-          'Cancel Rendering',
-        ),
-      );
-
-      const exportSettings = div(
-        {
-          className:
-            've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/80 ve-p-3 ve-text-xs ve-space-y-2.5',
-        },
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Resolution',
-          ),
-
-          createSelectDropdown(
-            ['720p', '1080p', '4k'],
-            exportResolution,
-
-            (value) => {
-              exportResolution =
-                value as typeof exportResolution;
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Framerate',
-          ),
-
-          createSelectDropdown(
-            ['24', '30', '60'],
-            String(exportFps),
-
-            (value) => {
-              exportFps =
-                Number(value) as typeof exportFps;
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Container',
-          ),
-
-          createSelectDropdown(
-            ['webm', 'mp4'],
-            exportFormat,
-
-            (value) => {
-              exportFormat =
-                value as typeof exportFormat;
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Quality Preset',
-          ),
-
-          createSelectDropdown(
-            [
-              'Economy (2 Mbps)',
-              'Balanced (5 Mbps)',
-              'High (10 Mbps)',
-            ],
-
-            exportBitrate === 2_000_000
-              ? 'Economy (2 Mbps)'
-              : exportBitrate === 10_000_000
-                ? 'High (10 Mbps)'
-                : 'Balanced (5 Mbps)',
-
-            (value) => {
-              if (value.includes('Economy')) {
-                exportBitrate = 2_000_000;
-              } else if (value.includes('High')) {
-                exportBitrate = 10_000_000;
-              } else {
-                exportBitrate = 5_000_000;
-              }
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Transition',
-          ),
-
-          createSelectDropdown(
-            [
-              'none',
-              'crossfade',
-              'dip-to-black',
-              'wipe',
-              'slide',
-            ],
-
-            activeTransition,
-
-            (value) => {
-              activeTransition =
-                value as ClipTransition;
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-items-center',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Blend Mode',
-          ),
-
-          createSelectDropdown(
-            [
-              'normal',
-              'screen',
-              'multiply',
-              'overlay',
-              'soft-light',
-            ],
-
-            activeBlendMode,
-
-            (value) => {
-              activeBlendMode =
-                value as BlendMode;
-
-              pushState();
-            },
-          ),
-        ),
-
-        div(
-          {
-            className:
-              've-flex ve-justify-between ve-pt-1 ve-border-t ve-border-slate-800',
-          },
-
-          span(
-            {
-              className: 've-text-slate-400',
-            },
-            'Trim Length',
-          ),
-
-          span(
-            {
-              className:
-                've-font-semibold ve-text-violet-300',
-            },
-            `${Math.max(
-              0,
-              (trimEnd || duration) - trimStart,
-            ).toFixed(1)}s`,
-          ),
-        ),
-      );
-
-      toolContainer.append(
-        p(
-          {
-            className:
-              've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-          },
-          'Export Engine',
-        ),
-
-        exportSettings,
-
-        div(
-          {
-            className:
-              've-grid ve-grid-cols-2 ve-gap-2 ve-pt-3',
-          },
-
-          createPresetButton(
-            'Export JSON',
-            exportProjectFile,
-          ),
-
-          createPresetButton(
-            'Import JSON',
-            importProjectFile,
-          ),
-        ),
-
-        progressContainer,
-
-        !isRendering
-          ? createButton(
-              'primary',
-              {
-                type: 'button',
-
-                className:
-                  've-w-full ve-text-xs ve-py-2.5 ve-bg-violet-600 ve-hover:bg-violet-500 ve-text-white ve-font-semibold ve-rounded-xl ve-transition-all ve-shadow-lg ve-shadow-violet-600/20',
-
-                onclick: startVideoExport,
-              },
-              'Start Render Pipeline',
-            )
-          : div({ className: 've-hidden' }),
-
-        p(
-          {
-            className:
-              've-text-[10px] ve-text-slate-500 ve-leading-relaxed ve-mt-2',
-          },
-          'Browser rendering uses supported MediaRecorder codecs. MP4 is only offered when the browser genuinely supports MP4 recording. Server rendering can use FFmpeg for broader codec support.',
-        ),
-      );
+      renderProgressLabel = exportPanel.progressLabel;
+      renderProgressFill = exportPanel.progressFill;
     }
 
     // ----------------------------------------------------------

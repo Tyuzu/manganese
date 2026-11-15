@@ -1,10 +1,3 @@
-import {
-  button,
-  div,
-  input,
-  label,
-  p,
-} from '../../components/ui/dom';
 import type { VideoFilters } from './types';
 
 type ControlsDeps = {
@@ -27,63 +20,42 @@ export function createEditorControls({
     max: number,
     onChange: (value: number) => void,
   ) {
-    const valueDisplay = div(
-      {
-        className:
-          'text-xs font-mono text-violet-400 font-bold',
-      },
-      Number(value).toFixed(1),
-    );
+    const container = document.createElement('div');
+    container.className = 'editor-slider-container';
 
-    const slider = input({
-      type: 'range',
-      min: String(min),
-      max: String(max),
-      value: String(value),
-      step: '0.1',
+    const header = document.createElement('div');
+    header.className = 'editor-slider-header';
 
-      className:
-        'w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-violet-500',
+    const titleLabel = document.createElement('label');
+    titleLabel.className = 'editor-slider-label';
+    titleLabel.textContent = title;
 
-      oninput: (event: Event) => {
-        const nextValue = Number(
-          (event.target as HTMLInputElement).value,
-        );
+    const valueDisplay = document.createElement('div');
+    valueDisplay.className = 'editor-slider-value';
+    valueDisplay.textContent = Number(value).toFixed(1);
 
-        valueDisplay.textContent = nextValue.toFixed(1);
+    header.append(titleLabel, valueDisplay);
 
-        onChange(nextValue);
-      },
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = String(min);
+    slider.max = String(max);
+    slider.value = String(value);
+    slider.step = '0.1';
+    slider.className = 'editor-slider-input';
 
-      onchange: () => {
-        pushState();
-      },
-    });
+    slider.oninput = (event: Event) => {
+      const nextValue = Number((event.target as HTMLInputElement).value);
+      valueDisplay.textContent = nextValue.toFixed(1);
+      onChange(nextValue);
+    };
 
-    return div(
-      {
-        className: 'space-y-1',
-      },
+    slider.onchange = () => {
+      pushState();
+    };
 
-      div(
-        {
-          className:
-            'flex justify-between items-center',
-        },
-
-        label(
-          {
-            className:
-              'text-xs font-medium text-slate-300',
-          },
-          title,
-        ),
-
-        valueDisplay,
-      ),
-
-      slider,
-    );
+    container.append(header, slider);
+    return container;
   }
 
   function createSelectDropdown(
@@ -92,17 +64,13 @@ export function createEditorControls({
     onChange: (value: string) => void,
   ) {
     const select = document.createElement('select');
-
-    select.className =
-      'bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-violet-500';
+    select.className = 'editor-select';
 
     options.forEach((option) => {
       const element = document.createElement('option');
-
       element.value = option;
       element.textContent = option.toUpperCase();
       element.selected = option === selected;
-
       select.append(element);
     });
 
@@ -117,18 +85,12 @@ export function createEditorControls({
     name: string,
     onClick: () => void,
   ) {
-    return button(
-      {
-        type: 'button',
-
-        className:
-          'rounded-xl border border-slate-700 bg-slate-900/80 p-3 text-left text-xs font-medium text-slate-200 hover:border-violet-500 hover:text-white transition-all shadow-sm',
-
-        onclick: onClick,
-      },
-
-      name,
-    );
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'editor-preset-btn';
+    btn.textContent = name;
+    btn.onclick = onClick;
+    return btn;
   }
 
   function createThumbnailPresetCard(
@@ -136,32 +98,21 @@ export function createEditorControls({
     presetValues: Partial<VideoFilters>,
     icon: string,
   ) {
-    const card = div(
-      {
-        className:
-          'flex flex-col items-center justify-center p-3 rounded-xl border border-slate-700 bg-slate-900/70 hover:border-violet-500 hover:bg-slate-900 cursor-pointer transition-all shadow-sm text-center group',
-      },
+    const card = document.createElement('div');
+    card.className = 'editor-thumbnail-card';
 
-      div(
-        {
-          className:
-            'text-2xl mb-1 group-hover:scale-110 transition-transform',
-        },
-        icon,
-      ),
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'editor-thumbnail-icon';
+    iconDiv.textContent = icon;
 
-      p(
-        {
-          className:
-            'text-xs font-semibold text-slate-200',
-        },
-        name,
-      ),
-    );
+    const namePara = document.createElement('p');
+    namePara.className = 'editor-thumbnail-title';
+    namePara.textContent = name;
+
+    card.append(iconDiv, namePara);
 
     card.onclick = () => {
       Object.assign(filters, presetValues);
-
       applyVideoFilters();
       pushState();
       renderToolControls();

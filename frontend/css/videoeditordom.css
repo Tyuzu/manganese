@@ -1,0 +1,77 @@
+.video-stage-container {
+  position: relative;
+  flex: 1 1 0%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #020617; /* slate-950 */
+  padding: 0.5rem; /* p-2 */
+  overflow: hidden;
+  min-height: 0;
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid rgba(30, 41, 59, 0.6); /* border-slate-800/60 */
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06); /* shadow-inner */
+}
+
+@media (min-width: 640px) {
+  .video-stage-container {
+    padding: 1.5rem; /* sm:p-6 */
+  }
+}
+
+.video-stage-element {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); /* shadow-2xl */
+  display: block;
+  transition: all 75ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.video-stage-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: none;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+
+.video-stage-caption {
+  position: absolute;
+  text-align: center;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.375rem 1rem; /* px-4 py-1.5 */
+  border-radius: 0.5rem;
+  display: none;
+  z-index: 20;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-xl */
+  white-space: pre-line;
+  left: 50%;
+  top: 85%;
+  transform: translate(-50%, -50%);
+}
+
+.video-stage-toggle-btn {
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid #334155; /* border-slate-700 */
+  background-color: rgba(30, 41, 59, 0.8); /* bg-slate-800/80 */
+  padding: 0.5rem 0.75rem; /* px-3 py-2 */
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #cbd5e1; /* text-slate-300 */
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.video-stage-toggle-btn:hover {
+  border-color: #64748b; /* hover:border-slate-500 */
+  color: #ffffff; /* hover:text-white */
+}
