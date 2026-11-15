@@ -1,21 +1,21 @@
 import '../../css/videoeditor.css';
 
 import {
-  button,
   div,
-  input,
-  p,
-  span,
-  svgElement,
 } from '../components/ui/dom';
-
-import { appStore } from '../appState';
-import { downloadVideoFromServer, exportVideoWithFFmpeg } from '../api';
 
 import {
   createDetailPanel,
-  createEditorTabNav,
 } from './shared';
+import {
+  createTimelineTrackShell,
+  createVideoEditorTabBar,
+  createVideoUploadDropzone,
+} from './video-editor/editor-shell';
+import {
+  createPlaybackControls,
+  createTimelineWidgets,
+} from './video-editor/player';
 import {
   DEFAULT_CAPTION_STYLE,
   DEFAULT_FILTERS,
@@ -36,16 +36,9 @@ import {
 } from './video-editor/types';
 import { createVideoStageElements } from './video-editor/dom';
 import { buildSrtFromSegments, parseSrtText } from './video-editor/captions';
-import { fileToDataUrl } from './video-editor/storage';
-import {
-  drawExportFrame,
-  getExportDimensions,
-  getSupportedRecorderMimeType,
-} from './video-editor/rendering';
 import {
   clampValue,
   cloneCaptionSegments,
-  cloneMasks,
   cubicBezierValue,
   formatTime,
 } from './video-editor/utils';
@@ -56,24 +49,21 @@ import {
 } from './video-editor/transport';
 import { createTimelinePanel } from './video-editor/timeline';
 import { createExportPanel } from './video-editor/export';
+import { createVideoExportController } from './video-editor/export-pipeline';
+import { createThumbnailStripGenerator } from './video-editor/thumbnails';
+import { createVideoSourceController } from './video-editor/source';
 import { createEditorControls } from './video-editor/controls';
 import { createVideoEditorPanels } from './video-editor/panels';
 import { createVideoEditorLayout } from './video-editor/layout';
 import { bindEditorShortcuts } from './video-editor/shortcuts';
 import { bindVideoPreviewInteraction } from './video-editor/interaction';
 import {
-  serializeEditorState as serializeProjectState,
-} from './video-editor/project-state';
-import {
-  createProjectDownloadBlob,
-  importEditorProjectFile,
-  loadEditorProject,
-  saveEditorProject,
-} from './video-editor/project-io';
+  applyEditorSnapshot,
+  serializeEditorSnapshot,
+} from './video-editor/editor-state';
 import { createProjectHistory } from './video-editor/history';
+import { createProjectLifecycleController } from './video-editor/project-lifecycle';
 import {
-  cancelVideoExport as cancelVideoExportController,
-  flushVideoSession as flushVideoSessionController,
   resetEditor as resetEditorController,
   seekVideoTo as seekVideoToController,
 } from './video-editor/media';
@@ -206,94 +196,29 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 4. VIDEO TIMELINE AND PLAYBACK UI
   // ============================================================
 
-  const playheadLine = div({
-    className:
-      've-absolute ve-top-0 ve-bottom-0 ve-w-0.5 ve-bg-white ve-z-30 ve-pointer-events-none shadow-md',
-    style: 'left:0%',
-  });
-
-  const trimStartMarker = div({
-    className:
-      've-absolute ve-top-0 ve-bottom-0 ve-w-2.5 bg-violet-400 ve-border-r-2 ve-border-white ve-cursor-ew-resize ve-z-20 hover:bg-violet-300 ve-transition-colors ve-shadow-lg',
-    style: 'left:0%',
-  });
-
-  const trimEndMarker = div({
-    className:
-      've-absolute ve-top-0 ve-bottom-0 ve-w-2.5 bg-violet-400 ve-border-l-2 ve-border-white ve-cursor-ew-resize ve-z-20 hover:bg-violet-300 ve-transition-colors ve-shadow-lg',
-    style: 'left:100%',
-  });
-
-  const trimActiveZone = div({
-    className:
-      've-absolute ve-top-0 ve-bottom-0 ve-bg-violet-500/30 ve-border-t ve-border-b ve-border-violet-400/60 ve-pointer-events-none ve-z-10',
-    style: 'left:0%;right:0%;',
-  });
-
-  const thumbnailStrip = div({
-    className:
-      've-absolute ve-inset-0 ve-flex ve-opacity-40 ve-pointer-events-none ve-overflow-hidden',
-  });
-
-  const videoTrackSegment = div(
-    {
-      className:
-        've-relative ve-h-10 ve-rounded-lg ve-bg-slate-800/90 ve-border ve-border-slate-700 ve-flex ve-items-center ve-px-3 ve-text-xs ve-text-slate-300 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
-    },
-    thumbnailStrip,
-    trimStartMarker,
-    trimActiveZone,
-    trimEndMarker,
-    div(
-      {
-        className:
-          've-truncate ve-relative ve-z-0 ve-text-slate-200 ve-text-[11px] ve-font-semibold ve-drop-shadow-md',
-      },
-      'Video Track ve-1 • Main Source Clip',
-    ),
-  );
-
-  const audioTrackSegment = div(
-    {
-      className:
-        've-relative ve-h-8 ve-rounded-lg ve-bg-cyan-950/50 ve-border ve-border-cyan-800/50 ve-flex ve-items-center ve-px-3 ve-text-xs ve-text-cyan-300 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
-    },
-    div(
-      { className: 've-truncate ve-text-[11px]' },
-      'Audio Track ve-1 • Source Audio',
-    ),
-  );
-
-  const timelineRuler = div(
-    {
-      className:
-        've-h-6 ve-border-b ve-border-slate-800/80 ve-bg-slate-950 ve-flex ve-items-center ve-justify-between ve-gap-2 ve-px-3 ve-text-[10px] ve-font-mono ve-text-slate-500 ve-select-none ve-sm:px-4',
-    },
-    div({}, '00:00'),
-    div({}, '00:15'),
-    div({}, '00:30'),
-    div({}, '00:45'),
-    div({}, '01:00'),
-  );
-
   let isScrubbingTimeline = false;
 
-  const timelineTrackArea = div({
-    className:
-      've-relative ve-flex-1 ve-p-3 ve-space-y-2 ve-overflow-y-auto ve-cursor-pointer ve-bg-slate-900/50',
-    onmousedown: (event: MouseEvent) => {
-      if ((event.target as HTMLElement).closest('.no-timeline-scrub')) return;
+  const {
+    playheadLine,
+    trimStartMarker,
+    trimEndMarker,
+    trimActiveZone,
+    thumbnailStrip,
+    videoTrackSegment,
+    timelineRuler,
+    timelineTrackArea,
+  } = createTimelineWidgets({
+    onScrubFromClientX: (clientX: number) => {
+      if (!duration) return;
 
+      const rect = timelineTrackArea.getBoundingClientRect();
+      if (!rect.width) return;
+
+      const ratio = clampValue((clientX - rect.left) / rect.width, 0, 1);
+      videoElement.currentTime = ratio * duration;
       isScrubbingTimeline = true;
-      updatePlayheadFromMouseEvent(event);
     },
   });
-
-  timelineTrackArea.append(
-    playheadLine,
-    videoTrackSegment,
-    audioTrackSegment,
-  );
 
   window.addEventListener('mousemove', (event: MouseEvent) => {
     if (!isScrubbingTimeline) return;
@@ -342,12 +267,41 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       restoreState(state);
     },
     onSnapshot: () => {
-      void persistProjectState();
+      void projectLifecycleController.persistProjectState();
     },
   });
 
   let cachedVideoFile: File | null = null;
   let cachedVideoDataUrl: string | null = null;
+
+  const projectLifecycleController = createProjectLifecycleController({
+    getProjectDb: () => projectDb,
+    setProjectDb: (next) => {
+      projectDb = next;
+    },
+    getCachedVideoFile: () => cachedVideoFile,
+    setCachedVideoFile: (next) => {
+      cachedVideoFile = next;
+    },
+    getCachedVideoDataUrl: () => cachedVideoDataUrl,
+    setCachedVideoDataUrl: (next) => {
+      cachedVideoDataUrl = next;
+    },
+    getVideoFile: () => videoFile,
+    getSerializer: () => serializeEditorState(),
+    restoreState,
+    setVideoFile: (file, restoredState) => {
+      setVideoFile(file, restoredState);
+    },
+    getProjectHistory: () => projectHistory,
+    setActiveTab: (tab) => {
+      activeTab = tab;
+    },
+    switchTab,
+    updatePlaybackRateFromCurve,
+    getVideoElementSrc: () => videoElement.src,
+    renderToolControls,
+  });
 
   function ensureCaptionTrack(): CaptionTrack {
     if (!captionTracks.length) {
@@ -443,7 +397,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function serializeEditorState(): VideoEditorState {
-    return serializeProjectState({
+    return serializeEditorSnapshot({
       trimStart,
       trimEnd,
       playbackRate,
@@ -471,6 +425,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       captionX,
       captionY,
       filters,
+      duration,
     });
   }
 
@@ -481,192 +436,68 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function restoreState(
     state: Partial<VideoEditorState>,
   ) {
-    if (Number.isFinite(state.trimStart)) {
-      trimStart = Math.max(0, Number(state.trimStart));
-    }
-
-    if (Number.isFinite(state.trimEnd)) {
-      trimEnd = Math.max(0, Number(state.trimEnd));
-    }
-
-    if (Number.isFinite(state.playbackRate)) {
-      playbackRate = clampValue(Number(state.playbackRate), 0.25, 4);
-    }
-
-    if (Number.isFinite(state.volume)) {
-      volume = clampValue(Number(state.volume), 0, 1);
-    }
-
-    if (state.aspectRatio) {
-      aspectRatio = state.aspectRatio;
-    }
-
-    rotation = Number.isFinite(state.rotation)
-      ? Number(state.rotation)
-      : 0;
-
-    flipH = Boolean(state.flipH);
-    flipV = Boolean(state.flipV);
-
-    previewQuality =
-      state.previewQuality === '0.5' ||
-      state.previewQuality === '0.25'
-        ? state.previewQuality
-        : '1';
-
-    captionText = state.captionText ?? '';
-
-    captionSegments = Array.isArray(state.captionSegments)
-      ? cloneCaptionSegments(state.captionSegments)
-      : [];
-
-    audioTracks = Array.isArray(state.audioTracks)
-      ? state.audioTracks.map((track) => ({
-          id: Number.isFinite(track.id)
-            ? Number(track.id)
-            : Date.now() + Math.random(),
-          label: typeof track.label === 'string'
-            ? track.label
-            : `Audio Track ${audioTracks.length + 1}`,
-          fileName: typeof track.fileName === 'string'
-            ? track.fileName
-            : 'audio-track.mp3',
-          dataUrl: typeof track.dataUrl === 'string' ? track.dataUrl : null,
-          volume: Number.isFinite(track.volume)
-            ? clampValue(Number(track.volume), 0, 2)
-            : 1,
-          trimStart: Number.isFinite(track.trimStart)
-            ? Number(track.trimStart)
-            : 0,
-          trimEnd: Number.isFinite(track.trimEnd)
-            ? Number(track.trimEnd)
-            : duration || 0,
-          enabled:
-            typeof track.enabled === 'boolean'
-              ? track.enabled
-              : true,
-        }))
-      : [];
-
-    captionTracks = Array.isArray(state.captionTracks)
-      ? state.captionTracks.map((track) => ({
-          id: Number.isFinite(track.id)
-            ? Number(track.id)
-            : Date.now() + Math.random(),
-          label: typeof track.label === 'string'
-            ? track.label
-            : 'Captions',
-          color: typeof track.color === 'string'
-            ? track.color
-            : '#a78bfa',
-          enabled:
-            typeof track.enabled === 'boolean'
-              ? track.enabled
-              : true,
-          segments: Array.isArray(track.segments)
-            ? cloneCaptionSegments(track.segments)
-            : [],
-        }))
-      : [];
-
-    if (!captionTracks.length) {
-      captionTracks = [
-        {
-          id: 1,
-          label: 'Primary Captions',
-          color: '#a78bfa',
-          enabled: true,
-          segments: cloneCaptionSegments(captionSegments),
-        },
-      ];
-    }
-
-    activeCaptionTrackId =
-      Number.isFinite(state.activeCaptionTrackId)
-        ? Number(state.activeCaptionTrackId)
-        : captionTracks[0]?.id ?? null;
-
-    const activeTrack =
-      captionTracks.find((track) => track.id === activeCaptionTrackId) ??
-      captionTracks[0] ??
-      null;
-
-    if (activeTrack) {
-      captionSegments = cloneCaptionSegments(activeTrack.segments);
-      captionText = captionSegments[0]?.text ?? captionText;
-    }
-
-    activeTransition = state.transitionType ?? 'crossfade';
-
-    clipSegments = Array.isArray(state.clipSegments)
-      ? state.clipSegments.map((segment) => ({ ...segment }))
-      : [];
-
-    activeBlendMode = state.blendMode ?? 'screen';
-
-    masks = Array.isArray(state.masks)
-      ? cloneMasks(state.masks)
-      : [];
-
-    pendingMask = null;
-
-    if (state.playbackCurve) {
-      playbackCurve = {
-        p0: { ...state.playbackCurve.p0 },
-        p1: { ...state.playbackCurve.p1 },
-        p2: { ...state.playbackCurve.p2 },
-        p3: { ...state.playbackCurve.p3 },
-      };
-    } else {
-      playbackCurve = structuredClone(DEFAULT_PLAYBACK_CURVE);
-    }
-
-    cubeLut = state.cubeLut
-      ? {
-          size: state.cubeLut.size,
-          values: [...state.cubeLut.values],
-        }
-      : null;
-
-    captionSize = Number.isFinite(state.captionSize)
-      ? Number(state.captionSize)
-      : DEFAULT_CAPTION_STYLE.size;
-
-    captionWeight = state.captionWeight ?? DEFAULT_CAPTION_STYLE.weight;
-
-    captionBg = state.captionBg ?? DEFAULT_CAPTION_STYLE.background;
-
-    captionShadow =
-      typeof state.captionShadow === 'boolean'
-        ? state.captionShadow
-        : DEFAULT_CAPTION_STYLE.shadow;
-
-    captionX = Number.isFinite(state.captionX)
-      ? clampValue(Number(state.captionX), 0, 100)
-      : DEFAULT_CAPTION_STYLE.x;
-
-    captionY = Number.isFinite(state.captionY)
-      ? clampValue(Number(state.captionY), 0, 100)
-      : DEFAULT_CAPTION_STYLE.y;
-
-    if (state.filters) {
-      Object.assign(filters, DEFAULT_FILTERS, state.filters);
-    }
-
-    if (duration) {
-      trimStart = clampValue(trimStart, 0, duration);
-
-      trimEnd = clampValue(
-        trimEnd || duration,
+    const next = applyEditorSnapshot(
+      {
         trimStart,
+        trimEnd,
+        playbackRate,
+        volume,
+        aspectRatio,
+        rotation,
+        flipH,
+        flipV,
+        previewQuality,
+        captionText,
+        captionSegments,
+        audioTracks,
+        captionTracks,
+        activeCaptionTrackId,
+        activeTransition,
+        clipSegments,
+        activeBlendMode,
+        masks,
+        playbackCurve,
+        cubeLut,
+        captionSize,
+        captionWeight,
+        captionBg,
+        captionShadow,
+        captionX,
+        captionY,
+        filters,
         duration,
-      );
+      },
+      state,
+    );
 
-      if (trimEnd <= trimStart) {
-        trimStart = 0;
-        trimEnd = duration;
-      }
-    }
+    trimStart = next.trimStart;
+    trimEnd = next.trimEnd;
+    playbackRate = next.playbackRate;
+    volume = next.volume;
+    aspectRatio = next.aspectRatio;
+    rotation = next.rotation;
+    flipH = next.flipH;
+    flipV = next.flipV;
+    previewQuality = next.previewQuality;
+    captionText = next.captionText;
+    captionSegments = next.captionSegments;
+    audioTracks = next.audioTracks;
+    captionTracks = next.captionTracks;
+    activeCaptionTrackId = next.activeCaptionTrackId;
+    activeTransition = next.activeTransition;
+    clipSegments = next.clipSegments;
+    activeBlendMode = next.activeBlendMode;
+    masks = next.masks;
+    playbackCurve = next.playbackCurve;
+    cubeLut = next.cubeLut;
+    captionSize = next.captionSize;
+    captionWeight = next.captionWeight;
+    captionBg = next.captionBg;
+    captionShadow = next.captionShadow;
+    captionX = next.captionX;
+    captionY = next.captionY;
+    Object.assign(filters, next.filters);
+    pendingMask = null;
 
     videoElement.playbackRate = playbackRate;
     videoElement.volume = volume;
@@ -688,111 +519,20 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 6. INDEXEDDB PROJECT STORAGE
   // ============================================================
 
-  async function persistProjectState() {
-    try {
-      const result = await saveEditorProject({
-        projectDb,
-        videoFile,
-        cachedVideoFile,
-        cachedVideoDataUrl,
-        serializer: () => serializeEditorState(),
-      });
-
-      projectDb = result.projectDb;
-      cachedVideoFile = result.cachedVideoFile;
-      cachedVideoDataUrl = result.cachedVideoDataUrl;
-    } catch (error) {
-      console.warn('Unable to save editor state:', error);
-    }
-  }
+  // ============================================================
+  // 6. INDEXEDDB PROJECT STORAGE
+  // ============================================================
 
   async function hydrateProjectState() {
-    try {
-      const result = await loadEditorProject({
-        projectDb,
-        restoreState,
-        setVideoFile,
-      });
-
-      projectDb = result.projectDb;
-
-      if (!result.restoredState) return;
-
-      if (result.restoredFile && result.restoredVideoDataUrl) {
-        cachedVideoFile = result.restoredFile;
-        cachedVideoDataUrl = result.restoredVideoDataUrl;
-
-        setVideoFile(result.restoredFile, result.restoredState);
-        return;
-      }
-
-      restoreState(result.restoredState);
-    } catch (error) {
-      console.warn('Unable to restore editor state:', error);
-    }
+    await projectLifecycleController.hydrateProjectState();
   }
 
   function exportProjectFile() {
-    const blob = createProjectDownloadBlob({
-      videoFile,
-      serializer: () => serializeEditorState(),
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const anchor = document.createElement('a');
-
-    anchor.href = url;
-    anchor.download = `dolomite-project-${Date.now()}.json`;
-
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-
-    URL.revokeObjectURL(url);
+    projectLifecycleController.exportProjectFile();
   }
 
   async function importProjectFile() {
-    const filePicker = document.createElement('input');
-
-    filePicker.type = 'file';
-    filePicker.accept = '.json,application/json';
-
-    filePicker.onchange = async () => {
-      const file = filePicker.files?.[0];
-
-      if (!file) return;
-
-      try {
-        const state = await importEditorProjectFile(file);
-
-        restoreState(state);
-
-        projectHistory.resetHistory();
-        pushState();
-
-        activeTab = 'timeline';
-        switchTab('timeline');
-
-        if (videoElement.src) {
-          updatePlaybackRateFromCurve();
-        }
-
-        if (!videoFile) {
-          alert(
-            'Project settings imported. Import the original source video to preview and render the project.',
-          );
-        }
-      } catch (error) {
-        console.error('Project import failed:', error);
-
-        alert(
-          'Unable to import this project. Please choose a valid Dolomite JSON project.',
-        );
-      }
-    };
-
-    filePicker.click();
+    await projectLifecycleController.importProjectFile();
   }
 
   // ============================================================
@@ -800,17 +540,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
 
   function undo() {
-    if (projectHistory.historyIndex <= 0) return;
-
-    projectHistory.undo();
-    renderToolControls();
+    projectLifecycleController.undo();
   }
 
   function redo() {
-    if (projectHistory.historyIndex >= projectHistory.history.length - 1) return;
-
-    projectHistory.redo();
-    renderToolControls();
+    projectLifecycleController.redo();
   }
 
   // ============================================================
@@ -1124,14 +858,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 12. PLAYBACK CONTROLS
   // ============================================================
 
-  const timeDisplay = div(
-    {
-      className:
-        've-min-w-0 ve-flex-shrink-0 ve-font-mono ve-text-[11px] ve-text-slate-300 ve-text-center ve-sm:min-w-[95px]',
-    },
-    '00:00 / 00:00',
-  );
-
   function syncPlaybackUI() {
     const isActive =
       !!videoElement.src &&
@@ -1151,442 +877,175 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     syncPlaybackUI();
   }
 
-  const playPauseBtn = button(
-    {
-      type: 'button',
-      className:
-        've-inline-flex ve-h-9 ve-w-9 ve-items-center ve-justify-center ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-800/80 text-base ve-font-bold ve-text-white ve-transition ve-hover:border-violet-500 ve-hover:text-violet-300 ve-focus:outline-none ve-focus:ring-2 ve-focus:ring-violet-500/60',
-      title: 'Play playback',
-      onclick: togglePlay,
-    },
-    '▶',
-  );
+  function seekToPercent(value: number) {
+    if (!duration) return;
+    videoElement.currentTime = (value / 100) * duration;
+  }
 
-  const stepBackwardBtn = button(
-    {
-      type: 'button',
-      className:
-        've-text-slate-400 ve-hover:text-white ve-text-xs ve-px-1.5 ve-py-1',
-      title: 'Step backward one frame',
-      onclick: () => stepFrames(-1),
-    },
-    '⏮',
-  );
-
-  const stepForwardBtn = button(
-    {
-      type: 'button',
-      className:
-        've-text-slate-400 ve-hover:text-white ve-text-xs ve-px-1.5 ve-py-1',
-      title: 'Step forward one frame',
-      onclick: () => stepFrames(1),
-    },
-    '⏭',
-  );
-
-  const seekSlider = input({
-    type: 'range',
-    min: '0',
-    max: '100',
-    value: '0',
-    step: '0.1',
-
-    className:
-      've-h-1.5 ve-w-full ve-flex-1 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
-
-    oninput: (event: Event) => {
-      const target = event.target as HTMLInputElement;
-
-      if (!duration) return;
-
-      videoElement.currentTime =
-        (Number(target.value) / 100) * duration;
-    },
-  });
-
-  const volumeSlider = input({
-    type: 'range',
-    min: '0',
-    max: 've-1',
-    step: '0.05',
-    value: 've-1',
-
-    className:
-      've-h-1.5 ve-w-16 ve-bg-slate-800 ve-rounded-lg ve-appearance-none ve-cursor-pointer ve-accent-violet-500',
-
-    oninput: (event: Event) => {
-      const value = Number(
-        (event.target as HTMLInputElement).value,
-      );
-
+  const {
+    timeDisplay,
+    playPauseBtn,
+    seekSlider,
+    volumeSlider,
+    playerHud,
+  } = createPlaybackControls({
+    onTogglePlay: togglePlay,
+    onStepFrames: stepFrames,
+    onSeek: (value) => seekToPercent(value),
+    onVolumeChange: (value) => {
       volume = clampValue(value, 0, 1);
-
       videoElement.volume = volume;
-
       pushState();
     },
+    getVolume: () => volume,
   });
-
-  const playerHud = div(
-    {
-      className:
-        've-flex ve-flex-col ve-gap-2 ve-rounded-xl ve-border ve-border-slate-700/50 ve-bg-slate-900/90 ve-p-3 ve-backdrop-blur-md ve-z-10 ve-sm:min-h-[56px] ve-sm:flex-row ve-sm:items-center ve-sm:gap-3 ve-sm:px-5',
-    },
-
-    div(
-      {
-        className: 've-flex ve-items-center ve-gap-2',
-      },
-      stepBackwardBtn,
-      playPauseBtn,
-      stepForwardBtn,
-      timeDisplay,
-    ),
-
-    seekSlider,
-
-    div(
-      {
-        className:
-          've-flex ve-items-center ve-gap-2 ve-text-xs ve-text-slate-400 ve-sm:ml-2',
-      },
-      span(
-        {
-          className:
-            've-inline-flex ve-h-7 ve-w-7 ve-items-center ve-justify-center ve-rounded-lg ve-bg-slate-800/90 ve-text-sm',
-        },
-        '🔊',
-      ),
-      volumeSlider,
-    ),
-  );
 
   // ============================================================
   // 13. LOAD AND RESTORE SOURCE VIDEO
   // ============================================================
 
-  function flushVideoSession() {
-    flushVideoSessionController({
-      videoElement,
-      videoContainer,
-      videoUrl,
-      setVideoUrl: (next) => {
-        videoUrl = next;
-      },
-      setVideoFile: (next) => {
-        videoFile = next;
-      },
-      getVideoFile: () => videoFile,
-      getDuration: () => duration,
-      setDuration: (next) => {
-        duration = next;
-      },
-      setTrimStart: (next) => {
-        trimStart = next;
-      },
-      setTrimEnd: (next) => {
-        trimEnd = next;
-      },
-      setCurrentTime: (next) => {
-        currentTime = next;
-      },
-      setCaptionText: (next) => {
-        captionText = next;
-      },
-      setCaptionSegments: (next) => {
-        captionSegments = next;
-      },
-      setAudioTracks: (next) => {
-        audioTracks = next;
-      },
-      setCaptionTracks: (next) => {
-        captionTracks = next;
-      },
-      setMasks: (next) => {
-        masks = next;
-      },
-      setPendingMask: (next) => {
-        pendingMask = next;
-      },
-      setClipSegments: (next) => {
-        clipSegments = next;
-      },
-      setPlaybackCurve: (next) => {
-        playbackCurve = next;
-      },
-      setCubeLut: (next) => {
-        cubeLut = next;
-      },
-      setAspectRatio,
-      setVolume: (next) => {
-        volume = next;
-      },
-      setRenderAnimationFrame: (next) => {
-        renderAnimationFrame = next;
-      },
-      getRenderAnimationFrame: () => renderAnimationFrame,
-      setMediaRecorder: (next) => {
-        mediaRecorder = next;
-      },
-      getMediaRecorder: () => mediaRecorder,
-      setExportCancelled: (next) => {
-        exportCancelled = next;
-      },
-      setIsRendering: (next) => {
-        isRendering = next;
-      },
-      setRenderChunks: (next) => {
-        renderChunks = next;
-      },
-      setRenderProgress: (next) => {
-        renderProgress = next;
-      },
-      resetHistory: () => projectHistory.resetHistory(),
-      renderToolControls,
-      updateCaptions,
-      updateTrimMarkers,
-      applyMaskOverlay,
-      applyVideoFilters,
-      volumeSlider,
-      getFilters: () => filters,
-      setFilters: (next) => {
-        Object.assign(filters, next);
-      },
-    });
-  }
+  const generateThumbnailStrip = createThumbnailStripGenerator({
+    thumbnailStrip,
+    getVideoUrl: () => videoUrl,
+    getDuration: () => duration,
+  });
 
-  function setVideoFile(
+  const videoSourceController = createVideoSourceController({
+    videoElement,
+    videoContainer,
+    maskOverlay,
+    captionOverlay,
+    seekSlider,
+    playheadLine,
+    getVideoUrl: () => videoUrl,
+    setVideoUrl: (next) => {
+      videoUrl = next;
+    },
+    getVideoFile: () => videoFile,
+    setVideoFile: (next) => {
+      videoFile = next;
+    },
+    getDuration: () => duration,
+    setDuration: (next) => {
+      duration = next;
+    },
+    getCurrentTime: () => currentTime,
+    setCurrentTime: (next) => {
+      currentTime = next;
+    },
+    getTrimStart: () => trimStart,
+    setTrimStart: (next) => {
+      trimStart = next;
+    },
+    getTrimEnd: () => trimEnd,
+    setTrimEnd: (next) => {
+      trimEnd = next;
+    },
+    setCaptionText: (next) => {
+      captionText = next;
+    },
+    setCaptionSegments: (next) => {
+      captionSegments = next;
+    },
+    setAudioTracks: (next) => {
+      audioTracks = next;
+    },
+    setCaptionTracks: (next) => {
+      captionTracks = next;
+    },
+    setMasks: (next) => {
+      masks = next;
+    },
+    setPendingMask: (next) => {
+      pendingMask = next;
+    },
+    setClipSegments: (next) => {
+      clipSegments = next;
+    },
+    setPlaybackCurve: (next) => {
+      playbackCurve = next;
+    },
+    setCubeLut: (next) => {
+      cubeLut = next;
+    },
+    setAspectRatio,
+    setVolume: (next) => {
+      volume = next;
+    },
+    setRenderAnimationFrame: (next) => {
+      renderAnimationFrame = next;
+    },
+    getRenderAnimationFrame: () => renderAnimationFrame,
+    setMediaRecorder: (next) => {
+      mediaRecorder = next;
+    },
+    getMediaRecorder: () => mediaRecorder,
+    setExportCancelled: (next) => {
+      exportCancelled = next;
+    },
+    getIsRendering: () => isRendering,
+    setIsRendering: (next) => {
+      isRendering = next;
+    },
+    setRenderChunks: (next) => {
+      renderChunks = next;
+    },
+    setRenderProgress: (next) => {
+      renderProgress = next;
+    },
+    resetHistory: () => projectHistory.resetHistory(),
+    renderToolControls,
+    updateCaptions,
+    updateTrimMarkers,
+    applyMaskOverlay,
+    applyVideoFilters,
+    volumeSlider,
+    getFilters: () => filters,
+    setFilters: (next) => {
+      Object.assign(filters, next);
+    },
+    setViewportZoom: (next) => {
+      viewportZoom.zoomLevel = next.zoomLevel;
+      viewportZoom.panX = next.panX;
+      viewportZoom.panY = next.panY;
+      viewportZoom.isDragging = next.isDragging;
+      viewportZoom.startX = next.startX;
+      viewportZoom.startY = next.startY;
+    },
+    timeDisplay,
+    formatTime,
+    generateThumbnailStrip,
+    syncPlaybackUI,
+    updatePlaybackRateFromCurve,
+    getHistoryLength: () => projectHistory.history.length,
+    pushState,
+    restoreState,
+    setCachedVideoFile: (next) => {
+      cachedVideoFile = next;
+    },
+    setCachedVideoDataUrl: (next) => {
+      cachedVideoDataUrl = next;
+    },
+  });
+
+  const flushVideoSession = () => {
+    videoSourceController.flushVideoSession();
+  };
+
+  const setVideoFile = (
     file: File,
     restoredState?: Partial<VideoEditorState>,
-  ) {
-    if (videoUrl) {
-      URL.revokeObjectURL(videoUrl);
-      videoUrl = null;
-    }
+  ) => {
+    videoSourceController.setVideoFile(file, restoredState);
+  };
 
-    videoFile = file;
-
-    audioTracks = [];
-    captionTracks = [
-      {
-        id: Date.now() + Math.floor(Math.random() * 1000),
-        label: 'Primary Captions',
-        color: '#a78bfa',
-        enabled: true,
-        segments: [],
-      },
-    ];
-    activeCaptionTrackId = captionTracks[0].id;
-    captionSegments = [];
-    captionText = '';
-
-    videoUrl = URL.createObjectURL(file);
-
-    cachedVideoFile = null;
-    cachedVideoDataUrl = null;
-
-    viewportZoom.zoomLevel = 1;
-    viewportZoom.panX = 0;
-    viewportZoom.panY = 0;
-
-    videoContainer.replaceChildren(
-      maskOverlay,
-      videoElement,
-      captionOverlay,
-    );
-
-    videoElement.onloadedmetadata = () => {
-      duration = Number.isFinite(videoElement.duration)
-        ? videoElement.duration
-        : 0;
-
-      if (restoredState) {
-        restoreState(restoredState);
-      } else {
-        trimStart = 0;
-        trimEnd = duration;
-
-        clipSegments = duration
-          ? [
-              {
-                id: 1,
-                start: 0,
-                end: duration,
-                label: file.name || 'Main Clip',
-              },
-            ]
-          : [];
-
-        videoElement.currentTime = 0;
-
-        updateTrimMarkers();
-        applyVideoFilters();
-        updateCaptions();
-      }
-
-      timeDisplay.textContent =
-        `${formatTime(0)} / ${formatTime(duration)}`;
-
-      syncPlaybackUI();
-
-      generateThumbnailStrip();
-
-      renderToolControls();
-
-      if (projectHistory.history.length === 0) {
-        pushState();
-      }
-    };
-
-    videoElement.onplay = syncPlaybackUI;
-    videoElement.onpause = syncPlaybackUI;
-    videoElement.onended = syncPlaybackUI;
-
-    videoElement.ontimeupdate = () => {
-      if (!duration) return;
-
-      currentTime = videoElement.currentTime;
-
-      timeDisplay.textContent =
-        `${formatTime(currentTime)} / ${formatTime(duration)}`;
-
-      const percent =
-        duration > 0
-          ? (currentTime / duration) * 100
-          : 0;
-
-      seekSlider.value = String(percent);
-
-      playheadLine.style.left = `${percent}%`;
-
-      updateCaptions();
-
-      if (!isRendering) {
-        updatePlaybackRateFromCurve();
-
-        if (
-          trimEnd > 0 &&
-          currentTime >= trimEnd
-        ) {
-          videoElement.pause();
-          videoElement.currentTime = trimEnd;
-          syncPlaybackUI();
-        }
-      }
-    };
-
-    videoElement.src = videoUrl;
-
-    videoElement.load();
-  }
-
-  function handleVideoUpload(event: Event) {
-    const target = event.target as HTMLInputElement;
-
-    const file = target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith('video/')) {
-      alert('Please select a valid video file.');
-      target.value = '';
-      return;
-    }
-
-    flushVideoSession();
-    setVideoFile(file);
-
-    target.value = '';
-  }
+  const handleVideoUpload = (event: Event) => {
+    videoSourceController.handleVideoUpload(event);
+  };
 
   // ============================================================
   // 14. VIDEO THUMBNAIL GENERATION
   // ============================================================
-
-  async function generateThumbnailStrip() {
-    thumbnailStrip.replaceChildren();
-
-    if (!videoUrl || !duration) return;
-
-    const frameCount = 10;
-
-    const previewVideo = document.createElement('video');
-
-    previewVideo.src = videoUrl;
-    previewVideo.muted = true;
-    previewVideo.playsInline = true;
-    previewVideo.preload = 'auto';
-
-    const canvases: HTMLCanvasElement[] = [];
-
-    for (let index = 0; index < frameCount; index += 1) {
-      const canvas = document.createElement('canvas');
-
-      canvas.width = 160;
-      canvas.height = 90;
-
-      canvas.className =
-        've-h-full ve-w-full border-r ve-border-slate-700/50 ve-bg-slate-900/80 ve-object-cover';
-
-      thumbnailStrip.append(canvas);
-
-      canvases.push(canvas);
-    }
-
-    const waitForEvent = (
-      target: EventTarget,
-      eventName: string,
-    ): Promise<void> =>
-      new Promise((resolve) => {
-        target.addEventListener(
-          eventName,
-          () => resolve(),
-          { once: true },
-        );
-      });
-
-    try {
-      if (previewVideo.readyState < 1) {
-        await waitForEvent(previewVideo, 'loadedmetadata');
-      }
-
-      for (let index = 0; index < frameCount; index += 1) {
-        const canvas = canvases[index];
-
-        const seekTime =
-          (index / Math.max(1, frameCount - 1)) *
-          Math.max(0, duration - 0.1);
-
-        if (Math.abs(previewVideo.currentTime - seekTime) > 0.01) {
-          const seeked = waitForEvent(previewVideo, 'seeked');
-
-          previewVideo.currentTime = seekTime;
-
-          await seeked;
-        }
-
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx) continue;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.drawImage(
-          previewVideo,
-          0,
-          0,
-          canvas.width,
-          canvas.height,
-        );
-      }
-    } catch (error) {
-      console.warn('Thumbnail generation failed:', error);
-    } finally {
-      previewVideo.pause();
-      previewVideo.removeAttribute('src');
-      previewVideo.load();
-    }
-  }
 
   // ============================================================
   // 15. CLIP OPERATIONS
@@ -1615,574 +1074,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   let renderProgressLabel: HTMLElement | null = null;
   let renderProgressFill: HTMLElement | null = null;
 
-  // ============================================================
-  // 20. SERVER AND BROWSER EXPORT
-  // ============================================================
-
-  async function pollServerVideoExport(jobId: string, fileName: string): Promise<void> {
-    while (isRendering) {
-      try {
-        const status = await getVideoExportStatus(jobId);
-
-        if (status.status === 'completed') {
-          isRendering = false;
-          renderToolControls();
-          updateRenderProgressUI(100);
-
-          if (status.output) {
-            await downloadVideoFromServer(
-              status.output,
-              status.fileName || fileName || 'dolomite-rendered.mp4',
-            );
-          }
-
-          alert(
-            status.message ||
-              'The server render finished successfully.',
-          );
-          return;
-        }
-
-        if (status.status === 'failed' || status.error) {
-          isRendering = false;
-          renderToolControls();
-          updateRenderProgressUI(0);
-          alert(status.error || status.message || 'Server render failed.');
-          return;
-        }
-
-        const nextProgress = typeof status.progress === 'number'
-          ? clampValue(status.progress, 0, 100)
-          : status.status === 'processing'
-            ? 35
-            : 10;
-
-        updateRenderProgressUI(nextProgress);
-      } catch (error) {
-        console.warn('Server export status poll failed:', error);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-    }
-  }
-
-  async function fallbackToServerExport(): Promise<boolean> {
-    if (!videoFile) {
-      return false;
-    }
-
-    try {
-      const dataUrl = await fileToDataUrl(videoFile);
-
-      const result = await exportVideoWithFFmpeg({
-        operation: 'video-export',
-        mediaType: 'video',
-        fileName:
-          videoFile.name ||
-          `rendered-video-${Date.now()}.${exportFormat}`,
-        mode: 'server',
-        dataUrl,
-        metadata: {
-          resolution: exportResolution,
-          fps: exportFps,
-          format: exportFormat,
-          bitrate: exportBitrate,
-          async: true,
-
-          trimStart,
-          trimEnd,
-
-          aspectRatio,
-          rotation,
-          flipH,
-          flipV,
-
-          playbackRate,
-          volume,
-
-          captionSegments,
-          captionText,
-          audioTracks: audioTracks.map((track) => ({
-            ...track,
-            dataUrl: track.dataUrl,
-          })),
-          captionTracks: captionTracks.map((track) => ({
-            ...track,
-            segments: cloneCaptionSegments(track.segments),
-          })),
-          activeCaptionTrackId,
-
-          filters: { ...filters },
-
-          transitionType: activeTransition,
-          blendMode: activeBlendMode,
-        },
-      });
-
-      console.warn(
-        'Browser export produced an empty file; server FFmpeg fallback was used.',
-        result,
-      );
-
-      if (result.jobId) {
-        await pollServerVideoExport(
-          result.jobId,
-          result.fileName || videoFile.name || 'dolomite-rendered.mp4',
-        );
-        return true;
-      }
-
-      if (result.output) {
-        await downloadVideoFromServer(
-          result.output,
-          result.fileName || 'dolomite-rendered.mp4',
-        );
-      }
-
-      alert(
-        result.message ||
-          'The browser export was empty, so the FFmpeg server fallback produced the final video.',
-      );
-
-      return true;
-    } catch (error) {
-      console.error('Server fallback export failed:', error);
-      return false;
-    }
-  }
-
-  async function startVideoExport() {
-    if (!videoFile || !videoUrl) {
-      alert('Please import a video before rendering.');
-      return;
-    }
-
-    if (isRendering) {
-      alert('A video render is already in progress.');
-      return;
-    }
-
-    if (!duration || trimEnd <= trimStart) {
-      alert('Please choose a valid video trim range.');
-      return;
-    }
-
-    // ----------------------------------------------------------
-    // Server rendering
-    // ----------------------------------------------------------
-
-    if (
-      (appStore.getState().mediaProcessingMode ?? 'browser') ===
-      'server'
-    ) {
-      try {
-        const dataUrl = await fileToDataUrl(videoFile);
-
-        isRendering = true;
-        renderToolControls();
-        updateRenderProgressUI(5);
-
-        const result = await exportVideoWithFFmpeg({
-          operation: 'video-export',
-          mediaType: 'video',
-
-          fileName:
-            videoFile.name ||
-            `rendered-video-${Date.now()}.${exportFormat}`,
-
-          mode: 'server',
-          dataUrl,
-
-          metadata: {
-            resolution: exportResolution,
-            fps: exportFps,
-            format: exportFormat,
-            bitrate: exportBitrate,
-            async: true,
-
-            trimStart,
-            trimEnd,
-
-            aspectRatio,
-            rotation,
-            flipH,
-            flipV,
-
-            playbackRate,
-            volume,
-
-            captionSegments,
-            captionText,
-            audioTracks: audioTracks.map((track) => ({
-              ...track,
-              dataUrl: track.dataUrl,
-            })),
-            captionTracks: captionTracks.map((track) => ({
-              ...track,
-              segments: cloneCaptionSegments(track.segments),
-            })),
-            activeCaptionTrackId,
-
-            filters: { ...filters },
-
-            transitionType: activeTransition,
-            blendMode: activeBlendMode,
-          },
-        });
-
-        console.info(
-          'Video export request sent to server:',
-          result,
-        );
-
-        if (result.jobId) {
-          await pollServerVideoExport(
-            result.jobId,
-            result.fileName || videoFile.name || 'dolomite-rendered.mp4',
-          );
-          return;
-        }
-
-        if (result.output) {
-          try {
-            await downloadVideoFromServer(
-              result.output,
-              result.fileName || 'dolomite-rendered.mp4',
-            );
-          } catch (downloadError) {
-            console.error('Video download failed:', downloadError);
-          }
-        }
-
-        alert(
-          result.message ||
-            'Video processing request was sent to the server.',
-        );
-      } catch (error) {
-        console.error('Server video export failed:', error);
-
-        isRendering = false;
-        renderToolControls();
-
-        alert(
-          'Server render failed. Check the server connection or use browser rendering.',
-        );
-      }
-
-      return;
-    }
-
-    // ----------------------------------------------------------
-    // Browser rendering
-    // ----------------------------------------------------------
-
-    if (typeof MediaRecorder === 'undefined') {
-      alert(
-        'Your browser does not support MediaRecorder. Try a supported modern browser or server rendering.',
-      );
-      return;
-    }
-
-    if (
-      typeof HTMLCanvasElement.prototype.captureStream !== 'function'
-    ) {
-      alert(
-        'Your browser does not support canvas video capture.',
-      );
-      return;
-    }
-
-    const mimeType = getSupportedRecorderMimeType(exportFormat);
-    const targetRecordingFrameRate = Math.min(exportFps, 30);
-
-    if (!mimeType) {
-      if (exportFormat === 'mp4') {
-        alert(
-          'Your browser does not support MP4 recording. Select WebM or switch to server rendering for genuine MP4/H.264 output.',
-        );
-      } else {
-        alert(
-          'Your browser does not support a compatible WebM recording format.',
-        );
-      }
-
-      return;
-    }
-
-    const { width, height } = getExportDimensions(
-      exportResolution,
-      aspectRatio,
-    );
-
-    const canvas = document.createElement('canvas');
-
-    canvas.width = width;
-    canvas.height = height;
-
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      alert('Could not initialize the export canvas.');
-      return;
-    }
-
-    exportCancelled = false;
-    isRendering = true;
-    renderProgress = 0;
-    renderChunks = [];
-
-    renderToolControls();
-
-    updateRenderProgressUI(0);
-
-    videoElement.pause();
-    videoElement.muted = true;
-    videoElement.playsInline = true;
-    videoElement.defaultPlaybackRate = 1;
-    videoElement.playbackRate = 1;
-    syncPlaybackUI();
-
-    const canvasStream = canvas.captureStream(exportFps);
-
-    // Capture source audio separately and combine it with
-    // the processed canvas video track.
-    const captureVideo = videoElement as HTMLVideoElement & {
-      captureStream?: () => MediaStream;
-      mozCaptureStream?: () => MediaStream;
-    };
-
-    let sourceStream: MediaStream | null = null;
-
-    try {
-      if (captureVideo.captureStream) {
-        sourceStream = captureVideo.captureStream();
-      } else if (captureVideo.mozCaptureStream) {
-        sourceStream = captureVideo.mozCaptureStream();
-      }
-    } catch (error) {
-      console.warn('Audio capture is unavailable:', error);
-    }
-
-    if (sourceStream) {
-      for (const track of sourceStream.getAudioTracks()) {
-        canvasStream.addTrack(track);
-      }
-    }
-
-    let recorder: MediaRecorder;
-
-    try {
-      recorder = new MediaRecorder(canvasStream, {
-        mimeType,
-        videoBitsPerSecond: exportBitrate,
-      });
-    } catch (error) {
-      isRendering = false;
-
-      canvasStream.getTracks().forEach((track) => track.stop());
-
-      console.error('Could not initialize MediaRecorder:', error);
-
-      alert('Could not initialize the browser video encoder.');
-
-      renderToolControls();
-
-      return;
-    }
-
-    mediaRecorder = recorder;
-
-    recorder.ondataavailable = (event: BlobEvent) => {
-      if (event.data && event.data.size > 0) {
-        renderChunks.push(event.data);
-      }
-    };
-
-    recorder.onerror = (event) => {
-      console.error('MediaRecorder error:', event);
-
-      exportCancelled = true;
-      isRendering = false;
-
-      if (recorder.state !== 'inactive') {
-        recorder.stop();
-      }
-    };
-
-    recorder.onstop = async () => {
-      const wasCancelled = exportCancelled;
-
-      isRendering = false;
-
-      if (renderAnimationFrame) {
-        cancelAnimationFrame(renderAnimationFrame);
-        renderAnimationFrame = 0;
-      }
-
-      canvasStream.getTracks().forEach((track) => track.stop());
-
-      sourceStream?.getTracks().forEach((track) => track.stop());
-
-      if (wasCancelled) {
-        renderChunks = [];
-
-        renderProgress = 0;
-
-        exportCancelled = false;
-
-        renderToolControls();
-
-        return;
-      }
-
-      updateRenderProgressUI(100);
-
-      const actualMimeType =
-        recorder.mimeType || mimeType;
-
-      const extension = actualMimeType.includes('mp4')
-        ? 'mp4'
-        : 'webm';
-
-      const blob = new Blob(renderChunks, {
-        type: actualMimeType,
-      });
-
-      renderChunks = [];
-
-      if (!blob.size) {
-        const fallbackSucceeded = await fallbackToServerExport();
-
-        if (fallbackSucceeded) {
-          renderChunks = [];
-          renderProgress = 0;
-          renderToolControls();
-          return;
-        }
-
-        alert(
-          'The render produced an empty video file and the FFmpeg fallback could not complete.',
-        );
-        renderToolControls();
-        return;
-      }
-
-      const downloadUrl = URL.createObjectURL(blob);
-
-      const anchor = document.createElement('a');
-
-      anchor.href = downloadUrl;
-
-      anchor.download =
-        `rendered-video-${Date.now()}.${extension}`;
-
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-
-      setTimeout(() => {
-        URL.revokeObjectURL(downloadUrl);
-      }, 60_000);
-
-      renderToolControls();
-    };
-
-    try {
-      // Seek before recording so the export does not start
-      // with an unintended frame from the previous playhead.
-      await seekVideoTo(trimStart);
-
-      if (exportCancelled) {
-        return;
-      }
-
-      // Render one initial frame before recording begins.
-      drawExportFrame(
-        ctx,
-        canvas,
-        videoElement,
-        rotation,
-        flipH,
-        flipV,
-        masks,
-        getActiveCaption,
-      );
-
-      recorder.start(Math.max(50, 1000 / targetRecordingFrameRate));
-
-      await videoElement.play();
-
-      syncPlaybackUI();
-    } catch (error) {
-      console.error('Could not start video rendering:', error);
-
-      exportCancelled = true;
-
-      if (recorder.state !== 'inactive') {
-        recorder.stop();
-      } else {
-        isRendering = false;
-
-        canvasStream.getTracks().forEach((track) => track.stop());
-
-        renderToolControls();
-      }
-
-      alert('Could not start video playback for rendering.');
-
-      return;
-    }
-
-    const renderLoop = () => {
-      if (!isRendering || exportCancelled) return;
-
-      if (videoElement.readyState >= 2) {
-        drawExportFrame(
-          ctx,
-          canvas,
-          videoElement,
-          rotation,
-          flipH,
-          flipV,
-          masks,
-          getActiveCaption,
-        );
-      }
-
-      const totalRange = Math.max(
-        0.01,
-        trimEnd - trimStart,
-      );
-
-      const progress =
-        ((videoElement.currentTime - trimStart) / totalRange) *
-        100;
-
-      updateRenderProgressUI(progress);
-
-      if (
-        videoElement.currentTime >= trimEnd ||
-        videoElement.ended
-      ) {
-        videoElement.pause();
-
-        if (recorder.state !== 'inactive') {
-          recorder.stop();
-        }
-
-        syncPlaybackUI();
-
-        return;
-      }
-
-      renderAnimationFrame =
-        requestAnimationFrame(renderLoop);
-    };
-
-    renderAnimationFrame =
-      requestAnimationFrame(renderLoop);
-  }
-
   function seekVideoTo(seconds: number): Promise<void> {
     return seekVideoToController({
       videoElement,
@@ -2191,30 +1082,74 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     });
   }
 
+  const videoExportController = createVideoExportController({
+    videoElement,
+    getVideoFile: () => videoFile,
+    getVideoUrl: () => videoUrl,
+    getDuration: () => duration,
+    getTrimStart: () => trimStart,
+    getTrimEnd: () => trimEnd,
+    getExportResolution: () => exportResolution,
+    getExportFps: () => exportFps,
+    getExportFormat: () => exportFormat,
+    getExportBitrate: () => exportBitrate,
+    getAspectRatio: () => aspectRatio,
+    getRotation: () => rotation,
+    getFlipH: () => flipH,
+    getFlipV: () => flipV,
+    getPlaybackRate: () => playbackRate,
+    getVolume: () => volume,
+    getCaptionSegments: () => captionSegments,
+    getCaptionText: () => captionText,
+    getAudioTracks: () => audioTracks,
+    getCaptionTracks: () => captionTracks,
+    getActiveCaptionTrackId: () => activeCaptionTrackId,
+    getMasks: () => masks,
+    getFilters: () => filters,
+    getActiveTransition: () => activeTransition,
+    getActiveBlendMode: () => activeBlendMode,
+    getCurrentCaption: () => getActiveCaption(),
+    getIsRendering: () => isRendering,
+    setIsRendering: (next) => {
+      isRendering = next;
+    },
+    getRenderProgress: () => renderProgress,
+    setRenderProgress: (next) => {
+      renderProgress = next;
+    },
+    setRenderChunks: (next) => {
+      renderChunks = next;
+    },
+    getRenderChunks: () => renderChunks,
+    setExportCancelled: (next) => {
+      exportCancelled = next;
+    },
+    getExportCancelled: () => exportCancelled,
+    setMediaRecorder: (next) => {
+      mediaRecorder = next;
+    },
+    getMediaRecorder: () => mediaRecorder,
+    setRenderAnimationFrame: (next) => {
+      renderAnimationFrame = next;
+    },
+    getRenderAnimationFrame: () => renderAnimationFrame,
+    updateRenderProgressUI,
+    renderToolControls,
+    seekVideoTo,
+    syncPlaybackUI,
+    updatePlaybackRateFromCurve,
+  });
+
+  // ============================================================
+  // 20. SERVER AND BROWSER EXPORT
+  // ============================================================
+
+  async function startVideoExport() {
+    await videoExportController.startVideoExport();
+  }
+
   function cancelVideoExport() {
-    cancelVideoExportController({
-      videoElement,
-      getIsRendering: () => isRendering,
-      setExportCancelled: (next) => {
-        exportCancelled = next;
-      },
-      setIsRendering: (next) => {
-        isRendering = next;
-      },
-      getRenderAnimationFrame: () => renderAnimationFrame,
-      setRenderAnimationFrame: (next) => {
-        renderAnimationFrame = next;
-      },
-      getMediaRecorder: () => mediaRecorder,
-      setRenderChunks: (next) => {
-        renderChunks = next;
-      },
-      setRenderProgress: (next) => {
-        renderProgress = next;
-      },
-      renderToolControls,
-      syncPlaybackUI,
-    });
+    videoExportController.cancelVideoExport();
   }
 
   // ============================================================
@@ -2330,93 +1265,14 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 22. MAIN EDITOR UI
   // ============================================================
 
-  const fileInput = input({
-    type: 'file',
-    accept: 'video/*',
-    className: 've-sr-only',
-    onchange: handleVideoUpload,
-  });
-
-  const uploadIcon = svgElement(
-    'svg',
-    {
-      class: 've-w-8 ve-h-8',
-      fill: 'none',
-      stroke: 'currentColor',
-      viewBox: '0 0 24 24',
+  const fileInput = createVideoUploadDropzone({
+    videoContainer,
+    onFileSelected: handleVideoUpload,
+    onVideoDropped: (file) => {
+      projectHistory.resetHistory();
+      videoSourceController.setVideoFile(file);
     },
-    svgElement(
-      'path',
-      {
-        strokeLinecap: 'round',
-        strokeLinejoin: 'round',
-        strokeWidth: '1.5',
-        d: 'M15 10l4.553-2.276A1 ve-1 0 0121 8.618v6.764a1 ve-1 0 01-1.447.894L15 14M5 18h8a2 ve-2 0 002-2V8a2 ve-2 0 00-2-2H5a2 ve-2 0 00-2 2v8a2 ve-2 0 002 2z',
-      },
-    ),
-  );
-
-  const emptyState = div(
-    {
-      className:
-        've-flex ve-flex-col ve-items-center ve-justify-center ve-text-center ve-p-12 ve-border-2 ve-border-dashed ve-border-slate-700 ve-rounded-2xl ve-bg-slate-900/40 ve-hover:bg-slate-900/70 ve-transition-all ve-cursor-pointer ve-w-full ve-max-w-md',
-    },
-
-    div(
-      {
-        className:
-          've-mb-3 ve-rounded-2xl ve-bg-slate-800/80 ve-p-4 ve-text-violet-400 ve-border ve-border-slate-700/50',
-      },
-      uploadIcon,
-    ),
-
-    p(
-      {
-        className: 've-text-sm ve-font-semibold ve-text-slate-200',
-      },
-      'Drop video clip here or click to import',
-    ),
-
-    p(
-      {
-        className: 've-mt-1 ve-text-xs ve-text-slate-400',
-      },
-      'Supports MP4, WebM, MOV and browser-compatible video formats',
-    ),
-  );
-
-  emptyState.onclick = () => fileInput.click();
-
-  videoContainer.append(emptyState);
-
-  videoContainer.ondragover = (event: DragEvent) => {
-    event.preventDefault();
-
-    videoContainer.classList.add('ve-border-violet-500');
-  };
-
-  videoContainer.ondragleave = () => {
-    videoContainer.classList.remove('ve-border-violet-500');
-  };
-
-  videoContainer.ondrop = (event: DragEvent) => {
-    event.preventDefault();
-
-    videoContainer.classList.remove('ve-border-violet-500');
-
-    const file = event.dataTransfer?.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith('video/')) {
-      alert('Please drop a valid video file.');
-      return;
-    }
-
-    projectHistory.resetHistory();
-
-    setVideoFile(file);
-  };
+  }).fileInput;
 
   const toolContainer = div({
     className: 've-space-y-4',
@@ -2431,32 +1287,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     { id: 'export', label: 'EXPORT' },
   ];
 
-  const sidePanelNav = createEditorTabNav(
+  const sidePanelNav = createVideoEditorTabBar({
     tabs,
     activeTab,
-    (tabId) => switchTab(tabId),
-    {
-      activeClassName:
-        'border-slate-100/20 ve-bg-slate-900/60 ve-text-slate-50 ve-shadow-inner',
+    onTabChange: (tabId) => switchTab(tabId),
+  });
 
-      inactiveClassName:
-        've-border-transparent ve-bg-transparent ve-text-slate-300 ve-hover:text-white ve-hover:bg-white/5',
-
-      containerClassName:
-        've-editor-tablist ve-flex ve-w-full ve-gap-1.5 ve-overflow-x-auto ve-border-b ve-border-slate-700/70 bg-slate-900/25 ve-px-2 ve-pb-2 ve-pt-1 ve-sm:gap-2 ve-sm:px-4',
-    },
-  );
-
-  const timelineContainer = div(
-    {
-      className:
-        've-h-48 ve-shrink-0 ve-flex ve-flex-col ve-border-t ve-border-slate-700/50 ve-bg-slate-900/80 ve-overflow-hidden ve-rounded-xl',
-    },
-
+  const timelineContainer = createTimelineTrackShell({
     timelineRuler,
-
     timelineTrackArea,
-  );
+  });
 
   const { root } = createVideoEditorLayout({
     fileInput,
@@ -2912,32 +1752,3 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   return root;
 }
 
-export interface ExportStatusResponse {
-  ok: boolean;
-  jobId: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
-  message: string;
-  fileName: string;
-  progress: number;
-  output?: string;
-  error?: string;
-}
-
-/**
- * Fetches the current progress and status of a server-side video export job.
- */
-async function getVideoExportStatus(jobId: string): Promise<ExportStatusResponse> {
-  const response = await fetch(`/api/video/status?jobId=${encodeURIComponent(jobId)}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-    throw new Error(errorData.error || `Server returned status ${response.status}`);
-  }
-
-  return response.json();
-}
