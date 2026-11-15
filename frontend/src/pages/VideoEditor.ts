@@ -10,7 +10,7 @@ import {
 } from '../components/ui/dom';
 
 import { appStore } from '../appState';
-import { processMediaOnServer } from '../api';
+import { downloadVideoFromServer, exportVideoWithFFmpeg } from '../api';
 
 import {
   bindEditorFullscreenButton,
@@ -60,6 +60,25 @@ interface TimedCaption {
   end: number;
   text: string;
   style: CaptionStyle;
+}
+
+interface AudioTrack {
+  id: number;
+  label: string;
+  fileName: string;
+  dataUrl: string | null;
+  volume: number;
+  trimStart: number;
+  trimEnd: number;
+  enabled: boolean;
+}
+
+interface CaptionTrack {
+  id: number;
+  label: string;
+  color: string;
+  enabled: boolean;
+  segments: TimedCaption[];
 }
 
 interface TimelineClipSegment {
@@ -125,6 +144,9 @@ interface VideoEditorState {
 
   captionText: string;
   captionSegments: TimedCaption[];
+  audioTracks: AudioTrack[];
+  captionTracks: CaptionTrack[];
+  activeCaptionTrackId: number | null;
 
   transitionType: ClipTransition;
   clipSegments: TimelineClipSegment[];
@@ -226,6 +248,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   let captionText = '';
   let captionSegments: TimedCaption[] = [];
+  let audioTracks: AudioTrack[] = [];
+  let captionTracks: CaptionTrack[] = [];
+  let activeCaptionTrackId: number | null = null;
 
   let captionSize = DEFAULT_CAPTION_STYLE.size;
   let captionWeight = DEFAULT_CAPTION_STYLE.weight;
@@ -665,6 +690,99 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }));
   }
 
+  function ensureCaptionTrack(): CaptionTrack {
+    if (!captionTracks.length) {
+      const defaultTrack: CaptionTrack = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        label: 'Primary Captions',
+        color: '#a78bfa',
+        enabled: true,
+        segments: cloneCaptionSegments(captionSegments),
+      };
+
+      captionTracks = [defaultTrack];
+    }
+
+    const activeTrack =
+      captionTracks.find((track) => track.id === activeCaptionTrackId) ??
+      captionTracks[0];
+
+    if (!activeTrack) {
+      const fallbackTrack: CaptionTrack = {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        label: 'Primary Captions',
+        color: '#a78bfa',
+        enabled: true,
+        segments: cloneCaptionSegments(captionSegments),
+      };
+
+      captionTracks = [fallbackTrack];
+      activeCaptionTrackId = fallbackTrack.id;
+      return fallbackTrack;
+    }
+
+    activeCaptionTrackId = activeTrack.id;
+    return activeTrack;
+  }
+
+  function syncCurrentCaptionTrack() {
+    const currentTrack = ensureCaptionTrack();
+    currentTrack.segments = cloneCaptionSegments(captionSegments);
+    currentTrack.label = currentTrack.label || 'Captions';
+  }
+
+  function renderTimelineRows() {
+    const rows: HTMLElement[] = [videoTrackSegment];
+
+    for (const track of audioTracks) {
+      rows.push(
+        div(
+          {
+            className:
+              'relative h-8 rounded-lg border border-sky-700/50 bg-sky-950/40 flex items-center justify-between px-3 text-[11px] text-sky-200 font-medium overflow-hidden shadow-inner select-none',
+          },
+          div(
+            {
+              className: 'truncate max-w-[70%]',
+            },
+            `${track.label || 'Audio'} ${track.enabled ? '• Live' : '• Muted'}`,
+          ),
+          div(
+            {
+              className: 'text-[10px] text-sky-300/80',
+            },
+            `${(track.volume * 100).toFixed(0)}%`,
+          ),
+        ),
+      );
+    }
+
+    for (const track of captionTracks) {
+      rows.push(
+        div(
+          {
+            className:
+              'relative h-8 rounded-lg border border-violet-700/50 bg-violet-950/35 flex items-center justify-between px-3 text-[11px] text-violet-100 font-medium overflow-hidden shadow-inner select-none',
+          },
+          div(
+            {
+              className: 'truncate max-w-[70%]',
+            },
+            `${track.label || 'Captions'} ${track.enabled ? '• Visible' : '• Hidden'}`,
+          ),
+          div(
+            {
+              className: 'text-[10px] text-violet-200/80',
+            },
+            `${track.segments.length} cues`,
+          ),
+        ),
+      );
+    }
+
+    timelineTrackArea.replaceChildren(playheadLine, ...rows);
+  }
+
   function serializeEditorState(): VideoEditorState {
     return {
       trimStart,
@@ -682,6 +800,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
       captionText,
       captionSegments: cloneCaptionSegments(captionSegments),
+      audioTracks: audioTracks.map((track) => ({
+        ...track,
+        dataUrl: track.dataUrl,
+      })),
+      captionTracks: captionTracks.map((track) => ({
+        ...track,
+        segments: cloneCaptionSegments(track.segments),
+      })),
+      activeCaptionTrackId,
 
       transitionType: activeTransition,
       clipSegments: clipSegments.map((segment) => ({ ...segment })),
@@ -798,6 +925,82 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     captionSegments = Array.isArray(state.captionSegments)
       ? cloneCaptionSegments(state.captionSegments)
       : [];
+
+    audioTracks = Array.isArray(state.audioTracks)
+      ? state.audioTracks.map((track) => ({
+          id: Number.isFinite(track.id)
+            ? Number(track.id)
+            : Date.now() + Math.random(),
+          label: typeof track.label === 'string'
+            ? track.label
+            : `Audio Track ${audioTracks.length + 1}`,
+          fileName: typeof track.fileName === 'string'
+            ? track.fileName
+            : 'audio-track.mp3',
+          dataUrl: typeof track.dataUrl === 'string' ? track.dataUrl : null,
+          volume: Number.isFinite(track.volume)
+            ? clampValue(Number(track.volume), 0, 2)
+            : 1,
+          trimStart: Number.isFinite(track.trimStart)
+            ? Number(track.trimStart)
+            : 0,
+          trimEnd: Number.isFinite(track.trimEnd)
+            ? Number(track.trimEnd)
+            : duration || 0,
+          enabled:
+            typeof track.enabled === 'boolean'
+              ? track.enabled
+              : true,
+        }))
+      : [];
+
+    captionTracks = Array.isArray(state.captionTracks)
+      ? state.captionTracks.map((track) => ({
+          id: Number.isFinite(track.id)
+            ? Number(track.id)
+            : Date.now() + Math.random(),
+          label: typeof track.label === 'string'
+            ? track.label
+            : 'Captions',
+          color: typeof track.color === 'string'
+            ? track.color
+            : '#a78bfa',
+          enabled:
+            typeof track.enabled === 'boolean'
+              ? track.enabled
+              : true,
+          segments: Array.isArray(track.segments)
+            ? cloneCaptionSegments(track.segments)
+            : [],
+        }))
+      : [];
+
+    if (!captionTracks.length) {
+      captionTracks = [
+        {
+          id: 1,
+          label: 'Primary Captions',
+          color: '#a78bfa',
+          enabled: true,
+          segments: cloneCaptionSegments(captionSegments),
+        },
+      ];
+    }
+
+    activeCaptionTrackId =
+      Number.isFinite(state.activeCaptionTrackId)
+        ? Number(state.activeCaptionTrackId)
+        : captionTracks[0]?.id ?? null;
+
+    const activeTrack =
+      captionTracks.find((track) => track.id === activeCaptionTrackId) ??
+      captionTracks[0] ??
+      null;
+
+    if (activeTrack) {
+      captionSegments = cloneCaptionSegments(activeTrack.segments);
+      captionText = captionSegments[0]?.text ?? captionText;
+    }
 
     activeTransition = state.transitionType ?? 'crossfade';
 
@@ -1403,7 +1606,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       return;
     }
 
-    captionSegments = segments;
+    const targetTrack = ensureCaptionTrack();
+
+    captionSegments = cloneCaptionSegments(segments);
+    targetTrack.segments = cloneCaptionSegments(segments);
 
     captionText = segments[0].text;
 
@@ -1416,6 +1622,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     captionY = segments[0].style.y;
 
     updateCaptions();
+    renderTimelineRows();
 
     pushState();
     renderToolControls();
@@ -1466,7 +1673,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }
 
   function getActiveCaption(): TimedCaption | null {
-    const activeCaption = captionSegments.find(
+    const activeTrack = ensureCaptionTrack();
+    const activeSegments = activeTrack.segments.length
+      ? activeTrack.segments
+      : captionSegments;
+
+    const activeCaption = activeSegments.find(
       (segment) =>
         currentTime >= segment.start &&
         currentTime <= segment.end,
@@ -1848,6 +2060,20 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     }
 
     videoFile = file;
+
+    audioTracks = [];
+    captionTracks = [
+      {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        label: 'Primary Captions',
+        color: '#a78bfa',
+        enabled: true,
+        segments: [],
+      },
+    ];
+    activeCaptionTrackId = captionTracks[0].id;
+    captionSegments = [];
+    captionText = '';
 
     videoUrl = URL.createObjectURL(file);
 
@@ -2770,7 +2996,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       try {
         const dataUrl = await fileToDataUrl(videoFile);
 
-        const result = await processMediaOnServer({
+        const result = await exportVideoWithFFmpeg({
           operation: 'video-export',
           mediaType: 'video',
 
@@ -2800,6 +3026,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
             captionSegments,
             captionText,
+            audioTracks: audioTracks.map((track) => ({
+              ...track,
+              dataUrl: track.dataUrl,
+            })),
+            captionTracks: captionTracks.map((track) => ({
+              ...track,
+              segments: cloneCaptionSegments(track.segments),
+            })),
+            activeCaptionTrackId,
 
             filters: { ...filters },
 
@@ -2812,6 +3047,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           'Video export request sent to server:',
           result,
         );
+
+        if (result.output) {
+          try {
+            await downloadVideoFromServer(
+              result.output,
+              result.fileName || 'dolomite-rendered.mp4',
+            );
+          } catch (downloadError) {
+            console.error('Video download failed:', downloadError);
+          }
+        }
 
         alert(
           result.message ||
@@ -3186,6 +3432,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     captionText = '';
     captionSegments = [];
+    audioTracks = [];
+    captionTracks = [
+      {
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        label: 'Primary Captions',
+        color: '#a78bfa',
+        enabled: true,
+        segments: [],
+      },
+    ];
+    activeCaptionTrackId = captionTracks[0].id;
 
     captionSize = DEFAULT_CAPTION_STYLE.size;
     captionWeight = DEFAULT_CAPTION_STYLE.weight;
@@ -3949,6 +4206,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   function renderToolControls() {
     toolContainer.replaceChildren();
+    renderTimelineRows();
 
     renderProgressLabel = null;
     renderProgressFill = null;
@@ -4741,6 +4999,83 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'audio') {
+      const addAudioTrack = () => {
+        const input = document.createElement('input');
+
+        input.type = 'file';
+        input.accept = 'audio/*,video/*';
+
+        input.onchange = async () => {
+          const file = input.files?.[0];
+
+          if (!file) return;
+
+          const dataUrl = await fileToDataUrl(file);
+
+          audioTracks.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            label: file.name.replace(/\.[^.]+$/, ''),
+            fileName: file.name,
+            dataUrl,
+            volume: 1,
+            trimStart: 0,
+            trimEnd: duration || 0,
+            enabled: true,
+          });
+
+          pushState();
+          renderToolControls();
+        };
+
+        input.click();
+      };
+
+      const trackList = div(
+        {
+          className: 'space-y-2 pt-3',
+        },
+        ...audioTracks.map((track) => {
+          return div(
+            {
+              className:
+                'rounded-xl border border-slate-700 bg-slate-950/80 p-2 space-y-2',
+            },
+            div(
+              {
+                className:
+                  'flex items-center justify-between gap-2 text-[11px] text-slate-200',
+              },
+              span({ className: 'truncate max-w-[60%]' }, track.label),
+              button(
+                {
+                  type: 'button',
+                  className:
+                    'rounded-lg border border-slate-600 px-2 py-1 text-[10px] uppercase tracking-wide text-slate-300 hover:text-white',
+                  onclick: () => {
+                    audioTracks = audioTracks.filter(
+                      (item) => item.id !== track.id,
+                    );
+                    pushState();
+                    renderToolControls();
+                  },
+                },
+                'Remove',
+              ),
+            ),
+            createSliderControl(
+              'Level (%)',
+              track.volume * 100,
+              0,
+              200,
+              (value) => {
+                track.volume = clampValue(value / 100, 0, 2);
+                pushState();
+              },
+            ),
+          );
+        }),
+      );
+
       toolContainer.append(
         p(
           {
@@ -4799,6 +5134,25 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             },
           ),
         ),
+
+        div(
+          {
+            className:
+              'mt-4 border-t border-slate-700/60 pt-3',
+          },
+          p(
+            {
+              className:
+                'text-xs font-bold text-slate-200 uppercase tracking-wider mb-2',
+            },
+            'Audio Layers',
+          ),
+          createPresetButton(
+            'Add Audio Track',
+            addAudioTrack,
+          ),
+          audioTracks.length ? trackList : null,
+        ),
       );
     }
 
@@ -4807,6 +5161,33 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     // ----------------------------------------------------------
 
     else if (activeTab === 'captions') {
+      const captionTrackOptions = captionTracks.map((track) => track.label);
+      const selectedCaptionTrack =
+        captionTracks.find((track) => track.id === activeCaptionTrackId) ??
+        captionTracks[0] ??
+        null;
+
+      if (!selectedCaptionTrack) {
+        captionTracks = [
+          {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            label: 'Primary Captions',
+            color: '#a78bfa',
+            enabled: true,
+            segments: cloneCaptionSegments(captionSegments),
+          },
+        ];
+      }
+
+      const activeTrack =
+        captionTracks.find((track) => track.id === activeCaptionTrackId) ??
+        captionTracks[0];
+
+      if (activeTrack) {
+        activeCaptionTrackId = activeTrack.id;
+        captionSegments = cloneCaptionSegments(activeTrack.segments);
+      }
+
       const textInput = input({
         type: 'text',
 
@@ -4825,7 +5206,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           updateCaptions();
         },
 
-        onchange: pushState,
+        onchange: () => {
+          syncCurrentCaptionTrack();
+          pushState();
+        },
       });
 
       const weightDropdown = createSelectDropdown(
@@ -4859,6 +5243,26 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
         },
       );
 
+      const trackDropdown = createSelectDropdown(
+        captionTrackOptions.length
+          ? captionTrackOptions
+          : ['Primary Captions'],
+        activeTrack?.label ?? 'Primary Captions',
+        (value) => {
+          const chosenTrack = captionTracks.find(
+            (track) => track.label === value,
+          );
+
+          if (!chosenTrack) return;
+
+          activeCaptionTrackId = chosenTrack.id;
+          captionSegments = cloneCaptionSegments(chosenTrack.segments);
+          captionText = chosenTrack.segments[0]?.text ?? captionText;
+          updateCaptions();
+          renderToolControls();
+        },
+      );
+
       toolContainer.append(
         p(
           {
@@ -4872,6 +5276,72 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           {
             className: 'space-y-4',
           },
+
+          div(
+            {
+              className: 'space-y-1',
+            },
+            label(
+              {
+                className:
+                  'block text-xs font-medium text-slate-400 mb-1',
+              },
+              'Active Caption Track',
+            ),
+            trackDropdown,
+          ),
+
+          div(
+            {
+              className: 'grid grid-cols-2 gap-2 pt-2',
+            },
+            createPresetButton(
+              'New Track',
+              () => {
+                const nextId = Date.now() + Math.floor(Math.random() * 1000);
+                const newTrack: CaptionTrack = {
+                  id: nextId,
+                  label: `Captions ${captionTracks.length + 1}`,
+                  color: '#c084fc',
+                  enabled: true,
+                  segments: [],
+                };
+
+                captionTracks.push(newTrack);
+                activeCaptionTrackId = nextId;
+                captionSegments = [];
+                captionText = '';
+                updateCaptions();
+                pushState();
+                renderToolControls();
+              },
+            ),
+            createPresetButton(
+              'Remove Track',
+              () => {
+                if (captionTracks.length <= 1) {
+                  captionSegments = [];
+                  captionText = '';
+                  captionTracks[0].segments = [];
+                  updateCaptions();
+                  pushState();
+                  renderToolControls();
+                  return;
+                }
+
+                captionTracks = captionTracks.filter(
+                  (track) => track.id !== activeCaptionTrackId,
+                );
+
+                activeCaptionTrackId = captionTracks[0].id;
+                captionSegments = cloneCaptionSegments(captionTracks[0].segments);
+                captionText = captionSegments[0]?.text ?? '';
+                updateCaptions();
+                pushState();
+                renderToolControls();
+              },
+            ),
+          ),
 
           div(
             {},
@@ -4988,11 +5458,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
                   return;
                 }
 
-                captionSegments.push({
+                const track = ensureCaptionTrack();
+                const cue: TimedCaption = {
                   id:
                     Math.max(
                       0,
-                      ...captionSegments.map(
+                      ...track.segments.map(
                         (segment) => segment.id,
                       ),
                     ) + 1,
@@ -5003,11 +5474,11 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
                   text: captionText || 'New caption',
 
                   style: getCurrentCaptionStyle(),
-                });
+                };
 
-                captionSegments.sort(
-                  (a, b) => a.start - b.start,
-                );
+                track.segments.push(cue);
+                track.segments.sort((a, b) => a.start - b.start);
+                captionSegments = cloneCaptionSegments(track.segments);
 
                 updateCaptions();
 
@@ -5019,6 +5490,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
             createPresetButton(
               'Clear Cues',
               () => {
+                const track = ensureCaptionTrack();
+                track.segments = [];
                 captionSegments = [];
                 captionText = '';
 

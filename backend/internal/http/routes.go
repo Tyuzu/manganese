@@ -17,6 +17,8 @@ func NewRouter(cfg config.Config) stdhttp.Handler {
 	router.POST("/api/v1/media/process", ProcessMedia)
 	router.POST("/api/v1/image/process", handlers.HandleImageProcess)
 	router.POST("/api/v1/video/process", handlers.HandleVideoProcess)
+	router.POST("/api/v1/video/export", handlers.HandleVideoExport)
+	router.GET("/api/v1/video/download", handlers.HandleVideoDownload)
 	router.POST("/api/v1/scan/process", handlers.HandleScanProcess)
 	router.POST("/api/v1/pdf/process", handlers.HandlePDFProcess)
 

@@ -140,11 +140,48 @@ export const api = {
     apiFetch<T>(endpoint, { ...options, method: 'DELETE' }),
 };
 
+export async function exportVideoWithFFmpeg(payload: MediaServerProcessRequest) {
+  return api.post<{ ok: boolean; mode: string; operation: string; message: string; fileName?: string; size?: number; output?: string }>(
+    '/video/export',
+    {
+      ...payload,
+      operation: payload.operation || 'video-export',
+      mediaType: 'video',
+      mode: payload.mode ?? 'server',
+      metadata: payload.metadata ?? {},
+    }
+  );
+}
+
+export async function downloadVideoFromServer(path: string, fileName?: string) {
+  const safeFileName = encodeURIComponent(fileName || 'rendered-video.mp4');
+  const safePath = encodeURIComponent(path);
+  const response = await fetch(`${API_BASE}/video/download?path=${safePath}&fileName=${safeFileName}`);
+
+  if (!response.ok) {
+    throw new Error('Video download failed');
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName || 'rendered-video.mp4';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return blob;
+}
+
 export async function processMediaOnServer(payload: MediaServerProcessRequest) {
   const mediaType = payload.mediaType ?? 'media';
   const endpoint =
     mediaType === 'video'
-      ? '/video/process'
+      ? payload.operation === 'video-export' || payload.operation === 'ffmpeg-export'
+        ? '/video/export'
+        : '/video/process'
       : mediaType === 'scan'
         ? '/scan/process'
         : mediaType === 'pdf'
