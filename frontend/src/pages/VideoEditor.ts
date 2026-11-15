@@ -20,203 +20,48 @@ import {
   createEditorTabNav,
   createMediaProcessingModeSelector,
 } from './shared';
-
-type VideoTab =
-  | 'timeline'
-  | 'filters'
-  | 'transform'
-  | 'audio'
-  | 'captions'
-  | 'export';
-
-type ClipTransition =
-  | 'none'
-  | 'crossfade'
-  | 'dip-to-black'
-  | 'wipe'
-  | 'slide';
-
-type BlendMode =
-  | 'normal'
-  | 'screen'
-  | 'multiply'
-  | 'overlay'
-  | 'soft-light';
-
-type MaskType = 'circle' | 'rect' | 'freehand';
-
-interface CaptionStyle {
-  size: number;
-  weight: string;
-  background: string;
-  shadow: boolean;
-  x: number;
-  y: number;
-}
-
-interface TimedCaption {
-  id: number;
-  start: number;
-  end: number;
-  text: string;
-  style: CaptionStyle;
-}
-
-interface AudioTrack {
-  id: number;
-  label: string;
-  fileName: string;
-  dataUrl: string | null;
-  volume: number;
-  trimStart: number;
-  trimEnd: number;
-  enabled: boolean;
-}
-
-interface CaptionTrack {
-  id: number;
-  label: string;
-  color: string;
-  enabled: boolean;
-  segments: TimedCaption[];
-}
-
-interface TimelineClipSegment {
-  id: number;
-  start: number;
-  end: number;
-  label: string;
-}
-
-interface MaskItem {
-  id: number;
-  type: MaskType;
-  points: Array<{ x: number; y: number }>;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  radius: number;
-  feather: number;
-  opacity: number;
-  blur: number;
-  color: string;
-}
-
-interface PlaybackCurve {
-  p0: { x: number; y: number };
-  p1: { x: number; y: number };
-  p2: { x: number; y: number };
-  p3: { x: number; y: number };
-}
-
-interface VideoFilters {
-  exposure: number;
-  brightness: number;
-  contrast: number;
-  saturate: number;
-  temperature: number;
-  tint: number;
-  highlights: number;
-  shadows: number;
-  blur: number;
-  sharpen: number;
-  grayscale: number;
-  sepia: number;
-  vignette: number;
-  filmGrain: number;
-  fade: number;
-}
-
-interface VideoEditorState {
-  trimStart: number;
-  trimEnd: number;
-  playbackRate: number;
-  volume: number;
-
-  aspectRatio: '16:9' | '9:16' | '1:1' | '4:5';
-
-  rotation: number;
-  flipH: boolean;
-  flipV: boolean;
-
-  previewQuality: '1' | '0.5' | '0.25';
-
-  captionText: string;
-  captionSegments: TimedCaption[];
-  audioTracks: AudioTrack[];
-  captionTracks: CaptionTrack[];
-  activeCaptionTrackId: number | null;
-
-  transitionType: ClipTransition;
-  clipSegments: TimelineClipSegment[];
-
-  blendMode: BlendMode;
-
-  masks: MaskItem[];
-  playbackCurve: PlaybackCurve;
-
-  cubeLut: {
-    size: number;
-    values: number[];
-  } | null;
-
-  captionSize: number;
-  captionWeight: string;
-  captionBg: string;
-  captionShadow: boolean;
-  captionX: number;
-  captionY: number;
-
-  filters: VideoFilters;
-}
-
-interface StoredProject {
-  id: string;
-  videoDataUrl?: string | null;
-  fileName?: string | null;
-  fileType?: string | null;
-  savedAt: number;
-  state: Partial<VideoEditorState>;
-}
-
-const DEFAULT_FILTERS: VideoFilters = {
-  exposure: 100,
-  brightness: 100,
-  contrast: 100,
-  saturate: 100,
-  temperature: 0,
-  tint: 0,
-  highlights: 100,
-  shadows: 100,
-  blur: 0,
-  sharpen: 0,
-  grayscale: 0,
-  sepia: 0,
-  vignette: 0,
-  filmGrain: 0,
-  fade: 0,
-};
-
-const DEFAULT_PLAYBACK_CURVE: PlaybackCurve = {
-  p0: { x: 0, y: 0 },
-  p1: { x: 0.2, y: 1 },
-  p2: { x: 0.8, y: 1 },
-  p3: { x: 1, y: 0 },
-};
-
-const DEFAULT_CAPTION_STYLE: CaptionStyle = {
-  size: 20,
-  weight: '700',
-  background: 'rgba(0,0,0,0.6)',
-  shadow: true,
-  x: 50,
-  y: 85,
-};
-
-const PROJECT_DATABASE = 'dolomite-video-editor';
-const PROJECT_STORE = 'video-editor-state';
-const PROJECT_ID = 'current-project';
+import {
+  DEFAULT_CAPTION_STYLE,
+  DEFAULT_FILTERS,
+  DEFAULT_PLAYBACK_CURVE,
+  PROJECT_DATABASE,
+  PROJECT_ID,
+  PROJECT_STORE,
+  type AudioTrack,
+  type BlendMode,
+  type CaptionStyle,
+  type CaptionTrack,
+  type ClipTransition,
+  type MaskItem,
+  type MaskType,
+  type PlaybackCurve,
+  type TimedCaption,
+  type TimelineClipSegment,
+  type StoredProject,
+  type VideoEditorState,
+  type VideoFilters,
+  type VideoTab,
+} from './video-editor/types';
+import { createVideoStageElements } from './video-editor/dom';
+import { buildSrtFromSegments, parseSrtText } from './video-editor/captions';
+import {
+  dataUrlToFile,
+  fileToDataUrl,
+  openProjectDatabase,
+} from './video-editor/storage';
+import {
+  drawExportFrame,
+  getExportDimensions,
+  getSupportedRecorderMimeType,
+  parseCubeLut,
+} from './video-editor/rendering';
+import {
+  clampValue,
+  cloneCaptionSegments,
+  cloneMasks,
+  cubicBezierValue,
+  formatTime,
+} from './video-editor/utils';
 
 export async function createVideoEditorPage(): Promise<HTMLElement> {
   // ============================================================
@@ -306,50 +151,20 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 2. VIDEO ELEMENT AND PREVIEW CONTAINERS
   // ============================================================
 
-  const videoElement = document.createElement('video');
-
-  videoElement.className =
-    'max-h-full max-w-full object-contain rounded-lg shadow-2xl block transition-all duration-75 origin-center';
-
-  videoElement.playsInline = true;
-  videoElement.preload = 'metadata';
+  const {
+    videoElement,
+    videoContainer,
+    maskOverlay,
+    captionOverlay,
+    interactionToggleButton,
+  } = createVideoStageElements();
 
   videoElement.volume = volume;
-
-  const videoContainer = div({
-    className:
-      'relative flex-1 flex items-center justify-center bg-slate-950 p-2 overflow-hidden min-h-0 sm:p-6 rounded-xl border border-slate-800/60 shadow-inner',
-  });
-
-  const maskOverlay = div({
-    className:
-      'absolute inset-0 z-10 pointer-events-none hidden overflow-hidden rounded-lg',
-    style: 'left:0;top:0;right:0;bottom:0;',
-  });
-
-  const captionOverlay = div({
-    className:
-      'absolute text-center cursor-move select-none transition-all px-4 py-1.5 rounded-lg hidden z-20 shadow-xl whitespace-pre-line',
-    style:
-      'left:50%;top:85%;transform:translate(-50%,-50%);',
-  });
-
-  videoContainer.append(maskOverlay, captionOverlay);
+  interactionToggleButton.onclick = () => setInteractionMode(!interactionModeEnabled);
 
   // ============================================================
   // 3. VIDEO PREVIEW INTERACTION
   // ============================================================
-
-  const interactionToggleButton = button(
-    {
-      type: 'button',
-      className:
-        'rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-300 transition hover:border-slate-500 hover:text-white',
-      title: 'Toggle preview interaction mode',
-      onclick: () => setInteractionMode(!interactionModeEnabled),
-    },
-    'Preview Controls: OFF',
-  );
 
   function setInteractionMode(enabled: boolean) {
     interactionModeEnabled = enabled;
@@ -673,22 +488,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
   let cachedVideoFile: File | null = null;
   let cachedVideoDataUrl: string | null = null;
-
-  function cloneCaptionSegments(
-    segments: TimedCaption[],
-  ): TimedCaption[] {
-    return segments.map((segment) => ({
-      ...segment,
-      style: { ...segment.style },
-    }));
-  }
-
-  function cloneMasks(source: MaskItem[]): MaskItem[] {
-    return source.map((mask) => ({
-      ...mask,
-      points: mask.points.map((point) => ({ ...point })),
-    }));
-  }
 
   function ensureCaptionTrack(): CaptionTrack {
     if (!captionTracks.length) {
@@ -1094,81 +893,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 6. INDEXEDDB PROJECT STORAGE
   // ============================================================
 
-  function openProjectDatabase(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      if (!('indexedDB' in window)) {
-        reject(new Error('IndexedDB is unavailable.'));
-        return;
-      }
-
-      const request = window.indexedDB.open(
-        PROJECT_DATABASE,
-        1,
-      );
-
-      request.onupgradeneeded = () => {
-        const db = request.result;
-
-        if (!db.objectStoreNames.contains(PROJECT_STORE)) {
-          db.createObjectStore(PROJECT_STORE, {
-            keyPath: 'id',
-          });
-        }
-      };
-
-      request.onsuccess = () => resolve(request.result);
-
-      request.onerror = () => {
-        reject(
-          request.error ??
-            new Error('Could not open the project database.'),
-        );
-      };
-    });
-  }
-
-  function fileToDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error('Could not convert the video file.'));
-        }
-      };
-
-      reader.onerror = () => {
-        reject(reader.error ?? new Error('File reading failed.'));
-      };
-
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function dataUrlToFile(
-    dataUrl: string,
-    fileName: string,
-    fileType?: string | null,
-  ): Promise<File> {
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-
-    return new File(
-      [blob],
-      fileName,
-      {
-        type: fileType || blob.type || 'video/mp4',
-      },
-    );
-  }
-
   async function persistProjectState() {
     if (!('indexedDB' in window)) return;
 
     try {
-      const db = projectDb ?? (await openProjectDatabase());
+      const db =
+        projectDb ??
+        (await openProjectDatabase(
+          PROJECT_DATABASE,
+          PROJECT_STORE,
+        ));
 
       projectDb = db;
 
@@ -1232,7 +966,12 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     if (!('indexedDB' in window)) return;
 
     try {
-      const db = projectDb ?? (await openProjectDatabase());
+      const db =
+        projectDb ??
+        (await openProjectDatabase(
+          PROJECT_DATABASE,
+          PROJECT_STORE,
+        ));
 
       projectDb = db;
 
@@ -1402,27 +1141,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 8. PLAYBACK SPEED CURVE
   // ============================================================
 
-  function cubicBezierValue(
-    t: number,
-    p0: number,
-    p1: number,
-    p2: number,
-    p3: number,
-  ): number {
-    const kT = clampValue(t, 0, 1);
-
-    const u = 1 - kT;
-    const tt = kT * kT;
-    const uu = u * u;
-
-    return (
-      uu * u * p0 +
-      3 * uu * kT * p1 +
-      3 * u * tt * p2 +
-      tt * kT * p3
-    );
-  }
-
   function getPlaybackRateAtTime(t: number): number {
     const y = cubicBezierValue(
       t,
@@ -1460,88 +1178,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 9. SUBTITLE IMPORT AND EXPORT
   // ============================================================
 
-  function parseSubtitleTimestamp(value: string): number {
-    const normalized = value.trim().replace(',', '.');
-
-    const parts = normalized.split(':');
-
-    if (parts.length < 2 || parts.length > 3) {
-      return 0;
-    }
-
-    let hours = 0;
-    let minutes = 0;
-    let seconds = 0;
-
-    if (parts.length === 3) {
-      hours = Number(parts[0]);
-      minutes = Number(parts[1]);
-      seconds = Number(parts[2]);
-    } else {
-      minutes = Number(parts[0]);
-      seconds = Number(parts[1]);
-    }
-
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  function parseSrtText(rawText: string): TimedCaption[] {
-    const cleaned = rawText
-      .replace(/^\uFEFF/, '')
-      .replace(/\r/g, '')
-      .replace(/^WEBVTT[^\n]*\n/i, '')
-      .trim();
-
-    const blocks = cleaned
-      .split(/\n\s*\n/)
-      .map((block) => block.trim())
-      .filter(Boolean);
-
-    const segments: TimedCaption[] = [];
-
-    for (const block of blocks) {
-      const lines = block.split('\n');
-
-      const timeIndex = lines.findIndex((line) =>
-        line.includes('-->'),
-      );
-
-      if (timeIndex < 0) continue;
-
-      const timeMatch = lines[timeIndex].match(
-        /((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{1,3})\s*-->\s*((?:\d{1,2}:)?\d{2}:\d{2}[,.]\d{1,3})/,
-      );
-
-      if (!timeMatch) continue;
-
-      const start = parseSubtitleTimestamp(timeMatch[1]);
-      const end = parseSubtitleTimestamp(timeMatch[2]);
-
-      if (!Number.isFinite(start) || !Number.isFinite(end)) {
-        continue;
-      }
-
-      if (end <= start) continue;
-
-      const text = lines
-        .slice(timeIndex + 1)
-        .join('\n')
-        .trim();
-
-      if (!text) continue;
-
-      segments.push({
-        id: segments.length + 1,
-        start,
-        end,
-        text,
-        style: getCurrentCaptionStyle(),
-      });
-    }
-
-    return segments.sort((a, b) => a.start - b.start);
-  }
-
   function getCurrentCaptionStyle(): CaptionStyle {
     return {
       size: captionSize,
@@ -1553,51 +1189,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     };
   }
 
-  function formatCaptionTimestamp(seconds: number): string {
-    const safeSeconds = Math.max(
-      0,
-      Number.isFinite(seconds) ? seconds : 0,
-    );
-
-    const hours = Math.floor(safeSeconds / 3600);
-
-    const minutes = Math.floor(
-      (safeSeconds % 3600) / 60,
-    );
-
-    const wholeSeconds = Math.floor(safeSeconds % 60);
-
-    const milliseconds = Math.floor(
-      (safeSeconds - Math.floor(safeSeconds)) * 1000,
-    );
-
-    return (
-      `${String(hours).padStart(2, '0')}:` +
-      `${String(minutes).padStart(2, '0')}:` +
-      `${String(wholeSeconds).padStart(2, '0')},` +
-      `${String(milliseconds).padStart(3, '0')}`
-    );
-  }
-
-  function buildSrtFromSegments(
-    segments: TimedCaption[],
-  ): string {
-    return segments
-      .map((segment, index) => {
-        return (
-          `${index + 1}\n` +
-          `${formatCaptionTimestamp(segment.start)} --> ` +
-          `${formatCaptionTimestamp(segment.end)}\n` +
-          `${segment.text.trim()}`
-        );
-      })
-      .join('\n\n');
-  }
-
   async function importSubtitleFile(file: File) {
     const rawText = await file.text();
 
-    const segments = parseSrtText(rawText);
+    const segments = parseSrtText(
+      rawText,
+      getCurrentCaptionStyle,
+    );
 
     if (!segments.length) {
       alert(
@@ -1846,16 +1444,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     applyVideoFilters();
   }
 
-  function clampValue(
-    value: number,
-    min: number,
-    max: number,
-  ): number {
-    if (!Number.isFinite(value)) return min;
-
-    return Math.min(max, Math.max(min, value));
-  }
-
   // ============================================================
   // 12. PLAYBACK CONTROLS
   // ============================================================
@@ -1867,21 +1455,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     },
     '00:00 / 00:00',
   );
-
-  function formatTime(seconds: number): string {
-    const safeSeconds = Math.max(
-      0,
-      Number.isFinite(seconds) ? seconds : 0,
-    );
-
-    const mins = Math.floor(safeSeconds / 60);
-    const secs = Math.floor(safeSeconds % 60);
-
-    return (
-      `${String(mins).padStart(2, '0')}:` +
-      `${String(secs).padStart(2, '0')}`
-    );
-  }
 
   function syncPlaybackUI() {
     const isActive =
@@ -2572,380 +2145,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   // 17. LUT IMPORT
   // ============================================================
 
-  function parseCubeLut(
-    rawText: string,
-  ): { size: number; values: number[] } | null {
-    const lines = rawText
-      .replace(/\r/g, '')
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(
-        (line) =>
-          line &&
-          !line.startsWith('#'),
-      );
-
-    let size: number | null = null;
-
-    const values: number[] = [];
-
-    for (const line of lines) {
-      if (line.startsWith('LUT_3D_SIZE')) {
-        const match = line.match(/LUT_3D_SIZE\s+(\d+)/);
-
-        if (match) {
-          size = Number(match[1]);
-        }
-
-        continue;
-      }
-
-      if (
-        line.startsWith('TITLE') ||
-        line.startsWith('DOMAIN_') ||
-        line.startsWith('LUT_1D_SIZE')
-      ) {
-        continue;
-      }
-
-      const parts = line.split(/\s+/);
-
-      if (parts.length !== 3) continue;
-
-      const numbers = parts.map(Number);
-
-      if (!numbers.every(Number.isFinite)) continue;
-
-      values.push(...numbers);
-    }
-
-    if (!size || size < 2 || values.length === 0) {
-      return null;
-    }
-
-    if (values.length !== size * size * size * 3) {
-      return null;
-    }
-
-    return {
-      size,
-      values,
-    };
-  }
-
-  // ============================================================
-  // 18. MEDIA RECORDER SUPPORT
-  // ============================================================
-
-  function getSupportedRecorderMimeType(
-    format: 'webm' | 'mp4',
-  ): string | null {
-    if (typeof MediaRecorder === 'undefined') {
-      return null;
-    }
-
-    const candidates =
-      format === 'mp4'
-        ? [
-            'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
-            'video/mp4',
-          ]
-        : [
-            'video/webm;codecs=vp9,opus',
-            'video/webm;codecs=vp8,opus',
-            'video/webm',
-          ];
-
-    for (const mimeType of candidates) {
-      try {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          return mimeType;
-        }
-      } catch {
-        // Try the next candidate.
-      }
-    }
-
-    return null;
-  }
-
-  // ============================================================
-  // 19. EXPORT RENDERING HELPERS
-  // ============================================================
-
-  function getExportDimensions() {
-    let width = 1920;
-    let height = 1080;
-
-    if (exportResolution === '720p') {
-      width = 1280;
-      height = 720;
-    } else if (exportResolution === '4k') {
-      width = 3840;
-      height = 2160;
-    }
-
-    if (aspectRatio === '9:16') {
-      [width, height] = [height, width];
-    } else if (aspectRatio === '1:1') {
-      width = Math.min(width, height);
-      height = width;
-    } else if (aspectRatio === '4:5') {
-      height = Math.round(width * 1.25);
-    }
-
-    return { width, height };
-  }
-
-  function drawExportMask(
-    ctx: CanvasRenderingContext2D,
-    mask: MaskItem,
-    width: number,
-    height: number,
-  ) {
-    ctx.save();
-
-    ctx.globalAlpha = clampValue(mask.opacity, 0, 1);
-
-    ctx.fillStyle = `${mask.color}55`;
-    ctx.strokeStyle = mask.color;
-    ctx.lineWidth = 3;
-
-    const x = (mask.x / 100) * width;
-    const y = (mask.y / 100) * height;
-
-    const maskWidth = (mask.width / 100) * width;
-    const maskHeight = (mask.height / 100) * height;
-
-    if (mask.type === 'circle') {
-      ctx.beginPath();
-
-      ctx.ellipse(
-        x,
-        y,
-        maskWidth / 2,
-        maskHeight / 2,
-        0,
-        0,
-        Math.PI * 2,
-      );
-
-      ctx.fill();
-      ctx.stroke();
-    } else if (mask.type === 'rect') {
-      ctx.beginPath();
-
-      ctx.roundRect(
-        x - maskWidth / 2,
-        y - maskHeight / 2,
-        maskWidth,
-        maskHeight,
-        Math.max(0, mask.radius),
-      );
-
-      ctx.fill();
-      ctx.stroke();
-    } else if (mask.points.length > 2) {
-      ctx.beginPath();
-
-      mask.points.forEach((point, index) => {
-        const pointX = (point.x / 100) * width;
-        const pointY = (point.y / 100) * height;
-
-        if (index === 0) {
-          ctx.moveTo(pointX, pointY);
-        } else {
-          ctx.lineTo(pointX, pointY);
-        }
-      });
-
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  function drawExportCaption(
-    ctx: CanvasRenderingContext2D,
-    caption: TimedCaption,
-    width: number,
-    height: number,
-  ) {
-    const style = caption.style;
-
-    const fontSize = Math.max(
-      18,
-      style.size * (width / 1280),
-    );
-
-    const text = caption.text.trim();
-
-    if (!text) return;
-
-    ctx.save();
-
-    ctx.font = `${style.weight} ${fontSize}px sans-serif`;
-
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    const x = (style.x / 100) * width;
-    const y = (style.y / 100) * height;
-
-    const maxTextWidth = width * 0.85;
-
-    const words = text.split(/\s+/);
-
-    const lines: string[] = [];
-
-    let currentLine = '';
-
-    for (const word of words) {
-      const candidate = currentLine
-        ? `${currentLine} ${word}`
-        : word;
-
-      if (
-        currentLine &&
-        ctx.measureText(candidate).width > maxTextWidth
-      ) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = candidate;
-      }
-    }
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    const lineHeight = fontSize * 1.25;
-
-    const maxLineWidth = Math.max(
-      ...lines.map((line) => ctx.measureText(line).width),
-    );
-
-    const paddingX = fontSize * 0.8;
-    const paddingY = fontSize * 0.45;
-
-    const boxWidth = Math.min(
-      width * 0.95,
-      maxLineWidth + paddingX * 2,
-    );
-
-    const boxHeight =
-      lines.length * lineHeight + paddingY * 2;
-
-    if (style.background !== 'transparent') {
-      ctx.fillStyle = style.background;
-
-      ctx.fillRect(
-        x - boxWidth / 2,
-        y - boxHeight / 2,
-        boxWidth,
-        boxHeight,
-      );
-    }
-
-    ctx.fillStyle = '#ffffff';
-
-    if (style.shadow) {
-      ctx.shadowColor = 'rgba(0,0,0,0.85)';
-      ctx.shadowBlur = 5;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 2;
-    }
-
-    lines.forEach((line, index) => {
-      const lineY =
-        y +
-        (index - (lines.length - 1) / 2) * lineHeight;
-
-      ctx.fillText(line, x, lineY, maxTextWidth);
-    });
-
-    ctx.restore();
-  }
-
-  function drawExportFrame(
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-  ) {
-    const width = canvas.width;
-    const height = canvas.height;
-
-    ctx.save();
-
-    ctx.clearRect(0, 0, width, height);
-
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, width, height);
-
-    ctx.save();
-
-    ctx.filter = videoElement.style.filter || 'none';
-
-    ctx.translate(width / 2, height / 2);
-
-    ctx.rotate((rotation * Math.PI) / 180);
-
-    ctx.scale(
-      flipH ? -1 : 1,
-      flipV ? -1 : 1,
-    );
-
-    const sourceWidth = videoElement.videoWidth;
-    const sourceHeight = videoElement.videoHeight;
-
-    if (sourceWidth > 0 && sourceHeight > 0) {
-      const sourceAspect = sourceWidth / sourceHeight;
-      const outputAspect = width / height;
-
-      let drawWidth: number;
-      let drawHeight: number;
-
-      if (sourceAspect > outputAspect) {
-        drawWidth = width;
-        drawHeight = width / sourceAspect;
-      } else {
-        drawHeight = height;
-        drawWidth = height * sourceAspect;
-      }
-
-      ctx.drawImage(
-        videoElement,
-        -drawWidth / 2,
-        -drawHeight / 2,
-        drawWidth,
-        drawHeight,
-      );
-    }
-
-    ctx.restore();
-
-    // Draw mask overlays into the rendered output.
-    masks.forEach((mask) => {
-      drawExportMask(ctx, mask, width, height);
-    });
-
-    // Draw the active subtitle into the rendered output.
-    const activeCaption = getActiveCaption();
-
-    if (activeCaption) {
-      drawExportCaption(
-        ctx,
-        activeCaption,
-        width,
-        height,
-      );
-    }
-
-    ctx.restore();
-  }
-
   function updateRenderProgressUI(progress: number) {
     const safeProgress = clampValue(progress, 0, 100);
 
@@ -3186,7 +2385,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       return;
     }
 
-    const { width, height } = getExportDimensions();
+    const { width, height } = getExportDimensions(
+      exportResolution,
+      aspectRatio,
+    );
 
     const canvas = document.createElement('canvas');
 
@@ -3367,7 +2569,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       }
 
       // Render one initial frame before recording begins.
-      drawExportFrame(ctx, canvas);
+      drawExportFrame(
+        ctx,
+        canvas,
+        videoElement,
+        rotation,
+        flipH,
+        flipV,
+        masks,
+        getActiveCaption,
+      );
 
       recorder.start(500);
 
@@ -3398,7 +2609,16 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       if (!isRendering || exportCancelled) return;
 
       if (videoElement.readyState >= 2) {
-        drawExportFrame(ctx, canvas);
+        drawExportFrame(
+          ctx,
+          canvas,
+          videoElement,
+          rotation,
+          flipH,
+          flipV,
+          masks,
+          getActiveCaption,
+        );
       }
 
       const totalRange = Math.max(
