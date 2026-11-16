@@ -1,5 +1,3 @@
-import "../../css/shared.css";
-
 import { button, cn, createButton, div, h2, input, p, span, uiClasses } from '../components/ui/dom';
 import { appStore, mediaModeActions, type MediaProcessingMode } from '../appState';
 

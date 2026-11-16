@@ -1,5 +1,3 @@
-import "../../../css/domui.css";
-
 export type ChildInput =
   | Node
   | string

@@ -1,4 +1,3 @@
-import "../../../css/layout.css";
 import { div, header, main, footer, h1, p, span, button } from '../ui/dom';
 import { appStore, authActions } from '../../appState';
 import { router } from '../../main';

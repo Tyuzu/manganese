@@ -1,9 +1,709 @@
-@import url("./videoeditor/videoeditordom.css");
-@import url("./videoeditor/videoeditorcontrols.css");
-@import url("./videoeditor/videoeditorshell.css");
-@import url("./videoeditor/videoeditorexport.css");
-@import url("./videoeditor/videoeditorlayout.css");
-@import url("./videoeditor/videoeditorpanels.css");
-@import url("./videoeditor/videoeditorplayer.css");
-@import url("./videoeditor/videoeeditortimeline.css");
-@import url("./videoeditor/videoeditorindex.css");
+/* --- PixelForge Studio - Fluent Video Studio Pro Component Styles --- */
+
+.editor-root-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  font-family: var(--font-base);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+}
+
+.editor-modal-surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-elev-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-shell-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* --- Title Bar --- */
+.editor-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.editor-title-heading {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  margin: 0;
+}
+
+.editor-title-actions-wrap {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.editor-title-icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.editor-title-icon-btn:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-fg);
+}
+
+.editor-close-btn:hover {
+  background-color: var(--color-error);
+  color: #ffffff;
+  border-color: var(--color-error);
+}
+
+/* --- Top Bar & Tabs --- */
+.editor-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.editor-tablist {
+  display: flex;
+  gap: var(--space-xs);
+  overflow-x: auto;
+}
+
+.editor-tab {
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.editor-tab:hover {
+  color: var(--color-fg);
+}
+
+.editor-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-surface);
+}
+
+.editor-processing-selector {
+  padding: var(--space-xs) var(--space-sm);
+  border: none;
+  background: transparent;
+}
+
+.editor-processing-selector .fluent-mode-title {
+  display: none;
+}
+
+.editor-processing-selector .fluent-mode-buttons {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.fluent-mode-button {
+  padding: var(--space-xxs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-fg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.fluent-mode-button-active {
+  background-color: var(--color-primary);
+  color: var(--color-primary-fg);
+  border-color: var(--color-primary);
+}
+
+/* --- Workspace Layout --- */
+.editor-workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: 600px;
+  background-color: var(--color-space);
+}
+
+@media (max-width: 1024px) {
+  .editor-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Side Panel (Timeline Tools & Summary) --- */
+.editor-side-panel {
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.tool-container {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.timeline-panel-title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: var(--space-xs);
+}
+
+.editor-slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xxs);
+}
+
+.editor-slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+}
+
+.editor-slider-label {
+  color: var(--color-muted);
+}
+
+.editor-slider-value {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+}
+
+.editor-slider-input {
+  width: 100%;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.playback-rate-label {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+}
+
+.curve-editor-container {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--space-xs);
+}
+
+.curve-editor-canvas {
+  width: 100%;
+  height: auto;
+}
+
+.timeline-button-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xs);
+}
+
+.editor-preset-btn {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.editor-preset-btn:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.transition-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.transition-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-xs);
+}
+
+.transition-label {
+  color: var(--color-muted);
+}
+
+.editor-select {
+  padding: var(--space-xxs) var(--space-sm);
+  font-family: var(--font-base);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-input-bg);
+  color: var(--color-fg);
+  cursor: pointer;
+}
+
+.timeline-footer-note {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+  line-height: var(--line-height-relaxed);
+  background-color: var(--color-bg-secondary);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--color-primary);
+}
+
+/* Project Summary Card */
+.project-summary-wrapper {
+  margin-top: var(--space-sm);
+}
+
+.fluent-detail-panel.fluent-ui-panel {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+}
+
+.fluent-detail-heading {
+  margin: 0 0 var(--space-xs) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.fluent-detail-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  padding: var(--space-xxs) 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.fluent-detail-item:last-child {
+  border-bottom: none;
+}
+
+.fluent-detail-label {
+  color: var(--color-muted);
+}
+
+.fluent-detail-value-text {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+}
+
+/* --- Stage Area --- */
+.editor-stage {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg-secondary);
+  position: relative;
+  flex: 1;
+}
+
+.editor-quick-actions-wrapper {
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.editor-quick-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.editor-history-group {
+  display: flex;
+  gap: var(--space-xxs);
+}
+
+.editor-action-btn, .editor-flush-btn, .editor-render-btn, .editor-zoom-btn {
+  font-family: var(--font-base);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xxs) var(--space-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.editor-action-btn, .editor-flush-btn {
+  background-color: var(--color-surface);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+}
+
+.editor-action-btn:hover, .editor-flush-btn:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.editor-render-btn {
+  background-color: var(--color-btn-bg);
+  color: var(--color-btn-fg);
+  border: none;
+}
+
+.editor-render-btn:hover {
+  background-color: var(--color-btn-hover-bg);
+}
+
+.video-stage-toggle-btn {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xxs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.editor-import-label {
+  background-color: var(--color-surface);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xxs) var(--space-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Video Stage & Dropzone */
+.video-stage-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl);
+  position: relative;
+  min-height: 240px;
+}
+
+.video-stage-mask, .video-stage-caption {
+  position: absolute;
+}
+
+.video-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-xl);
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  max-width: 400px;
+  width: 100%;
+}
+
+.dropzone-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  color: var(--color-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.dropzone-icon-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dropzone-title {
+  margin: 0 0 var(--space-xxs) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+}
+
+.dropzone-subtitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+}
+
+/* Zoom Controls Overlay */
+.editor-zoom-controls {
+  position: absolute;
+  right: var(--space-md);
+  top: var(--space-md);
+  display: flex;
+  gap: var(--space-xxs);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  box-shadow: var(--shadow-elev-1);
+}
+
+.editor-zoom-btn {
+  background: transparent;
+  border: none;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  color: var(--color-fg);
+  border-radius: var(--radius-xs);
+}
+
+.editor-zoom-btn:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Player HUD & Timeline */
+.player-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.playback-controls-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.playback-step-btn, .playback-play-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  color: var(--color-fg);
+}
+
+.playback-step-btn:hover, .playback-play-btn:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.playback-time-display {
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  color: var(--color-muted);
+  min-width: 80px;
+}
+
+.playback-seek-slider {
+  flex: 1;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.playback-volume-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.playback-speaker-icon {
+  font-size: var(--font-size-xs);
+}
+
+.playback-volume-slider {
+  width: 70px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* Timeline Track Shell */
+.timeline-track-shell {
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.timeline-ruler {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+  color: var(--color-light);
+  padding: 0 var(--space-sm);
+}
+
+.timeline-track-area {
+  position: relative;
+  height: 48px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.timeline-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--color-error);
+  z-index: 10;
+}
+
+.video-track-segment {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0%;
+  right: 0%;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-sm);
+}
+
+.timeline-thumbnail-strip {
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+}
+
+.timeline-trim-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: var(--color-primary);
+  cursor: ew-resize;
+  border-radius: var(--radius-xs);
+  z-index: 5;
+}
+
+.timeline-trim-active-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-color: rgba(0, 120, 212, 0.1);
+}
+
+.video-track-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-muted);
+  position: relative;
+  z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Editor Footer --- */
+.editor-footer-root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+}
+
+.editor-footer-right {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.editor-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-fg);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.editor-cancel-btn:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.editor-save-btn {
+  background-color: var(--color-primary);
+  color: var(--color-primary-fg);
+  border: none;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.editor-save-btn:hover {
+  background-color: var(--color-primary-hover);
+}

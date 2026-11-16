@@ -313,7 +313,7 @@ function applyWebGL2(canvas, ctx, width, height, filters) {
   }
 }
 
-function processPixels(canvas, ctx, message, maskCanvas, useGpu) {
+async function processPixels(canvas, ctx, message, maskCanvas, useGpu) {
   const width = canvas.width;
   const height = canvas.height;
   const filters = message.filters || {};

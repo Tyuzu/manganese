@@ -1,5 +1,3 @@
-import "../../../css/navbar.css";
-
 import { a, button, div, nav, span } from '../ui/dom';
 
 function getNavLinkClass(path: string, href: string): string {

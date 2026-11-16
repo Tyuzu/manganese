@@ -1,4 +1,3 @@
-import "../../../css/notifico.css";
 import { button, cn, div, h2, p, span } from './dom';
 
 export interface ToastOptions {
