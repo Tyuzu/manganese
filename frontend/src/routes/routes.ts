@@ -1,14 +1,6 @@
 import { createRouter, type RouteDefinition } from './router';
 import { renderLayout, renderPageIntoLayout } from '../components/layout/AppLayout';
 
-import { createHomePage } from '../pages/Home';
-import { createImageEditorPage } from '../pages/ImageStudio';
-import { createVideoEditorPage } from '../pages/VideoEditor';
-import { createScanPage } from '../pages/ScanCapture';
-import { createPdfScannerPage } from '../pages/PdfWorkspace';
-import { createLoginPage } from '../pages/Login';
-import { createNotFoundPage } from '../pages/NotFound';
-
 interface PageRouteDefinition extends Omit<RouteDefinition, 'handler'> {
   handler: () => Promise<HTMLElement> | HTMLElement;
 }
@@ -45,47 +37,68 @@ export function setupRouter() {
 
   registerPageRoute({
     path: '/',
-    handler: createHomePage,
+    handler: async () => {
+      const { createHomePage } = await import('../pages/Home');
+      return createHomePage();
+    },
     protected: true,
     roles: ['user', 'admin'],
   });
 
   registerPageRoute({
     path: '/images',
-    handler: createImageEditorPage,
+    handler: async () => {
+      const { createImageEditorPage } = await import('../pages/ImageStudio');
+      return createImageEditorPage();
+    },
     protected: true,
     roles: ['user', 'admin'],
   });
 
   registerPageRoute({
     path: '/videos',
-    handler: createVideoEditorPage,
+    handler: async () => {
+      const { createVideoEditorPage } = await import('../pages/VideoEditor');
+      return createVideoEditorPage();
+    },
     protected: true,
     roles: ['user', 'admin'],
   });
 
   registerPageRoute({
     path: '/scan',
-    handler: createScanPage,
+    handler: async () => {
+      const { createScanPage } = await import('../pages/ScanCapture');
+      return createScanPage();
+    },
     protected: true,
     roles: ['user', 'admin'],
   });
 
   registerPageRoute({
     path: '/pdf',
-    handler: createPdfScannerPage,
+    handler: async () => {
+      const { createPdfScannerPage } = await import('../pages/PdfWorkspace');
+      return createPdfScannerPage();
+    },
     protected: true,
     roles: ['user', 'admin'],
   });
 
   registerPageRoute({
     path: '/login',
-    handler: () => createLoginPage(),
+    handler: async () => {
+      const { createLoginPage } = await import('../pages/Login');
+      return createLoginPage();
+    },
   });
 
   registerPageRoute({
     path: '/404',
-    handler: createNotFoundPage,
+    handler: async () => {
+      const { createNotFoundPage } = await import('../pages/NotFound');
+      return createNotFoundPage();
+    },
   });
 
   return router;

@@ -37,7 +37,7 @@ const section = (
 ): HTMLElement => {
   const wrapper = createElement('section', 'ie-section');
 
-  const heading = createElement('h3', 'ie-section-title');
+  const heading = createElement('h2', 'ie-section-title');
   heading.textContent = title;
 
   wrapper.append(heading, ...content);

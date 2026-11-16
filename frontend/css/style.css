@@ -20,8 +20,11 @@
     text-decoration: none;
 }
 
-.skip-to-content:focus {
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
     top: var(--space-md);
+    outline: 2px solid var(--color-primary-fg);
+    outline-offset: 2px;
 }
 
 .noscript-message {
