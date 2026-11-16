@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf';
 import { appStore } from '../../appState';
 import { processMediaOnServer } from '../../api';
 import type { ExportFormat, ScannedPage } from './types';
@@ -112,10 +111,16 @@ export function createScanExporter({
     return canvas;
   }
 
+  async function importRemote<T>(url: string): Promise<T> {
+    return await import(/* @vite-ignore */ url);
+  }
+
   async function exportPdf(
     renderedPages: HTMLCanvasElement[],
     filename: string
   ) {
+    const { jsPDF } = await importRemote<any>('https://esm.sh/jspdf@4.2.1');
+
     if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
       for (let index = 0; index < renderedPages.length; index++) {
         const canvas = renderedPages[index];

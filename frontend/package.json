@@ -9,9 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "jspdf": "^4.2.1",
-    "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^6.5.438",
     "terser": "^5.51.2",
     "tesseract.js": "^7.0.0",
     "typescript": "^7.0.2",

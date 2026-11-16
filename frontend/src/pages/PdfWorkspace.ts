@@ -1,6 +1,4 @@
 import '../../css/pdf.css';
-import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocument } from 'pdf-lib';
 import {
   createButton,
   div,
@@ -41,8 +39,15 @@ import {
 } from './pdf/ui';
 import { createIcon, createId, getFileType } from './pdf/utils';
 
-// Configure PDF.js worker source (ensure worker is bundled or referenced correctly)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+async function importRemote<T>(url: string): Promise<T> {
+  return await import(/* @vite-ignore */ url);
+}
+
+async function getPdfJsModule() {
+  const pdfjsModule = await importRemote<any>('https://esm.sh/pdfjs-dist@6.5.438');
+  pdfjsModule.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsModule.version}/pdf.worker.min.mjs`;
+  return pdfjsModule;
+}
 
 export async function createPdfScannerPage(): Promise<HTMLElement> {
   let activeTab: ScanTab = 'pages';
@@ -51,7 +56,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   let uploadedFileName: string | null = null;
   let uploadedFileUrl: string | null = null;
   let uploadedFileType: 'pdf' | 'image' | null = null;
-  let pdfDocProxy: pdfjsLib.PDFDocumentProxy | null = null;
+  let pdfDocProxy: any = null;
 
   let pages: ScannerPageItem[] = [];
   let selectedPageIndex = 0;
@@ -527,8 +532,9 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     if (isPdf) {
       try {
         const arrayBuffer = await file.arrayBuffer();
-        pdfDocProxy = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        
+        const pdfjsModule = await getPdfJsModule();
+        pdfDocProxy = await pdfjsModule.getDocument({ data: arrayBuffer }).promise;
+
         pages = Array.from({ length: pdfDocProxy.numPages }, (_, i) => ({
           id: createId('page'),
           title: `Page ${i + 1}`,
@@ -1073,6 +1079,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     try {
       showToast('Merging documents...', 'info');
 
+      const { PDFDocument } = await importRemote<any>('https://esm.sh/pdf-lib@1.17.1');
       const baseArrayBuffer = await uploadedFile.arrayBuffer();
       const mergedPdfDoc = await PDFDocument.load(baseArrayBuffer);
 
@@ -1084,7 +1091,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
             externalPdf,
             externalPdf.getPageIndices()
           );
-          copiedPages.forEach((page) => mergedPdfDoc.addPage(page));
+          copiedPages.forEach((page: any) => mergedPdfDoc.addPage(page));
         } else {
           // Embed image file as a new page
           let embeddedImage;
@@ -1123,7 +1130,8 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       uploadedFileType = 'pdf';
 
       const arrayBuffer = await uploadedFile.arrayBuffer();
-      pdfDocProxy = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdfjsModule = await getPdfJsModule();
+      pdfDocProxy = await pdfjsModule.getDocument({ data: arrayBuffer }).promise;
 
       mergeQueue = [];
       selectedPageIndex = pages.length - 1;
