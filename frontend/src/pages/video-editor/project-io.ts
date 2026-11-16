@@ -104,6 +104,31 @@ export async function saveEditorProject(params: {
   };
 }
 
+export async function clearEditorProject(
+  projectDb: IDBDatabase | null,
+): Promise<IDBDatabase | null> {
+  if (!('indexedDB' in window)) {
+    return projectDb;
+  }
+
+  const db = projectDb ?? (await openProjectDatabase(PROJECT_DATABASE, PROJECT_STORE));
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(PROJECT_STORE, 'readwrite');
+    const request = tx.objectStore(PROJECT_STORE).delete(PROJECT_ID);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => {
+      reject(request.error ?? new Error('Project clear failed.'));
+    };
+    tx.onabort = () => {
+      reject(tx.error ?? new Error('Project clear was aborted.'));
+    };
+  });
+
+  return db;
+}
+
 export async function loadEditorProject(params: {
   projectDb: IDBDatabase | null;
   restoreState: (state: Partial<VideoEditorState>) => void;

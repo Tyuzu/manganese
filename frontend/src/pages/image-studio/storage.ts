@@ -96,4 +96,22 @@ export class ProjectDatabase {
       );
     });
   }
+
+  async clearAll(): Promise<void> {
+    const db = await this.open();
+
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction("projects", "readwrite");
+
+      transaction.objectStore("projects").clear();
+
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(
+        transaction.error || new Error("Could not clear saved projects.")
+      );
+      transaction.onabort = () => reject(
+        transaction.error || new Error("Saved project clear was aborted.")
+      );
+    });
+  }
 }

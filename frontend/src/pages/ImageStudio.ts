@@ -52,7 +52,7 @@ import { buildFilterControls, buildImageStudioShell } from './image-studio/dom';
 export function createImageEditorPage(): HTMLDivElement {
   const root = buildImageStudioShell();
 
-  const renderer = new WorkerRenderer();
+  let renderer = new WorkerRenderer();
   const database = new ProjectDatabase();
   const bitmapCache = new BitmapCache(8);
 
@@ -205,6 +205,73 @@ export function createImageEditorPage(): HTMLDivElement {
       canvas.height = 1;
       setStatus("No document open");
     }
+  }
+
+  function refreshRendererStatus(): void {
+    if (renderer.available) {
+      engineStatus.textContent = "OffscreenCanvas worker renderer active";
+    } else {
+      engineStatus.textContent = "Canvas fallback renderer active";
+    }
+  }
+
+  async function flushAllDocuments(): Promise<void> {
+    window.clearTimeout(renderTimer);
+    window.clearTimeout(autosaveTimer);
+
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+    }
+
+    if (activeJob) {
+      renderer.cancel(activeJob);
+      activeJob = 0;
+    }
+
+    renderVersion++;
+
+    for (const doc of documents.values()) {
+      renderer.unload(doc.id);
+      doc.bitmap.close();
+
+      const maskCtx = doc.maskCanvas.getContext("2d");
+      maskCtx?.clearRect(0, 0, doc.maskCanvas.width, doc.maskCanvas.height);
+      doc.maskCanvas.width = 1;
+      doc.maskCanvas.height = 1;
+    }
+
+    documents.clear();
+    activeId = null;
+    brushActive = false;
+    painting = false;
+    panning = false;
+    lastPaintPoint = null;
+    bitmapCache.clear();
+
+    try {
+      await database.clearAll();
+      savedProjects.replaceChildren();
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Saved projects";
+      savedProjects.appendChild(placeholder);
+    } catch {
+      // Keep the empty state consistent even if local storage is unavailable.
+    }
+
+    renderer.dispose();
+    renderer = new WorkerRenderer();
+    refreshRendererStatus();
+
+    renderTabs();
+    updateControls();
+    canvas.width = 1;
+    canvas.height = 1;
+    overlayCanvas.width = 1;
+    overlayCanvas.height = 1;
+    overlayCanvas.style.display = "none";
+    setStatus("Memory flushed");
   }
 
   function renderTabs(): void {
@@ -1252,6 +1319,10 @@ export function createImageEditorPage(): HTMLDivElement {
         void exportProjectJson();
         return;
 
+      case "flush-all":
+        void flushAllDocuments();
+        return;
+
       case "export":
         void exportImage();
         return;
@@ -1565,11 +1636,7 @@ export function createImageEditorPage(): HTMLDivElement {
     configurable: true,
   });
 
-  if (renderer.available) {
-    engineStatus.textContent = "OffscreenCanvas worker renderer active";
-  } else {
-    engineStatus.textContent = "Canvas fallback renderer active";
-  }
+  refreshRendererStatus();
 
   void refreshSavedProjects();
   void restoreRecentProjects();

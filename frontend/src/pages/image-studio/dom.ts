@@ -11,6 +11,7 @@ export function buildImageStudioShell(): HTMLDivElement {
       <button class="ie-button" data-action="open">Open image</button>
       <button class="ie-button" data-action="import-project">Import project</button>
       <button class="ie-button" data-action="save-project">Export project JSON</button>
+      <button class="ie-button" data-action="flush-all">Flush all</button>
 
       <select class="ie-select" data-role="saved-projects" style="width:150px">
         <option value="">Saved projects</option>

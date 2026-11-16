@@ -987,6 +987,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   });
 
   const flushVideoSession = () => {
+    void projectLifecycleController.clearProjectState();
     videoSourceController.flushVideoSession();
   };
 

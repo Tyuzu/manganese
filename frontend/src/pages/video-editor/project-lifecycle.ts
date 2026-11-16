@@ -1,5 +1,6 @@
 import type { VideoEditorState, VideoTab } from './types';
 import {
+  clearEditorProject,
   createProjectDownloadBlob,
   importEditorProjectFile,
   loadEditorProject,
@@ -147,6 +148,15 @@ export function createProjectLifecycleController(deps: ProjectLifecycleDeps) {
     deps.renderToolControls();
   }
 
+  async function clearProjectState(): Promise<void> {
+    try {
+      const projectDb = await clearEditorProject(deps.getProjectDb());
+      deps.setProjectDb(projectDb);
+    } catch (error) {
+      console.warn('Unable to clear editor state:', error);
+    }
+  }
+
   function resetProjectHistory(): void {
     deps.getProjectHistory().resetHistory();
   }
@@ -154,6 +164,7 @@ export function createProjectLifecycleController(deps: ProjectLifecycleDeps) {
   return {
     persistProjectState,
     hydrateProjectState,
+    clearProjectState,
     exportProjectFile,
     importProjectFile,
     undo,
