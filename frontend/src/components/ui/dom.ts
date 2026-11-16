@@ -278,6 +278,54 @@ export function createErrorCard(title = 'Error', message = 'Failed to load page 
   );
 }
 
+export interface RangeSliderOptions {
+  title: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  className?: string;
+  valueSuffix?: string;
+  formatter?: (value: number) => string;
+}
+
+export function createRangeSlider({
+  title,
+  value,
+  min,
+  max,
+  onChange,
+  className = 'scan-slider',
+  valueSuffix = '%',
+  formatter,
+}: RangeSliderOptions): HTMLDivElement {
+  const wrapper = div({ className });
+  const heading = div({ className: 'scan-slider-heading' });
+  const name = span({ className: 'scan-slider-label' }, title);
+  const output = span(
+    { className: 'scan-slider-value' },
+    formatter ? formatter(value) : `${value}${valueSuffix}`
+  );
+
+  const range = input({
+    type: 'range',
+    min: String(min),
+    max: String(max),
+    value: String(value),
+    className: 'scan-range',
+    oninput: (event: Event) => {
+      const nextValue = Number((event.target as HTMLInputElement).value);
+      output.textContent = formatter ? formatter(nextValue) : `${nextValue}${valueSuffix}`;
+      onChange(nextValue);
+    },
+  });
+
+  heading.append(name, output);
+  wrapper.append(heading, range);
+
+  return wrapper;
+}
+
 // HTML Tag Shorthands
 export const div = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('div', attrs, ...children);
 export const article = (attrs?: ElementAttributes, ...children: ElementChild[]) => el('article', attrs, ...children);

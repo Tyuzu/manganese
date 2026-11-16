@@ -1,5 +1,15 @@
 import '../../css/scan.css';
-import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
+import {
+  button,
+  createButton,
+  createRangeSlider,
+  div,
+  input,
+  label,
+  p,
+  span,
+  svgElement,
+} from '../components/ui/dom';
 import {
   createEditorFooter,
   createEditorShell,
@@ -8,6 +18,8 @@ import {
 import { createScanCameraController } from './scan/camera';
 import { createScanCropper } from './scan/crop';
 import { createScanExporter } from './scan/export';
+import { createScanSignatureModal } from './scan/signature';
+import { createScanTabBuilder } from './scan/tabs';
 import type { ScanMode } from './scan/controls';
 import { loadSessionFromIdb, saveSessionToIdb } from './scan/storage';
 import {
@@ -15,7 +27,6 @@ import {
   TABS,
   type DocumentPreset,
   type ExportFormat,
-  type FilterPreset,
   type ScanTab,
   type ScannedPage,
 } from './scan/types';
@@ -128,32 +139,14 @@ export async function createScanPage(): Promise<HTMLElement> {
     max: number,
     onChange: (value: number) => void
   ) => {
-    const wrapper = div({ className: 'scan-slider' });
-
-    const heading = div({ className: 'scan-slider-heading' });
-    const name = span({ className: 'scan-slider-label' }, title);
-    const output = span({ className: 'scan-slider-value' }, `${value}%`);
-
-    const range = input({
-      type: 'range',
-      min: String(min),
-      max: String(max),
-      value: String(value),
-      className: 'scan-range',
-      oninput: (event: Event) => {
-        const nextValue = Number(
-          (event.target as HTMLInputElement).value
-        );
-
-        output.textContent = `${nextValue}%`;
-        onChange(nextValue);
-      },
+    return createRangeSlider({
+      title,
+      value,
+      min,
+      max,
+      onChange,
+      valueSuffix: '%',
     });
-
-    heading.append(name, output);
-    wrapper.append(heading, range);
-
-    return wrapper;
   };
 
   const makeStatusCard = (title: string, value: string) => {
@@ -734,436 +727,103 @@ export async function createScanPage(): Promise<HTMLElement> {
     toolContainer
   );
 
-  function createModeTab() {
-    const modes: {
-      id: DocumentPreset;
-      label: string;
-      mode: ScanMode;
-      status: string;
-    }[] = [
-      {
-        id: 'pdf',
-        label: 'PDF document',
-        mode: 'pdf',
-        status: 'PDF Document',
+  function renderToolControls() {
+    const scanTabBuilder = createScanTabBuilder({
+      activeTab,
+      docPreset,
+      exportFormat,
+      exportQuality,
+      isExporting,
+      isOcrProcessing,
+      pages,
+      scanName,
+      getActivePage,
+      setStatus,
+      makeButton,
+      makePresetButton,
+      makeSlider,
+      makeSectionTitle,
+      textElement,
+      renderStagePreview,
+      renderPageReel,
+      persistState,
+      onModeChange: (preset, mode, status) => {
+        docPreset = preset;
+        currentMode = mode;
+        modeStatus.textContent = status;
+        setStatus(`${status} active`);
+        renderToolControls();
       },
-      {
-        id: 'id',
-        label: 'ID / Passport',
-        mode: 'pdf',
-        status: 'ID Card Mode',
+      onFilterChange: (page, filterId, label) => {
+        page.filter = filterId;
+        renderStagePreview();
+        renderToolControls();
+        renderPageReel();
+        persistState();
+        setStatus(`Filter: ${label}`);
       },
-      {
-        id: 'ocr',
-        label: 'Text recognition',
-        mode: 'pdf',
-        status: 'OCR Text Mode',
-      },
-      {
-        id: 'photo',
-        label: 'HD Photo',
-        mode: 'photo',
-        status: 'HD Photo',
-      },
-    ];
-
-    const grid = div(
-      { className: 'scan-preset-grid' },
-
-      ...modes.map((mode) =>
-        makePresetButton(
-          mode.label,
-          docPreset === mode.id,
-          () => {
-            docPreset = mode.id;
-            currentMode = mode.mode;
-            modeStatus.textContent = mode.status;
-
-            setStatus(`${mode.status} active`);
-            renderToolControls();
-          }
-        )
-      )
-    );
-
-    toolContainer.append(
-      makeSectionTitle('Document type'),
-      grid
-    );
-  }
-
-  function createFiltersTab(page: ScannedPage | null) {
-    const filters: { id: FilterPreset; label: string }[] = [
-      { id: 'magic', label: 'Magic color' },
-      { id: 'gray', label: 'Grayscale' },
-      { id: 'bw', label: 'High contrast' },
-      { id: 'original', label: 'Original' },
-    ];
-
-    const grid = div(
-      { className: 'scan-preset-grid' },
-
-      ...filters.map((filter) =>
-        makePresetButton(
-          filter.label,
-          page?.filter === filter.id,
-          () => {
-            if (!page) {
-              setStatus('Upload a document first');
-              return;
-            }
-
-            page.filter = filter.id;
-
-            renderStagePreview();
-            renderToolControls();
-            renderPageReel();
-            persistState();
-
-            setStatus(`Filter: ${filter.label}`);
-          }
-        )
-      )
-    );
-
-    const sliders = div(
-      { className: 'scan-control-card' },
-
-      makeSlider(
-        'Brightness',
-        page?.brightness ?? 100,
-        50,
-        150,
-        (value) => {
-          if (!page) return;
-
-          page.brightness = value;
-          renderStagePreview();
-          persistState();
-        }
-      ),
-
-      makeSlider(
-        'Contrast',
-        page?.contrast ?? 100,
-        50,
-        200,
-        (value) => {
-          if (!page) return;
-
-          page.contrast = value;
-          renderStagePreview();
-          persistState();
-        }
-      )
-    );
-
-    toolContainer.append(
-      makeSectionTitle('Enhancement presets'),
-      grid,
-      makeSectionTitle('Image adjustments'),
-      sliders
-    );
-  }
-
-  function createCropTab() {
-    toolContainer.append(
-      makeSectionTitle('Perspective crop'),
-
-      div(
-        { className: 'scan-info-card' },
-        textElement(
-          'Move the four corner handles to select the document boundaries.'
-        ),
-        textElement(
-          'The current crop operation creates a rectangular crop from the selected bounds. Full perspective correction requires a homography transform.'
-        )
-      ),
-
-      makeButton(
-        'Apply crop',
-        'scan-button scan-button-primary scan-button-block',
-        () => void applyPerspectiveCrop()
-      )
-    );
-  }
-
-  function createSignTab(page: ScannedPage | null) {
-    const watermarkInput = input({
-      type: 'text',
-      value: page?.watermarkText ?? '',
-      placeholder: 'CONFIDENTIAL',
-      className: 'scan-text-input',
-      oninput: (event: Event) => {
-        if (!page) return;
-
-        page.watermarkText = (
-          event.target as HTMLInputElement
-        ).value;
-
+      onBrightnessChange: (page, value) => {
+        page.brightness = value;
         renderStagePreview();
         persistState();
       },
-    });
-
-    toolContainer.append(
-      makeSectionTitle('Security watermark'),
-
-      div(
-        { className: 'scan-control-card' },
-
-        label(
-          { className: 'scan-field-label' },
-          'Watermark text',
-          watermarkInput
-        ),
-
-        makeSlider(
-          'Opacity',
-          page?.watermarkOpacity ?? 15,
-          5,
-          50,
-          (value) => {
-            if (!page) return;
-
-            page.watermarkOpacity = value;
-            renderStagePreview();
-            persistState();
-          }
-        )
-      ),
-
-      makeSectionTitle('Electronic signature'),
-
-      div(
-        { className: 'scan-control-card' },
-
-        textElement(
-          page?.signatureDataUrl
-            ? 'A signature is attached.'
-            : 'No signature attached.',
-          'scan-muted-text'
-        ),
-
-        makeButton(
-          page?.signatureDataUrl ? 'Redraw signature' : 'Draw signature',
-          'scan-button scan-button-primary scan-button-block',
-          () => openSignaturePadModal()
-        ),
-
-        page?.signatureDataUrl
-          ? makeButton(
-              'Remove signature',
-              'scan-button scan-button-danger scan-button-block',
-              () => {
-                if (!page) return;
-
-                page.signatureDataUrl = null;
-
-                renderStagePreview();
-                renderToolControls();
-                persistState();
-
-                setStatus('Signature removed');
-              }
-            )
-          : null
-      )
-    );
-  }
-
-  function createOcrTab(page: ScannedPage | null) {
-    const output = div(
-      { className: 'scan-ocr-output' },
-      page?.extractedText ||
-        (isOcrProcessing
-          ? 'Recognizing text...'
-          : 'No text extracted yet.')
-    );
-
-    const runButton = makeButton(
-      isOcrProcessing ? 'Processing...' : 'Run text recognition',
-      'scan-button scan-button-primary scan-button-block',
-      () => void runTesseractOcr(),
-      isOcrProcessing || !page
-    );
-
-    toolContainer.append(
-      makeSectionTitle('Text recognition'),
-
-      div(
-        { className: 'scan-info-card' },
-        textElement(
-          'Extract text locally from your document using Tesseract.js.'
-        ),
-        runButton
-      ),
-
-      div(
-        { className: 'scan-ocr-heading' },
-        span({}, 'Extracted text'),
-
-        page?.extractedText
-          ? makeButton(
-              'Copy',
-              'scan-button scan-button-muted scan-button-small',
-              () => {
-                void navigator.clipboard.writeText(
-                  page.extractedText || ''
-                );
-
-                setStatus('Text copied');
-              }
-            )
-          : null
-      ),
-
-      output
-    );
-  }
-
-  function createBatchTab() {
-    toolContainer.append(
-      makeSectionTitle('Batch manager'),
-
-      div(
-        { className: 'scan-info-card' },
-        textElement(`Pages in stack: ${pages.length}`),
-        textElement(
-          'Add images, switch between pages, or remove individual pages.'
-        )
-      ),
-
-      makeButton(
-        'Add pages',
-        'scan-button scan-button-muted scan-button-block',
-        () => fileInput.click()
-      )
-    );
-
-    if (pages.length) {
-      toolContainer.append(
-        makeButton(
-          'Clear entire stack',
-          'scan-button scan-button-danger scan-button-block',
-          () => {
-            if (!confirm('Clear the entire document stack?')) {
-              return;
-            }
-
-            pages = [];
-            activePageIndex = -1;
-
-            renderAll();
-            persistState();
-
-            setStatus('Document stack cleared');
-          }
-        )
-      );
-    }
-  }
-
-  function createExportTab() {
-    const nameInput = input({
-      type: 'text',
-      value: scanName,
-      className: 'scan-text-input',
-      placeholder: 'Document name',
-      oninput: (event: Event) => {
-        scanName = (
-          event.target as HTMLInputElement
-        ).value;
+      onContrastChange: (page, value) => {
+        page.contrast = value;
+        renderStagePreview();
+        persistState();
       },
+      onWatermarkChange: (page, value) => {
+        page.watermarkText = value;
+        renderStagePreview();
+        persistState();
+      },
+      onWatermarkOpacityChange: (page, value) => {
+        page.watermarkOpacity = value;
+        renderStagePreview();
+        persistState();
+      },
+      onSignatureRemove: (page) => {
+        page.signatureDataUrl = null;
+        renderStagePreview();
+        renderToolControls();
+        persistState();
+        setStatus('Signature removed');
+      },
+      onOpenSignaturePadModal: openSignaturePadModal,
+      onApplyPerspectiveCrop: applyPerspectiveCrop,
+      onRunTesseractOcr: runTesseractOcr,
+      onExportFormatChange: (format) => {
+        exportFormat = format;
+        renderToolControls();
+      },
+      onExportQualityChange: (value) => {
+        exportQuality = value;
+      },
+      onExportNameChange: (value) => {
+        scanName = value;
+      },
+      onClearStack: () => {
+        if (!confirm('Clear the entire document stack?')) {
+          return;
+        }
+
+        pages = [];
+        activePageIndex = -1;
+
+        renderAll();
+        persistState();
+        setStatus('Document stack cleared');
+      },
+      onAddPagesClick: () => fileInput.click(),
+      onCopyExtractedText: async (text) => {
+        await navigator.clipboard.writeText(text);
+        setStatus('Text copied');
+      },
+      onTriggerExport: triggerExport,
     });
 
-    const formatGrid = div(
-      { className: 'scan-preset-grid scan-format-grid' },
-
-      ...(['pdf', 'jpg', 'png'] as ExportFormat[]).map((format) =>
-        makePresetButton(
-          format.toUpperCase(),
-          exportFormat === format,
-          () => {
-            exportFormat = format;
-            renderToolControls();
-          }
-        )
-      )
-    );
-
-    toolContainer.append(
-      makeSectionTitle('Export document'),
-
-      div(
-        { className: 'scan-control-card' },
-
-        label(
-          { className: 'scan-field-label' },
-          'File name',
-          nameInput
-        ),
-
-        label(
-          { className: 'scan-field-label' },
-          'Export format',
-          formatGrid
-        ),
-
-        makeSlider(
-          'Image quality',
-          Math.round(exportQuality * 100),
-          40,
-          100,
-          (value) => {
-            exportQuality = value / 100;
-          }
-        ),
-
-        makeButton(
-          isExporting ? 'Exporting...' : `Export ${exportFormat.toUpperCase()}`,
-          'scan-button scan-button-primary scan-button-block',
-          () => void triggerExport(),
-          isExporting || !pages.length
-        )
-      )
-    );
-  }
-
-  function renderToolControls() {
     toolContainer.innerHTML = '';
-
-    const page = getActivePage();
-
-    switch (activeTab) {
-      case 'mode':
-        createModeTab();
-        break;
-
-      case 'filters':
-        createFiltersTab(page);
-        break;
-
-      case 'crop':
-        createCropTab();
-        break;
-
-      case 'sign':
-        createSignTab(page);
-        break;
-
-      case 'ocr':
-        createOcrTab(page);
-        break;
-
-      case 'batch':
-        createBatchTab();
-        break;
-
-      case 'export':
-        createExportTab();
-        break;
-    }
+    scanTabBuilder.renderTab(toolContainer);
 
     toolContainer.append(
       div(
@@ -1241,139 +901,14 @@ export async function createScanPage(): Promise<HTMLElement> {
     }
   }
 
-  // Signature modal
-
-  function openSignaturePadModal() {
-    const page = getActivePage();
-
-    if (!page) {
-      setStatus('Select a page first');
-      return;
-    }
-
-    const overlay = div({
-      className: 'scan-modal-overlay',
-    });
-
-    const modal = div({
-      className: 'scan-signature-modal',
-    });
-
-    const heading = div(
-      { className: 'scan-modal-heading' },
-      p({}, 'Draw your signature'),
-      makeButton(
-        '×',
-        'scan-modal-close',
-        () => closeModal()
-      )
-    );
-
-    const canvas = document.createElement('canvas');
-
-    canvas.width = 1000;
-    canvas.height = 400;
-    canvas.className = 'scan-signature-canvas';
-
-    const canvasWrapper = div(
-      { className: 'scan-signature-canvas-wrapper' },
-      canvas
-    );
-
-    const context = canvas.getContext('2d');
-
-    if (context) {
-      context.strokeStyle = '#111827';
-      context.lineWidth = 5;
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-    }
-
-    let drawing = false;
-
-    const getPosition = (event: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-
-      return {
-        x: (event.clientX - rect.left) * (canvas.width / rect.width),
-        y: (event.clientY - rect.top) * (canvas.height / rect.height),
-      };
-    };
-
-    const onPointerDown = (event: PointerEvent) => {
-      drawing = true;
-      canvas.setPointerCapture(event.pointerId);
-
-      const point = getPosition(event);
-
-      context?.beginPath();
-      context?.moveTo(point.x, point.y);
-    };
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (!drawing) return;
-
-      const point = getPosition(event);
-
-      context?.lineTo(point.x, point.y);
-      context?.stroke();
-    };
-
-    const onPointerUp = () => {
-      drawing = false;
-    };
-
-    canvas.addEventListener('pointerdown', onPointerDown);
-    canvas.addEventListener('pointermove', onPointerMove);
-    canvas.addEventListener('pointerup', onPointerUp);
-    canvas.addEventListener('pointercancel', onPointerUp);
-
-    const clearButton = makeButton(
-      'Clear',
-      'scan-button scan-button-muted',
-      () => context?.clearRect(0, 0, canvas.width, canvas.height)
-    );
-
-    const saveButton = makeButton(
-      'Apply signature',
-      'scan-button scan-button-primary',
-      () => {
-        page.signatureDataUrl = canvas.toDataURL('image/png');
-
-        renderStagePreview();
-        renderToolControls();
-        persistState();
-
-        setStatus('Signature attached');
-        closeModal();
-      }
-    );
-
-    const actions = div(
-      { className: 'scan-modal-actions' },
-      clearButton,
-      saveButton
-    );
-
-    modal.append(heading, canvasWrapper, actions);
-    overlay.append(modal);
-    document.body.append(overlay);
-
-    function closeModal() {
-      canvas.removeEventListener('pointerdown', onPointerDown);
-      canvas.removeEventListener('pointermove', onPointerMove);
-      canvas.removeEventListener('pointerup', onPointerUp);
-      canvas.removeEventListener('pointercancel', onPointerUp);
-
-      overlay.remove();
-    }
-
-    overlay.addEventListener('click', (event) => {
-      if (event.target === overlay) {
-        closeModal();
-      }
-    });
-  }
+  const openSignaturePadModal = createScanSignatureModal({
+    getPage: getActivePage,
+    setStatus,
+    renderStagePreview,
+    renderToolControls,
+    persistState,
+    makeButton,
+  });
 
   // Crop
 

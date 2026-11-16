@@ -8,12 +8,15 @@ export interface ScanCameraControllerOptions {
 }
 
 function createLiveVideo(): HTMLVideoElement {
-  return video({
+  const v = video({
     autoplay: true,
     playsInline: true,
     muted: true,
-    style: 'width: 100%; height: 420px; object-fit: cover; border-radius: 12px; background: #0f172a;'
+    style: 'width: 100%; height: 100%; object-fit: cover; background: #0f172a;'
   });
+  v.setAttribute('playsinline', 'true');
+  v.setAttribute('webkit-playsinline', 'true');
+  return v;
 }
 
 function createCameraOverlay(): HTMLDivElement {
@@ -42,15 +45,17 @@ export function createScanCameraController({
   let stream: MediaStream | null = null;
   let cameraReady = false;
   let currentObjectUrl: string | null = null;
+  
+  // Track current camera facing mode ('environment' = rear, 'user' = front)
+  let currentFacingMode: 'environment' | 'user' = 'environment';
 
   const videoEl = createLiveVideo();
   const cameraOverlay = createCameraOverlay();
 
   const showLivePreview = () => {
-    const wrapper = div({ style: 'position: relative; width: 100%; height: 420px;' });
+    const wrapper = div({ style: 'position: relative; width: 100%; height: 420px; border-radius: 12px; overflow: hidden;' });
     wrapper.append(videoEl, cameraOverlay);
     previewFrame.replaceChildren(wrapper);
-    setStatus('Live camera preview active');
   };
 
   const stopCamera = () => {
@@ -58,34 +63,68 @@ export function createScanCameraController({
       stream.getTracks().forEach((track) => track.stop());
       stream = null;
     }
+    cameraReady = false;
+  };
+
+  const requestCameraStream = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Camera access requires a secure context (HTTPS or localhost).');
+    }
+
+    const constraints: MediaStreamConstraints = {
+      video: {
+        facingMode: { ideal: currentFacingMode },
+        width: { ideal: 1280, max: 1920 },
+        height: { ideal: 720, max: 1080 },
+      },
+      audio: false,
+    };
+
+    return await navigator.mediaDevices.getUserMedia(constraints);
   };
 
   const startCamera = async () => {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setStatus('Camera access is not supported on this browser');
-      return;
-    }
-
     try {
       stopCamera();
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
+      setStatus(`Opening ${currentFacingMode === 'environment' ? 'rear' : 'front'} camera...`);
+
+      showLivePreview();
+
+      stream = await requestCameraStream();
       videoEl.srcObject = stream;
+      videoEl.muted = true;
+
       await videoEl.play();
       cameraReady = true;
-      showLivePreview();
-    } catch (_err) {
-      setStatus('Unable to access camera. Please upload a file instead.');
+      setStatus(`Live camera preview active (${currentFacingMode === 'environment' ? 'Rear' : 'Front'})`);
+    } catch (error: any) {
+      stopCamera();
+      cameraReady = false;
+      console.error('Camera initialization failed:', error);
+
+      let errorMsg = 'Unable to access camera.';
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        errorMsg = 'Camera permission denied. Please allow camera access in your browser settings.';
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        errorMsg = 'No camera device found.';
+      }
+      setStatus(errorMsg);
+    }
+  };
+
+  const toggleCamera = async () => {
+    // Switch between 'environment' and 'user'
+    currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+    if (cameraReady || stream) {
+      await startCamera();
+    } else {
+      setStatus(`Default camera switched to ${currentFacingMode === 'environment' ? 'rear' : 'front'}`);
     }
   };
 
   const setPreviewFromFile = (file: File) => {
     stopCamera();
-    cameraReady = false;
 
-    // Revoke previous object URL to prevent memory leaks
     if (currentObjectUrl) {
       URL.revokeObjectURL(currentObjectUrl);
       currentObjectUrl = null;
@@ -109,16 +148,17 @@ export function createScanCameraController({
   };
 
   const capturePhoto = () => {
-    if (!cameraReady || !stream) {
-      setStatus('Start the camera before capturing');
+    if (!cameraReady || !stream || !videoEl.videoWidth) {
+      setStatus('Camera is not active. Start the camera before capturing.');
       return;
     }
 
-    const width = videoEl.videoWidth || 1280;
-    const height = videoEl.videoHeight || 720;
+    const width = videoEl.videoWidth;
+    const height = videoEl.videoHeight;
     const canvasEl = createCaptureCanvas(width, height);
     const ctx = canvasEl.getContext('2d');
     if (!ctx) {
+      setStatus('Failed to process image capture context.');
       return;
     }
 
@@ -129,12 +169,12 @@ export function createScanCameraController({
     const modeLabel = getMode() === 'pdf' ? 'PDF export' : 'photo export';
     setStatus(`Photo captured for ${modeLabel}`);
     stopCamera();
-    cameraReady = false;
   };
 
   return {
     startCamera,
     stopCamera,
+    toggleCamera,
     setPreviewFromFile,
     capturePhoto,
   };

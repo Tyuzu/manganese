@@ -32,10 +32,3 @@ export const OCR_LANGUAGES = [
   { value: 'fra', label: 'French' },
   { value: 'deu', label: 'German' },
 ];
-
-export const INITIAL_PAGES: ScannerPageItem[] = [
-  { id: 'p-1', title: 'Page 1 (Cover)', rotation: 0 },
-  { id: 'p-2', title: 'Page 2 (Invoice Details)', rotation: 0 },
-  { id: 'p-3', title: 'Page 3 (Line Items)', rotation: 0 },
-  { id: 'p-4', title: 'Page 4 (Terms & Signatures)', rotation: 0 },
-];

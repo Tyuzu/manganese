@@ -17,7 +17,6 @@ import {
   createSliderControl,
 } from './shared';
 import {
-  INITIAL_PAGES,
   OCR_LANGUAGES,
   TABS,
   type ExportFormat,
@@ -48,7 +47,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   let uploadedFileUrl: string | null = null;
   let uploadedFileType: 'pdf' | 'image' | null = null;
 
-  let pages: ScannerPageItem[] = INITIAL_PAGES.map((page) => ({ ...page }));
+  let pages: ScannerPageItem[] = [];
   let selectedPageIndex = 0;
 
   let brightness = 100;
@@ -282,10 +281,12 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // --------------------------------------------------
 
   function renderDocumentPreview() {
-    pageCounter.textContent = `Page ${selectedPageIndex + 1} / ${pages.length}`;
+    pageCounter.textContent =
+      pages.length > 0
+        ? `Page ${selectedPageIndex + 1} / ${pages.length}`
+        : 'No pages loaded';
 
-    documentName.textContent =
-      uploadedFileName || 'Sample document';
+    documentName.textContent = uploadedFileName || 'Untitled document';
 
     if (!uploadedFileUrl || !uploadedFileType) {
       renderEmptyDropzone();
