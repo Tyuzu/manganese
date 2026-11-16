@@ -1,3 +1,4 @@
+import "../../../css/layout.css";
 import { div, header, main, footer, h1, p, span, button } from '../ui/dom';
 import { appStore, authActions } from '../../appState';
 import { router } from '../../main';
@@ -16,7 +17,7 @@ function createHeaderActions(): HTMLElement {
     : (state.editorTheme as ThemeOption) || 'dark';
 
   const themeSelect = document.createElement('select');
-  themeSelect.className = 'header-theme-select bg-slate-900 text-slate-200 text-xs rounded border border-slate-700 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-500';
+  themeSelect.className = 'header-theme-select';
   themeSelect.setAttribute('aria-label', 'Theme Selector');
   themeSelect.value = selectedTheme;
   
@@ -40,28 +41,24 @@ function createHeaderActions(): HTMLElement {
   });
 
   return div(
-    { className: 'header-meta flex w-full items-center justify-end gap-3 sm:w-auto' },
+    { className: 'header-meta' },
     span(
-      {
-        className: 'hidden sm:inline-flex items-center gap-2 rounded border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs font-medium text-slate-300',
-      },
-      span({ className: 'h-2 w-2 rounded-full bg-sky-500' }),
+      { className: 'workspace-badge' },
+      span({ className: 'workspace-dot' }),
       `Workspace • ${userName}`
     ),
     span(
-      {
-        className: 'hidden items-center gap-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-400 xl:inline-flex',
-      },
-      span({ className: 'h-2 w-2 rounded-full bg-emerald-400 animate-pulse' }),
+      { className: 'active-status-badge' },
+      span({ className: 'active-status-dot' }),
       'Active'
     ),
     div(
-      { className: 'header-theme-select-wrap inline-flex items-center' },
+      { className: 'header-theme-select-wrap' },
       themeSelect
     ),
     button(
       {
-        className: 'header-action-btn inline-flex items-center justify-center rounded bg-sky-600 px-4 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-sky-500 active:scale-95',
+        className: 'header-action-btn',
         onClick: () => {
           if (isLoggedIn) {
             authActions.logout();
@@ -79,48 +76,39 @@ function createHeaderActions(): HTMLElement {
 }
 
 export function renderLayout(): HTMLElement {
-  const container = div({ className: 'app-shell w-full min-h-screen bg-slate-950 text-slate-100 font-sans' });
-  const contentPane = div({ className: 'app-content-panel flex min-w-0 w-full flex-col gap-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8' });
+  const container = div({ className: 'app-shell' });
+  const contentPane = div({ className: 'app-content-panel' });
 
   const brandRow = div(
-    { className: 'brand-row flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:justify-between' },
+    { className: 'brand-row' },
     div(
-      { className: 'brand-block flex items-center gap-3.5' },
+      { className: 'brand-block' },
+      div({ className: 'brand-mark' }, 'P'),
       div(
-        {
-          className: 'brand-mark flex h-10 w-10 items-center justify-center rounded bg-sky-600 text-base font-bold text-white shadow-sm',
-        },
-        'P'
-      ),
-      div(
-        { className: 'brand-copy flex flex-col' },
-        h1({ className: 'm-0 text-lg font-semibold tracking-tight text-white sm:text-xl' }, 'PixelForge Studio'),
-        p({ className: 'm-0 text-xs text-slate-400' }, 'Microsoft Fluent UI Creative Workspace')
+        { className: 'brand-copy' },
+        h1({}, 'PixelForge Studio'),
+        p({}, 'Microsoft Fluent UI Creative Workspace')
       )
     ),
     createHeaderActions()
   );
 
-  const navWrap = div({ className: 'nav-shell w-full border-t border-slate-800 pt-3' });
+  const navWrap = div({ className: 'nav-shell' });
   navWrap.appendChild(createNavElement());
 
   const headerEl = header(
-    {
-      className: 'app-header sticky top-4 z-20 flex flex-col gap-4 rounded-lg border border-slate-800 bg-slate-900/90 p-4 shadow-lg backdrop-blur-md',
-    },
+    { className: 'app-header' },
     brandRow,
     navWrap
   );
 
-  const pageHost = div({ className: 'page-content w-full min-h-[20rem]' });
-  const mainEl = main({ className: 'app-main block' }, pageHost);
+  const pageHost = div({ className: 'page-content' });
+  const mainEl = main({ className: 'app-main' }, pageHost);
 
   const footerEl = footer(
-    {
-      className: 'app-footer mt-auto flex flex-col items-start justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-6 py-4 text-xs text-slate-400 sm:flex-row sm:items-center',
-    },
-    p({ className: 'm-0 font-medium' }, 'PixelForge © 2026 Microsoft Fluent Integration'),
-    p({ className: 'm-0' }, 'Unified Media Workspace & Pipeline')
+    { className: 'app-footer' },
+    p({}, 'PixelForge © 2026 Microsoft Fluent Integration'),
+    p({}, 'Unified Media Workspace & Pipeline')
   );
 
   contentPane.append(headerEl, mainEl, footerEl);

@@ -1,5 +1,8 @@
-export type AppTheme = 'dark' | 'light' | 'midnight' | 'aurora' | 'sunset' | 'forest';
-export type EditorThemeName = 'midnight' | 'aurora' | 'sunset' | 'forest';
+export const APP_THEMES = ['dark', 'light', 'midnight', 'aurora', 'sunset', 'forest'] as const;
+export type AppTheme = typeof APP_THEMES[number];
+
+export const EDITOR_THEMES = ['midnight', 'aurora', 'sunset', 'forest'] as const;
+export type EditorThemeName = typeof EDITOR_THEMES[number];
 
 export function getPreferredTheme(): AppTheme {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -10,16 +13,16 @@ export function getPreferredTheme(): AppTheme {
 }
 
 export function normalizeTheme(theme: unknown): AppTheme {
-  if (theme === 'dark' || theme === 'light' || theme === 'midnight' || theme === 'aurora' || theme === 'sunset' || theme === 'forest') {
-    return theme;
+  if (typeof theme === 'string' && (APP_THEMES as readonly string[]).includes(theme)) {
+    return theme as AppTheme;
   }
 
   return getPreferredTheme();
 }
 
 export function normalizeEditorTheme(theme: unknown): EditorThemeName {
-  if (theme === 'aurora' || theme === 'sunset' || theme === 'forest') {
-    return theme;
+  if (typeof theme === 'string' && (EDITOR_THEMES as readonly string[]).includes(theme)) {
+    return theme as EditorThemeName;
   }
 
   return 'midnight';

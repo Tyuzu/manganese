@@ -1,4 +1,5 @@
-﻿:root {
+﻿@import url("misc.css");
+:root {
   color-scheme: dark;
   --bg-900: #020817;
   --bg-800: #0b1220;

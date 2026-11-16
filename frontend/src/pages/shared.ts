@@ -1,3 +1,5 @@
+import "../../css/shared.css";
+
 import { button, cn, createButton, div, h2, input, p, span, uiClasses } from '../components/ui/dom';
 import { appStore, mediaModeActions, type MediaProcessingMode } from '../appState';
 
@@ -61,12 +63,12 @@ export function createFeatureGrid(
 }
 
 export function createMediaProcessingModeSelector(options?: { label?: string; className?: string }): HTMLElement {
-  const label = options?.label ?? 'Edit location';
+  const labelText = options?.label ?? 'Edit location';
   const wrapper = div({
     className: cn('fluent-mode-selector', options?.className)
   });
 
-  const title = p({ className: 'fluent-mode-title' }, label);
+  const title = p({ className: 'fluent-mode-title' }, labelText);
   const buttons = div({ className: 'fluent-mode-buttons' });
 
   const browserButton = button({
@@ -83,12 +85,16 @@ export function createMediaProcessingModeSelector(options?: { label?: string; cl
 
   const syncSelection = (nextMode: MediaProcessingMode) => {
     const isBrowser = nextMode === 'browser';
-    browserButton.className = isBrowser
-      ? 'fluent-mode-button fluent-mode-button-browser fluent-mode-button-active'
-      : 'fluent-mode-button fluent-mode-button-browser';
-    serverButton.className = !isBrowser
-      ? 'fluent-mode-button fluent-mode-button-server fluent-mode-button-active'
-      : 'fluent-mode-button fluent-mode-button-server';
+    browserButton.className = cn(
+      'fluent-mode-button',
+      'fluent-mode-button-browser',
+      isBrowser && 'fluent-mode-button-active'
+    );
+    serverButton.className = cn(
+      'fluent-mode-button',
+      'fluent-mode-button-server',
+      !isBrowser && 'fluent-mode-button-active'
+    );
     browserButton.setAttribute('aria-pressed', String(isBrowser));
     serverButton.setAttribute('aria-pressed', String(!isBrowser));
   };
@@ -106,19 +112,19 @@ export function createDetailPanel(
   details: Array<{ label: string; value: string | HTMLElement }>,
   panelClassName?: string
 ): HTMLElement {
-  const panel = div({ className: cn(uiClasses.panel, 'flex flex-col gap-3', panelClassName) });
+  const panel = div({ className: cn('fluent-detail-panel', uiClasses.panel, panelClassName) });
 
   details.forEach(({ label, value }) => {
-    const item = p({ className: 'm-0 text-sm text-slate-400 flex justify-between items-center' },
-      span({ className: 'font-semibold text-slate-300' }, `${label}:`),
-      typeof value === 'string' ? span({ className: 'text-slate-100 font-mono text-xs' }, value) : value
+    const item = div({ className: 'fluent-detail-item' },
+      span({ className: 'fluent-detail-label' }, `${label}:`),
+      typeof value === 'string' ? span({ className: 'fluent-detail-value-text' }, value) : value
     );
     panel.append(item);
   });
 
   if (title) {
     panel.prepend(
-      h2({ className: 'm-0 text-lg font-bold text-white tracking-tight mb-1 border-b border-slate-800 pb-2' }, title)
+      h2({ className: 'fluent-detail-heading' }, title)
     );
   }
 
@@ -141,15 +147,15 @@ export function createEditorTabButton<T extends string>(
   tab: { id: T; label: string; icon?: string },
   isActive: boolean,
   onSelect: (tabId: T) => void,
-  activeClassName = 'border-slate-100/20 bg-slate-900/40 text-slate-50 shadow-inner',
-  inactiveClassName = 'border-transparent bg-transparent text-slate-300 hover:text-slate-100'
+  activeClassName = 'fluent-tab-active',
+  inactiveClassName = 'fluent-tab-inactive'
 ): HTMLButtonElement {
   return button({
     type: 'button',
     role: 'tab',
     'aria-selected': isActive.toString(),
     className: cn(
-      'editor-tab relative inline-flex shrink-0 basis-[74px] items-center justify-center gap-1.5 border px-2 py-2 text-[8px] font-black uppercase tracking-[0.12em] transition-all duration-200 sm:min-w-[110px] sm:basis-auto sm:px-3 sm:text-[11px]',
+      'editor-tab',
       isActive ? activeClassName : inactiveClassName
     ),
     onclick: () => onSelect(tab.id)
@@ -166,13 +172,13 @@ export function createEditorTabNav<T extends string>(
     containerClassName?: string;
   }
 ): HTMLElement {
-  const nav = div({
+  const navEl = div({
     role: 'tablist',
-    className: options?.containerClassName ?? 'editor-tablist flex w-full gap-1.5 overflow-x-auto border-b border-slate-700/70 bg-slate-900/25 px-2 pb-2 pt-1 sm:gap-2 sm:px-4'
+    className: options?.containerClassName ?? 'editor-tablist'
   });
 
   tabs.forEach((tab) => {
-    nav.append(
+    navEl.append(
       createEditorTabButton(
         tab,
         activeTab === tab.id,
@@ -183,7 +189,7 @@ export function createEditorTabNav<T extends string>(
     );
   });
 
-  return nav;
+  return navEl;
 }
 
 export function createEditorTitleRow(
@@ -194,26 +200,26 @@ export function createEditorTitleRow(
 ): { titleRow: HTMLElement; fullscreenButton: HTMLButtonElement; closeButton: HTMLButtonElement } {
   const fullscreenButton = button({
     type: 'button',
-    className: 'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/45 text-lg leading-none text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:bg-slate-800 hover:text-white',
+    className: 'editor-title-icon-btn',
     title: 'Toggle fullscreen editor view',
     onclick: onToggleFullscreen,
   }, '⤢');
 
   const closeButton = button({
     type: 'button',
-    className: 'flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700/60 bg-slate-900/45 text-2xl leading-none text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:bg-slate-800 hover:text-white',
+    className: 'editor-title-icon-btn editor-close-btn',
     title: 'Close editor',
     onclick: onReset,
   }, '×');
 
-  const titleContent = div({ className: 'flex min-w-0 flex-1 flex-col justify-center gap-0.5' },
-    div({ className: 'truncate text-[1.15rem] leading-none font-bold tracking-[-0.04em] text-slate-50 sm:text-[1.55rem]' }, title),
-    subtitle ? p({ className: 'm-0 text-[10px] uppercase tracking-[0.18em] text-slate-300/80' }, subtitle) : ''
+  const titleContent = div({ className: 'editor-title-content' },
+    div({ className: 'editor-title-heading' }, title),
+    subtitle ? p({ className: 'editor-title-subheading' }, subtitle) : ''
   );
 
-  const titleRow = div({ className: 'flex items-center justify-between gap-3 border-b border-white/5 bg-transparent px-3 py-3 sm:px-5 sm:py-4' },
+  const titleRow = div({ className: 'editor-title-row' },
     titleContent,
-    div({ className: 'flex shrink-0 items-center gap-2 rounded-xl border border-white/5 bg-slate-900/20 p-1.5' }, fullscreenButton, closeButton)
+    div({ className: 'editor-title-actions-wrap' }, fullscreenButton, closeButton)
   );
 
   return { titleRow, fullscreenButton, closeButton };
@@ -227,9 +233,9 @@ export function createEditorShell({
   footer,
   onReset,
   onToggleFullscreen,
-  rootClassName = 'min-h-screen p-3 sm:p-6 lg:p-8 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm',
-  modalClassName = 'w-full max-w-[1120px] rounded-[22px] border border-slate-700/70 bg-[#536d7b] shadow-[0_25px_60px_rgba(15,23,42,0.35)] overflow-x-hidden overflow-y-auto flex flex-col',
-  wrapperClassName = 'w-full flex flex-col'
+  rootClassName = 'editor-shell-root',
+  modalClassName = 'editor-shell-modal',
+  wrapperClassName = 'editor-shell-wrapper'
 }: {
   title: string;
   subtitle?: string;
@@ -298,19 +304,19 @@ export function createSliderControl(
   const unit = typeof onChangeOrUnit === 'string' ? onChangeOrUnit : options?.unit ?? '%';
   const onChange = typeof onChangeOrUnit === 'function' ? onChangeOrUnit : maybeOnChange ?? (() => undefined);
 
-  const valDisplay = div({
-    className: cn('text-xs font-mono', options?.valueClassName ?? 'text-cyan-400')
+  const valDisplay = span({
+    className: cn('fluent-slider-val', options?.valueClassName)
   }, `${value}${unit}`);
 
   const slider = input({
     type: 'range',
-    min: min.toString(),
-    max: max.toString(),
-    value: value.toString(),
+    min: String(min),
+    max: String(max),
+    value: String(value),
     step: unit === '°' ? '0.5' : '1',
     className: cn(
-      'w-full rounded-lg appearance-none cursor-pointer',
-      options?.trackClassName ?? 'h-1.5 bg-slate-800 accent-cyan-500'
+      'fluent-range-input',
+      options?.trackClassName
     ),
     oninput: (e: Event) => {
       const nextValue = parseFloat((e.target as HTMLInputElement).value);
@@ -320,9 +326,9 @@ export function createSliderControl(
   });
 
   return div(
-    { className: cn('space-y-1.5', options?.containerClassName) },
-    div({ className: 'flex items-center justify-between gap-3' },
-      span({ className: cn('text-xs font-medium text-slate-300', options?.labelClassName) }, title),
+    { className: cn('fluent-slider-container', options?.containerClassName) },
+    div({ className: 'fluent-slider-header' },
+      span({ className: cn('fluent-slider-label', options?.labelClassName) }, title),
       valDisplay
     ),
     slider
@@ -353,10 +359,10 @@ export function createPresetButton(
     {
       type: 'button',
       className: cn(
-        'rounded-xl border p-2.5 text-center text-[11px] font-medium transition-all shadow-sm',
+        'fluent-preset-btn',
         isActive
-          ? (options?.activeClassName ?? 'border-cyan-500/60 bg-cyan-950/60 text-cyan-200')
-          : (options?.inactiveClassName ?? 'border-slate-800 bg-slate-950/80 text-slate-300 hover:border-slate-700 hover:text-white'),
+          ? (options?.activeClassName ?? 'is-active')
+          : (options?.inactiveClassName ?? 'is-inactive'),
         options?.buttonClassName
       ),
       onclick: onClick,
@@ -372,21 +378,21 @@ export function createEditorFooter(
   cancelLabel = 'Cancel',
   extraAction?: HTMLElement
 ): HTMLElement {
-  const footerLeft = div({ className: 'flex items-center gap-2' }, extraAction || '');
-  const footerRight = div({ className: 'flex items-center gap-3' },
+  const footerLeft = div({ className: 'editor-footer-left' }, extraAction || '');
+  const footerRight = div({ className: 'editor-footer-right' },
     button({
       type: 'button',
-      className: 'rounded-xl border border-slate-400/40 bg-transparent px-5 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-200 transition hover:border-slate-300 hover:bg-slate-900/20 hover:text-white',
+      className: 'editor-cancel-btn',
       onclick: onCancel,
     }, cancelLabel),
     button({
       type: 'button',
-      className: 'rounded-xl bg-[#4ec7a6] px-6 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-slate-950 shadow-[0_12px_24px_rgba(78,199,166,0.35)] transition hover:bg-[#5fdcb3] active:scale-[0.98]',
+      className: 'editor-save-btn',
       onclick: onSave,
     }, saveLabel)
   );
 
-  return div({ className: 'flex items-center justify-between px-5 pb-5 pt-3 border-t border-white/5 bg-black/10' },
+  return div({ className: 'editor-footer-root' },
     footerLeft,
     footerRight
   );

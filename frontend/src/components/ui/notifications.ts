@@ -1,3 +1,4 @@
+import "../../../css/notifico.css";
 import { button, cn, div, h2, p, span } from './dom';
 
 export interface ToastOptions {
@@ -10,31 +11,28 @@ export interface ToastOptions {
 export function createToast(options: ToastOptions): HTMLElement {
   const { message, variant = 'info', durationMs = 3000, onDismiss } = options;
 
-  const variantStyles = {
-    info: 'border-cyan-500/40 bg-slate-900/95 text-cyan-200 shadow-cyan-950/40',
-    success: 'border-emerald-500/40 bg-slate-900/95 text-emerald-300 shadow-emerald-950/40',
-    error: 'border-rose-500/40 bg-slate-900/95 text-rose-300 shadow-rose-950/40',
-    warning: 'border-amber-500/40 bg-slate-900/95 text-amber-200 shadow-amber-950/40',
-  };
+  const variantClass = {
+    info: 'is-info',
+    success: 'is-success',
+    error: 'is-error',
+    warning: 'is-warning',
+  }[variant];
 
   const toast = div(
     {
-      className: cn(
-        'pointer-events-auto flex items-center justify-between rounded-xl border px-4 py-3 text-xs font-medium shadow-xl backdrop-blur-md transition-all duration-300 translate-y-2 opacity-0',
-        variantStyles[variant]
-      ),
+      className: cn('fluent-toast', variantClass),
     },
-    span({ className: 'flex-1 pr-2' }, message)
+    span({ className: 'fluent-toast-message' }, message)
   );
 
   const dismiss = () => {
-    toast.classList.add('translate-y-[-8px]', 'opacity-0');
+    toast.classList.add('is-dismissing');
     setTimeout(() => toast.remove(), 300);
     onDismiss?.();
   };
 
   requestAnimationFrame(() => {
-    toast.classList.remove('translate-y-2', 'opacity-0');
+    toast.classList.add('is-visible');
   });
 
   const timer = setTimeout(dismiss, durationMs);
@@ -47,16 +45,14 @@ export function createToast(options: ToastOptions): HTMLElement {
 }
 
 export function createToastStack(options?: { position?: 'top-right' | 'top-left' | 'bottom-right'; className?: string }) {
+  const positionClass = {
+    'top-left': 'is-top-left',
+    'bottom-right': 'is-bottom-right',
+    'top-right': 'is-top-right',
+  }[options?.position || 'top-right'];
+
   const container = div({
-    className: cn(
-      'pointer-events-none fixed z-50 flex w-full max-w-sm flex-col gap-2.5 px-4',
-      options?.position === 'top-left'
-        ? 'left-0 top-4 items-start'
-        : options?.position === 'bottom-right'
-          ? 'bottom-4 right-0 items-end'
-          : 'right-0 top-4 items-end',
-      options?.className
-    ),
+    className: cn('fluent-toast-container', positionClass, options?.className),
   });
 
   if (typeof document !== 'undefined') {
@@ -98,34 +94,37 @@ export function createModal(options: ModalContentOptions): { root: HTMLElement; 
   } = options;
 
   const root = div({
-    className: 'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm',
+    className: 'fluent-modal-overlay',
   });
 
+  const sizeClass = {
+    sm: 'is-size-sm',
+    md: 'is-size-md',
+    lg: 'is-size-lg',
+    xl: 'is-size-xl',
+  }[size];
+
   const panel = div({
-    className: cn(
-      'w-full rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl',
-      size === 'sm' ? 'max-w-sm' : size === 'md' ? 'max-w-md' : size === 'xl' ? 'max-w-5xl' : 'max-w-2xl',
-      className
-    )
+    className: cn('fluent-modal-panel', sizeClass, className),
   });
 
   const header = title || description
-    ? div({ className: 'flex items-start justify-between gap-3 border-b border-slate-800 px-5 py-4' },
-        div({ className: 'space-y-1' },
-          title ? h2({ className: 'm-0 text-lg font-bold text-white' }, title) : '',
-          description ? p({ className: 'm-0 text-sm text-slate-400' }, description) : ''
+    ? div({ className: 'fluent-modal-header' },
+        div({ className: 'fluent-modal-title-wrap' },
+          title ? h2({ className: 'fluent-modal-title' }, title) : '',
+          description ? p({ className: 'fluent-modal-description' }, description) : ''
         ),
         button({
           type: 'button',
-          className: 'rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-sm text-slate-200 transition hover:bg-slate-700',
+          className: 'fluent-modal-close-btn',
           onclick: () => close(),
           'aria-label': 'Close modal',
         }, '✕')
       )
     : null;
 
-  const content = div({ className: 'px-5 py-4' }, body);
-  const modalFooter = footer ? div({ className: 'border-t border-slate-800 px-5 py-4' }, footer) : '';
+  const content = div({ className: 'fluent-modal-body' }, body);
+  const modalFooter = footer ? div({ className: 'fluent-modal-footer' }, footer) : '';
 
   panel.append(header || '', content, modalFooter || '');
   root.append(panel);
@@ -159,8 +158,7 @@ export function createModal(options: ModalContentOptions): { root: HTMLElement; 
       root.removeEventListener('click', handleBackdropClick);
     }
 
-    root.style.opacity = '0';
-    root.style.transition = 'opacity 0.2s ease-out';
+    root.classList.add('is-closing');
     setTimeout(() => {
       root.remove();
       onClose?.();
@@ -206,8 +204,7 @@ export function createModalManager(rootElement: HTMLElement, options: ModalManag
       rootElement.removeEventListener('click', handleBackdropClick);
     }
 
-    rootElement.style.opacity = '0';
-    rootElement.style.transition = 'opacity 0.2s ease-out';
+    rootElement.classList.add('is-closing');
     setTimeout(() => {
       rootElement.remove();
       onClose?.();
