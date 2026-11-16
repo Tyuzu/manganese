@@ -168,7 +168,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
   function renderFiltersTab() {
     const presetGrid = div(
       {
-        className: 've-grid ve-grid-cols-2 ve-gap-3 ve-mb-4',
+        className: 'preset-grid',
       },
       createThumbnailPresetCard('Normal', { exposure: 100, brightness: 100, contrast: 100, saturate: 100, temperature: 0, tint: 0, highlights: 100, shadows: 100, blur: 0, sharpen: 0, grayscale: 0, sepia: 0, vignette: 0, filmGrain: 0, fade: 0 }, '✨'),
       createThumbnailPresetCard('Cinematic', {
@@ -225,9 +225,9 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     );
 
     toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'One-Click Filter Presets'),
+      p({ className: 'section-title' }, 'One-Click Filter Presets'),
       presetGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Basic Adjustments'),
+      p({ className: 'section-title mt-lg' }, 'Basic Adjustments'),
       createSliderControl('Exposure', filters.exposure, 0, 200, (value) => {
         filters.exposure = value;
         applyVideoFilters();
@@ -260,7 +260,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
         filters.shadows = value;
         applyVideoFilters();
       }),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Creative Effects'),
+      p({ className: 'section-title mt-lg' }, 'Creative Effects'),
       createSliderControl('Blur (px)', filters.blur, 0, 20, (value) => {
         filters.blur = value;
         applyVideoFilters();
@@ -289,13 +289,13 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
         filters.fade = value;
         applyVideoFilters();
       }),
-      p({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
+      p({ className: 'helper-text' }, 'Some creative effects are stored as settings but need dedicated shader or canvas implementations for accurate rendering.'),
     );
   }
 
   function renderTransformTab() {
     const ratioGrid = div(
-      { className: 've-grid ve-grid-cols-2 ve-gap-2.5' },
+      { className: 'transform-grid' },
       createPresetButton('16:9 Widescreen', () => {
         setAspectRatio('16:9');
         pushState();
@@ -315,7 +315,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     );
 
     const transformGrid = div(
-      { className: 've-grid ve-grid-cols-2 ve-gap-2.5 ve-mt-3' },
+      { className: 'transform-grid mt-sm' },
       createPresetButton('Rotate 90°', () => {
         setRotation((rotation + 90) % 360);
         updateTransforms();
@@ -341,7 +341,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     );
 
     const maskToolGrid = div(
-      { className: 've-grid ve-grid-cols-3 ve-gap-2 ve-mt-2' },
+      { className: 'mask-tool-grid' },
       createPresetButton('Circle', () => setActiveMaskTool('circle')),
       createPresetButton('Rectangle', () => setActiveMaskTool('rect')),
       createPresetButton('Freehand', () => setActiveMaskTool('freehand')),
@@ -367,13 +367,13 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     });
 
     toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Aspect Ratio Presets'),
+      p({ className: 'section-title' }, 'Aspect Ratio Presets'),
       ratioGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Rotation & Mirroring'),
+      p({ className: 'section-title mt-lg' }, 'Rotation & Mirroring'),
       transformGrid,
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Shape Masks'),
+      p({ className: 'section-title mt-lg' }, 'Shape Masks'),
       maskToolGrid,
-      div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
+      div({ className: 'button-pair-grid' },
         createPresetButton('Add Mask', () => {
           const maskId = Date.now() + Math.floor(Math.random() * 1000);
           const newMask: MaskItem = {
@@ -402,11 +402,11 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
           pushState();
         }),
       ),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, '3D LUT Grade'),
+      p({ className: 'section-title mt-lg' }, '3D LUT Grade'),
       lutUploadButton,
-      cubeLut ? div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-300' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 've-mt-2 ve-text-[10px] ve-text-slate-500' }, 'No LUT loaded'),
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2 ve-mt-4' }, 'Preview Quality'),
-      div({ className: 've-grid ve-grid-cols-3 ve-gap-2' },
+      cubeLut ? div({ className: 'helper-text-light' }, `Loaded LUT: ${cubeLut.size}³`) : div({ className: 'helper-text' }, 'No LUT loaded'),
+      p({ className: 'section-title mt-lg' }, 'Preview Quality'),
+      div({ className: 'quality-grid' },
         createPresetButton('Full 100%', () => {
           setPreviewQuality('1');
           pushState();
@@ -420,7 +420,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
           pushState();
         }),
       ),
-      p({ className: 've-text-[10px] ve-text-slate-500 ve-mt-2' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
+      p({ className: 'helper-text' }, 'LUTs and preview quality are saved in the project. Actual LUT color processing and reduced-resolution decoding need a dedicated preview renderer.'),
     );
   }
 
@@ -454,21 +454,21 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
 
     const trackList = div(
       {
-        className: 've-space-y-2 ve-pt-3',
+        className: 'audio-track-list',
       },
       ...audioTracks.map((track) => div(
         {
-          className: 've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2 ve-space-y-2',
+          className: 'audio-track-card',
         },
         div(
           {
-            className: 've-flex ve-items-center ve-justify-between ve-gap-2 ve-text-[11px] ve-text-slate-200',
+            className: 'audio-track-header',
           },
-          span({ className: 've-truncate ve-max-w-[60%]' }, track.label),
+          span({ className: 'audio-track-label' }, track.label),
           button(
             {
               type: 'button',
-              className: 've-rounded-lg ve-border ve-border-slate-600 ve-px-2 ve-py-1 ve-text-[10px] ve-uppercase ve-tracking-wide ve-text-slate-300 ve-hover:text-white',
+              className: 'remove-track-btn',
               onclick: () => {
                 setAudioTracks(audioTracks.filter((item) => item.id !== track.id));
                 pushState();
@@ -488,13 +488,13 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     );
 
     toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Master Audio Controls'),
+      p({ className: 'section-title' }, 'Master Audio Controls'),
       createSliderControl('Volume (%)', volume * 100, 0, 100, (value) => {
         setVolume(value / 100);
         videoElement.volume = value / 100;
         volumeSlider.value = String(value / 100);
       }),
-      div({ className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5' },
+      div({ className: 'button-pair-grid' },
         createPresetButton('Mute Audio', () => {
           setVolume(0);
           videoElement.volume = 0;
@@ -510,8 +510,8 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
           renderToolControls();
         }),
       ),
-      div({ className: 've-mt-4 ve-border-t ve-border-slate-700/60 ve-pt-3' },
-        p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Audio Layers'),
+      div({ className: 'audio-layers-section' },
+        p({ className: 'section-title' }, 'Audio Layers'),
         createPresetButton('Add Audio Track', addAudioTrack),
         audioTracks.length ? trackList : null,
       ),
@@ -547,7 +547,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
       type: 'text',
       placeholder: 'Subtitle / caption text...',
       value: captionText,
-      className: 've-w-full ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950 ve-px-3 ve-py-2 ve-text-sm ve-text-white ve-focus:border-violet-500 ve-focus:outline-none',
+      className: 'caption-text-input',
       oninput: (event: Event) => {
         setCaptionText((event.target as HTMLInputElement).value);
         updateCaptions();
@@ -591,13 +591,13 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
     );
 
     toolContainer.append(
-      p({ className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2' }, 'Timed Subtitles & Overlay Text'),
-      div({ className: 've-space-y-4' },
-        div({ className: 've-space-y-1' },
-          label({ className: 've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1' }, 'Active Caption Track'),
+      p({ className: 'section-title' }, 'Timed Subtitles & Overlay Text'),
+      div({ className: 'caption-container' },
+        div({ className: 'caption-field-group' },
+          label({ className: 'caption-label' }, 'Active Caption Track'),
           trackDropdown,
         ),
-        div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
+        div({ className: 'button-pair-grid' },
           createPresetButton('New Track', () => {
             const nextId = Date.now() + Math.floor(Math.random() * 1000);
             const newTrack: CaptionTrack = {
@@ -637,22 +637,22 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
           }),
         ),
         div({},
-          label({ className: 've-block ve-text-xs ve-font-medium ve-text-slate-400 ve-mb-1' }, 'Caption Content'),
+          label({ className: 'caption-label' }, 'Caption Content'),
           textInput,
         ),
         createSliderControl('Font Size (px)', captionSize, 12, 64, (value) => {
           setCaptionSize(value);
           updateCaptions();
         }),
-        div({ className: 've-space-y-1' },
-          label({ className: 've-text-xs ve-font-medium ve-text-slate-400' }, 'Font Weight'),
+        div({ className: 'caption-field-group' },
+          label({ className: 'caption-label' }, 'Font Weight'),
           weightDropdown,
         ),
-        div({ className: 've-space-y-1' },
-          label({ className: 've-text-xs ve-font-medium ve-text-slate-400' }, 'Caption Background'),
+        div({ className: 'caption-field-group' },
+          label({ className: 'caption-label' }, 'Caption Background'),
           backgroundDropdown,
         ),
-        div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
+        div({ className: 'button-pair-grid' },
           createPresetButton('Toggle Shadow', () => {
             setCaptionShadow(!captionShadow);
             updateCaptions();
@@ -665,7 +665,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
             pushState();
           }),
         ),
-        div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
+        div({ className: 'button-pair-grid' },
           createPresetButton('Add Timed Cue', () => {
             const start = Math.max(0, currentTime);
             const end = Math.min(duration || start + 3, start + 3);
@@ -698,7 +698,7 @@ export function createVideoEditorPanels(deps: VideoEditorPanelsDeps) {
             renderToolControls();
           }),
         ),
-        div({ className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-2' },
+        div({ className: 'button-pair-grid' },
           createPresetButton('Import SRT/VTT', () => {
             const filePicker = document.createElement('input');
             filePicker.type = 'file';

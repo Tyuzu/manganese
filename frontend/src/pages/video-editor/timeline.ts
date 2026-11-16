@@ -133,14 +133,13 @@ export function createTimelinePanel(deps: TimelineRendererDeps) {
 
   function renderPlaybackCurveEditor(): HTMLDivElement {
     const editor = div({
-      className:
-        've-mt-3 ve-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-950/80 ve-p-2',
+      className: 'curve-editor-container',
     });
 
     const canvas = document.createElement('canvas');
     canvas.width = 280;
     canvas.height = 110;
-    canvas.className = 've-w-full ve-rounded-lg ve-border ve-border-slate-800 ve-bg-slate-900';
+    canvas.className = 'curve-editor-canvas';
 
     const redraw = () => {
       const ctx = canvas.getContext('2d');
@@ -273,8 +272,7 @@ export function createTimelinePanel(deps: TimelineRendererDeps) {
     toolContainer.append(
       p(
         {
-          className:
-            've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
+          className: 'timeline-panel-title',
         },
         'Timeline Trim & Speed',
       ),
@@ -313,13 +311,13 @@ export function createTimelinePanel(deps: TimelineRendererDeps) {
         },
       ),
       p(
-        { className: 've-mt-3 ve-text-xs ve-font-semibold ve-text-slate-300' },
+        { className: 'playback-rate-label' },
         `Playback Speed: ${state.playbackRate.toFixed(2)}x`,
       ),
       renderPlaybackCurveEditor(),
       div(
         {
-          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
+          className: 'timeline-button-grid',
         },
         createPresetButton('Set Start Here', () => {
           const nextTrimStart = clampValue(state.videoElement.currentTime, 0, state.duration);
@@ -347,17 +345,17 @@ export function createTimelinePanel(deps: TimelineRendererDeps) {
       ),
       div(
         {
-          className: 've-pt-2 ve-grid ve-grid-cols-2 ve-gap-2.5',
+          className: 'timeline-button-grid',
         },
         createPresetButton('Split Clip', splitClipAtPlayhead),
         createPresetButton('Delete Segment', deleteCurrentClipSegment),
       ),
-      div({ className: 've-pt-2' },
+      div({ className: 'transition-container' },
         div(
           {
-            className: 've-flex ve-justify-between ve-items-center ve-text-xs',
+            className: 'transition-row',
           },
-          span({ className: 've-text-slate-400' }, 'Transition'),
+          span({ className: 'transition-label' }, 'Transition'),
           createSelectDropdown(
             ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
             state.activeTransition,
@@ -372,7 +370,7 @@ export function createTimelinePanel(deps: TimelineRendererDeps) {
       ),
       p(
         {
-          className: 've-mt-2 ve-text-[10px] ve-text-slate-500 ve-leading-relaxed',
+          className: 'timeline-footer-note',
         },
         'Clip splitting currently stores timeline segment metadata. True multi-clip concatenation and ripple rendering require a multi-source export pipeline.',
       ),

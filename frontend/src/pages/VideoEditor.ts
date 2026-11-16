@@ -1500,7 +1500,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     ratio: VideoEditorState['aspectRatio'],
   ) {
     aspectRatio = ratio;
-
     const ratios: Record<
       VideoEditorState['aspectRatio'],
       string
@@ -1510,18 +1509,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       '1:1': 've-1 / ve-1',
       '4:5': 've-4 / ve-5',
     };
-
     videoElement.style.aspectRatio = ratios[ratio];
   }
 
   function switchTab(tab: VideoTab) {
     activeTab = tab;
-
     sidePanelNav
       .querySelectorAll('button')
       .forEach((element, index) => {
         const isSelected = tabs[index]?.id === tab;
-
         element.className =
           `inline-flex min-w-[70px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
             isSelected
@@ -1529,7 +1525,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
               : 've-border-transparent ve-bg-transparent ve-text-slate-300 ve-hover:text-slate-100'
           }`;
       });
-
     renderToolControls();
   }
 
@@ -1696,39 +1691,31 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
           className:
             've-mt-6 ve-border-t ve-border-slate-700/60 ve-pt-4',
         },
-
         createDetailPanel(
           'Project Summary',
-
           [
             {
               label: 'Aspect Ratio',
               value: aspectRatio,
             },
-
             {
               label: 'Active Region',
-
               value: duration
                 ? `${trimStart.toFixed(1)}s – ${trimEnd.toFixed(1)}s`
                 : '—',
             },
-
             {
               label: 'Clip Segments',
               value: String(clipSegments.length),
             },
-
             {
               label: 'Caption Cues',
               value: String(captionSegments.length),
             },
-
             {
               label: 'History Stack',
               value: `${projectHistory.historyIndex + 1} / ${projectHistory.history.length}`,
             },
-
             {
               label: 'Render Status',
               value: isRendering ? 'Rendering' : 'Ready',

@@ -1,5 +1,13 @@
-@import url("./videoeditordom.css");
-@import url("videoeditorcontrols.css");
+@import url("./videoeditor/videoeditordom.css");
+@import url("./videoeditor/videoeditorcontrols.css");
+@import url("./videoeditor/videoeditorshell.css");
+@import url("./videoeditor/videoeditorexport.css");
+@import url("./videoeditor/videoeditorlayout.css");
+@import url("./videoeditor/videoeditorpanels.css");
+@import url("./videoeditor/videoeditorplayer.css");
+@import url("./videoeditor/videoeeditortimeline.css");
+
+
 /* Video editor styles. This file replaces the Tailwind runtime for VideoEditor.ts. */
 :root {
   --ve-bg: #0f172a;

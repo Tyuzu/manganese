@@ -1,5 +1,4 @@
 import type { BlendMode, ClipTransition, VideoEditorState } from './types';
-import { createButton, div, p, span } from '../../components/ui/dom';
 
 export type ExportRendererDeps = {
   toolContainer: HTMLElement;
@@ -70,209 +69,196 @@ export function createExportPanel(deps: ExportRendererDeps) {
     aspectRatio,
   } = deps;
 
-  const progressLabel = p(
-    {
-      className: 've-text-xs ve-text-violet-300 ve-font-semibold',
+  const progressLabel = document.createElement('p');
+  progressLabel.className = 'export-progress-label';
+  progressLabel.textContent = isRendering
+    ? `Rendering Video... ${Math.round(renderProgress)}%`
+    : 'Ready to render';
+
+  const progressFill = document.createElement('div');
+  progressFill.className = 'export-progress-fill';
+  progressFill.style.width = `${renderProgress}%`;
+
+  const progressBarTrack = document.createElement('div');
+  progressBarTrack.className = 'export-progress-track';
+  progressBarTrack.append(progressFill);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'export-cancel-btn';
+  cancelBtn.textContent = 'Cancel Rendering';
+  cancelBtn.onclick = cancelVideoExport;
+
+  const progressContainer = document.createElement('div');
+  progressContainer.className = `export-progress-container ${isRendering ? '' : 'export-hidden'}`;
+  progressContainer.append(progressLabel, progressBarTrack, cancelBtn);
+
+  const exportSettings = document.createElement('div');
+  exportSettings.className = 'export-settings-box';
+
+  function createSettingRow(labelText: string, controlElement: HTMLElement) {
+    const row = document.createElement('div');
+    row.className = 'export-setting-row';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'export-setting-label';
+    labelSpan.textContent = labelText;
+
+    row.append(labelSpan, controlElement);
+    return row;
+  }
+
+  const resSelect = createSelectDropdown(
+    ['720p', '1080p', '4k'],
+    exportResolution,
+    (value) => {
+      setExportResolution(value as '720p' | '1080p' | '4k');
+      pushState();
     },
-    isRendering ? `Rendering Video... ${Math.round(renderProgress)}%` : 'Ready to render',
   );
 
-  const progressFill = div({
-    className: 've-bg-violet-500 ve-h-full ve-transition-all',
-    style: `width:${renderProgress}%`,
-  });
-
-  const progressContainer = div(
-    {
-      className: `space-y-2 text-center ${isRendering ? '' : 've-hidden'}`,
+  const fpsSelect = createSelectDropdown(
+    ['24', '30', '60'],
+    String(exportFps),
+    (value) => {
+      setExportFps(Number(value) as 24 | 30 | 60);
+      pushState();
     },
-    progressLabel,
-    div(
-      {
-        className: 've-w-full ve-bg-slate-800 ve-h-2 ve-rounded-full ve-overflow-hidden',
-      },
-      progressFill,
-    ),
-    createButton(
-      'secondary',
-      {
-        type: 'button',
-        className:
-          've-w-full ve-text-xs ve-py-2 ve-bg-red-600/80 ve-hover:bg-red-600 ve-text-white ve-font-semibold ve-rounded-xl',
-        onclick: cancelVideoExport,
-      },
-      'Cancel Rendering',
-    ),
   );
 
-  const exportSettings = div(
-    {
-      className:
-        've-rounded-xl ve-border ve-border-slate-700 ve-bg-slate-900/80 ve-p-3 ve-text-xs ve-space-y-2.5',
+  const formatSelect = createSelectDropdown(
+    ['webm', 'mp4'],
+    exportFormat,
+    (value) => {
+      setExportFormat(value as 'webm' | 'mp4');
+      pushState();
     },
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Resolution'),
-      createSelectDropdown(
-        ['720p', '1080p', '4k'],
-        exportResolution,
-        (value) => {
-          setExportResolution(value as '720p' | '1080p' | '4k');
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Framerate'),
-      createSelectDropdown(
-        ['24', '30', '60'],
-        String(exportFps),
-        (value) => {
-          setExportFps(Number(value) as 24 | 30 | 60);
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Container'),
-      createSelectDropdown(
-        ['webm', 'mp4'],
-        exportFormat,
-        (value) => {
-          setExportFormat(value as 'webm' | 'mp4');
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Quality Preset'),
-      createSelectDropdown(
-        ['Economy (2 Mbps)', 'Balanced (5 Mbps)', 'High (10 Mbps)'],
-        exportBitrate === 2_000_000
-          ? 'Economy (2 Mbps)'
-          : exportBitrate === 10_000_000
-            ? 'High (10 Mbps)'
-            : 'Balanced (5 Mbps)',
-        (value) => {
-          if (value.includes('Economy')) {
-            setExportBitrate(2_000_000);
-          } else if (value.includes('High')) {
-            setExportBitrate(10_000_000);
-          } else {
-            setExportBitrate(5_000_000);
-          }
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Transition'),
-      createSelectDropdown(
-        ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
-        activeTransition,
-        (value) => {
-          setActiveTransition(value as ClipTransition);
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-items-center',
-      },
-      span({ className: 've-text-slate-400' }, 'Blend Mode'),
-      createSelectDropdown(
-        ['normal', 'screen', 'multiply', 'overlay', 'soft-light'],
-        activeBlendMode,
-        (value) => {
-          setActiveBlendMode(value as BlendMode);
-          pushState();
-        },
-      ),
-    ),
-    div(
-      {
-        className: 've-flex ve-justify-between ve-pt-1 ve-border-t ve-border-slate-800',
-      },
-      span({ className: 've-text-slate-400' }, 'Trim Length'),
-      span(
-        { className: 've-font-semibold ve-text-violet-300' },
-        `${Math.max(0, (trimEnd || duration) - trimStart).toFixed(1)}s`,
-      ),
-    ),
   );
+
+  const qualityPresetSelect = createSelectDropdown(
+    ['Economy (2 Mbps)', 'Balanced (5 Mbps)', 'High (10 Mbps)'],
+    exportBitrate === 2_000_000
+      ? 'Economy (2 Mbps)'
+      : exportBitrate === 10_000_000
+        ? 'High (10 Mbps)'
+        : 'Balanced (5 Mbps)',
+    (value) => {
+      if (value.includes('Economy')) {
+        setExportBitrate(2_000_000);
+      } else if (value.includes('High')) {
+        setExportBitrate(10_000_000);
+      } else {
+        setExportBitrate(5_000_000);
+      }
+      pushState();
+    },
+  );
+
+  const transitionSelect = createSelectDropdown(
+    ['none', 'crossfade', 'dip-to-black', 'wipe', 'slide'],
+    activeTransition,
+    (value) => {
+      setActiveTransition(value as ClipTransition);
+      pushState();
+    },
+  );
+
+  const blendModeSelect = createSelectDropdown(
+    ['normal', 'screen', 'multiply', 'overlay', 'soft-light'],
+    activeBlendMode,
+    (value) => {
+      setActiveBlendMode(value as BlendMode);
+      pushState();
+    },
+  );
+
+  const trimLengthSpan = document.createElement('span');
+  trimLengthSpan.className = 'export-trim-value';
+  trimLengthSpan.textContent = `${Math.max(0, (trimEnd || duration) - trimStart).toFixed(1)}s`;
+
+  const trimRow = document.createElement('div');
+  trimRow.className = 'export-setting-row export-trim-row';
+  const trimLabel = document.createElement('span');
+  trimLabel.className = 'export-setting-label';
+  trimLabel.textContent = 'Trim Length';
+  trimRow.append(trimLabel, trimLengthSpan);
+
+  exportSettings.append(
+    createSettingRow('Resolution', resSelect),
+    createSettingRow('Framerate', fpsSelect),
+    createSettingRow('Container', formatSelect),
+    createSettingRow('Quality Preset', qualityPresetSelect),
+    createSettingRow('Transition', transitionSelect),
+    createSettingRow('Blend Mode', blendModeSelect),
+    trimRow,
+  );
+
+  const engineTitle = document.createElement('p');
+  engineTitle.className = 'export-section-title';
+  engineTitle.textContent = 'Export Engine';
+
+  const jsonGrid = document.createElement('div');
+  jsonGrid.className = 'export-json-grid';
+  jsonGrid.append(
+    createPresetButton('Export JSON', exportProjectFile),
+    createPresetButton('Import JSON', async () => {
+      await importProjectFile();
+    }),
+  );
+
+  const startRenderBtn = document.createElement('button');
+  startRenderBtn.type = 'button';
+  startRenderBtn.className = 'export-start-btn';
+  startRenderBtn.textContent = 'Start Render Pipeline';
+  startRenderBtn.onclick = startVideoExport;
+
+  const noticeP = document.createElement('p');
+  noticeP.className = 'export-notice-text';
+  noticeP.textContent =
+    'Browser rendering uses supported MediaRecorder codecs. MP4 is only offered when the browser genuinely supports MP4 recording. Server rendering can use FFmpeg for broader codec support.';
+
+  const summaryTitle = document.createElement('p');
+  summaryTitle.className = 'export-section-title export-summary-title';
+  summaryTitle.textContent = 'Project Summary';
+
+  const aspectRow = document.createElement('div');
+  aspectRow.className = 'export-summary-row';
+  const aspectLabel = document.createElement('span');
+  aspectLabel.className = 'export-setting-label';
+  aspectLabel.textContent = 'Aspect Ratio';
+  const aspectVal = document.createElement('span');
+  aspectVal.className = 'export-summary-val';
+  aspectVal.textContent = aspectRatio;
+  aspectRow.append(aspectLabel, aspectVal);
+
+  const activeRegionRow = document.createElement('div');
+  activeRegionRow.className = 'export-summary-row';
+  const activeRegionLabel = document.createElement('span');
+  activeRegionLabel.className = 'export-setting-label';
+  activeRegionLabel.textContent = 'Active Region';
+  const activeRegionVal = document.createElement('span');
+  activeRegionVal.className = 'export-summary-val';
+  activeRegionVal.textContent = duration
+    ? `${trimStart.toFixed(1)}s – ${trimEnd.toFixed(1)}s`
+    : '—';
+  activeRegionRow.append(activeRegionLabel, activeRegionVal);
+
+  const summaryContainer = document.createElement('div');
+  summaryContainer.className = 'export-summary-box';
+  summaryContainer.append(aspectRow, activeRegionRow);
+
+  const summarySection = document.createElement('div');
+  summarySection.className = 'export-summary-section';
+  summarySection.append(summaryTitle, summaryContainer);
 
   toolContainer.append(
-    p(
-      {
-        className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-      },
-      'Export Engine',
-    ),
+    engineTitle,
     exportSettings,
-    div(
-      {
-        className: 've-grid ve-grid-cols-2 ve-gap-2 ve-pt-3',
-      },
-      createPresetButton('Export JSON', exportProjectFile),
-      createPresetButton('Import JSON', async () => {
-        await importProjectFile();
-      }),
-    ),
+    jsonGrid,
     progressContainer,
-    !isRendering
-      ? createButton(
-          'primary',
-          {
-            type: 'button',
-            className:
-              've-w-full ve-text-xs ve-py-2.5 ve-bg-violet-600 ve-hover:bg-violet-500 ve-text-white ve-font-semibold ve-rounded-xl ve-transition-all ve-shadow-lg ve-shadow-violet-600/20',
-            onclick: startVideoExport,
-          },
-          'Start Render Pipeline',
-        )
-      : div({ className: 've-hidden' }),
-    p(
-      {
-        className: 've-text-[10px] ve-text-slate-500 ve-leading-relaxed ve-mt-2',
-      },
-      'Browser rendering uses supported MediaRecorder codecs. MP4 is only offered when the browser genuinely supports MP4 recording. Server rendering can use FFmpeg for broader codec support.',
-    ),
-    div(
-      {
-        className: 've-mt-6 ve-border-t ve-border-slate-700/60 ve-pt-4',
-      },
-      p(
-        {
-          className: 've-text-xs ve-font-bold ve-text-slate-200 ve-uppercase ve-tracking-wider ve-mb-2',
-        },
-        'Project Summary',
-      ),
-      div({ className: 've-space-y-2 ve-text-[11px] ve-text-slate-300' },
-        div({ className: 've-flex ve-justify-between' },
-          span({ className: 've-text-slate-400' }, 'Aspect Ratio'),
-          span({ className: 've-font-medium ve-text-slate-100' }, aspectRatio),
-        ),
-        div({ className: 've-flex ve-justify-between' },
-          span({ className: 've-text-slate-400' }, 'Active Region'),
-          span({ className: 've-font-medium ve-text-slate-100' }, duration ? `${trimStart.toFixed(1)}s – ${trimEnd.toFixed(1)}s` : '—'),
-        ),
-      ),
-    ),
+    !isRendering ? startRenderBtn : document.createElement('div'),
+    noticeP,
+    summarySection,
   );
 
   return {

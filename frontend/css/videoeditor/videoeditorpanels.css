@@ -1,0 +1,154 @@
+/* panels.css - Pure CSS styles replacing Tailwind utility classes */
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.transform-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.transform-grid.mt-sm {
+  margin-top: 0.75rem;
+}
+
+.mask-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.button-pair-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+}
+
+.quality-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.section-title.mt-lg {
+  margin-top: 1rem;
+}
+
+.helper-text {
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 0.5rem;
+}
+
+.helper-text-light {
+  font-size: 10px;
+  color: #cbd5e1;
+  margin-top: 0.5rem;
+}
+
+.audio-track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.audio-track-card {
+  border-radius: 0.75rem;
+  border: 1px solid #334155;
+  background-color: rgba(3, 7, 18, 0.8);
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.audio-track-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 11px;
+  color: #e2e8f0;
+}
+
+.audio-track-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+}
+
+.remove-track-btn {
+  border-radius: 0.5rem;
+  border: 1px solid #475569;
+  padding: 0.25rem 0.5rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #cbd5e1;
+  background: transparent;
+  cursor: pointer;
+}
+
+.remove-track-btn:hover {
+  color: #ffffff;
+}
+
+.audio-layers-section {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.6);
+  padding-top: 0.75rem;
+}
+
+.caption-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.caption-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.caption-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 0.25rem;
+}
+
+.caption-text-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid #334155;
+  background-color: #030712;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+.caption-text-input:focus {
+  border-color: #8b5cf6;
+  outline: none;
+}
