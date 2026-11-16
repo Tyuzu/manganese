@@ -1126,9 +1126,9 @@ export async function createScanPage(): Promise<HTMLElement> {
       ocrWorker = null;
     }
 
-    if (isCameraActive) {
-      // The camera controller should release its media stream
-      // when its owning editor is destroyed.
+    // FIX: Properly stop camera stream and release hardware tracks on unmount
+    if (isCameraActive && controller) {
+      controller.stopCamera();
       isCameraActive = false;
     }
   });

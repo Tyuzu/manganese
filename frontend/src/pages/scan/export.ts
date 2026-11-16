@@ -104,7 +104,8 @@ export function createScanExporter({
 
   async function exportPdf(
     renderedPages: HTMLCanvasElement[],
-    filename: string
+    filename: string,
+    preOpenedWindow?: Window | null
   ) {
     if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
       for (let index = 0; index < renderedPages.length; index++) {
@@ -124,18 +125,18 @@ export function createScanExporter({
           },
         });
       }
-
       return;
     }
 
-    const printWindow = window.open('', '_blank');
+    // Use pre-opened window or open one now
+    const printWindow = preOpenedWindow || window.open('', '_blank');
 
     if (!printWindow) {
-      throw new Error('Allow popups to export PDF');
+      throw new Error('Popup blocker prevented export. Please allow popups for this site.');
     }
 
-    const pageMarkup = renderedPages.map((canvas) => {
-      return `<section class="page"><img src="${canvas.toDataURL('image/jpeg', getExportQuality())}"></section>`;
+    const pageMarkup = renderedPages.map((canvas, index) => {
+      return `<section class="page"><img src="${canvas.toDataURL('image/jpeg', getExportQuality())}" alt="Page ${index + 1}"></section>`;
     }).join('');
 
     printWindow.document.open();
@@ -147,16 +148,15 @@ export function createScanExporter({
         <title>${filename}</title>
         <style>
           * { box-sizing: border-box; }
-          html, body { margin: 0; padding: 0; }
+          html, body { margin: 0; padding: 0; background: #fff; }
           .page {
-            width: 100%;
-            min-height: 100vh;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             page-break-after: always;
             break-after: page;
-            padding: 0;
           }
           .page:last-child {
             page-break-after: auto;
@@ -164,38 +164,56 @@ export function createScanExporter({
           }
           .page img {
             max-width: 100%;
-            max-height: 100vh;
+            max-height: 100%;
             object-fit: contain;
           }
-          @page { margin: 0; }
+          @page { margin: 0; size: auto; }
           @media print {
-            .page { height: 100vh; }
+            html, body { width: 100%; height: 100%; }
+            .page { width: 100%; height: 100vh; }
           }
         </style>
       </head>
-      <body>${pageMarkup}</body>
+      <body>
+        ${pageMarkup}
+        <script>
+          // Wait for all images to fully load before triggering print dialog
+          window.addEventListener('load', () => {
+            const images = document.querySelectorAll('img');
+            let loadedCount = 0;
+            if (images.length === 0) {
+              window.print();
+              return;
+            }
+            images.forEach(img => {
+              if (img.complete) {
+                loadedCount++;
+                if (loadedCount === images.length) setTimeout(() => window.print(), 200);
+              } else {
+                img.onload = () => {
+                  loadedCount++;
+                  if (loadedCount === images.length) setTimeout(() => window.print(), 200);
+                };
+                img.onerror = () => {
+                  loadedCount++;
+                  if (loadedCount === images.length) setTimeout(() => window.print(), 200);
+                };
+              }
+            });
+          });
+        </script>
+      </body>
       </html>
     `);
 
     printWindow.document.close();
-
-    await new Promise<void>((resolve) => {
-      printWindow.addEventListener('load', () => resolve(), { once: true });
-      setTimeout(resolve, 500);
-    });
-
-    printWindow.focus();
-    printWindow.print();
   }
 
   async function exportImages(
     renderedPages: HTMLCanvasElement[],
     filename: string
   ) {
-    const mimeType = getExportFormat() === 'png'
-      ? 'image/png'
-      : 'image/jpeg';
-
+    const mimeType = getExportFormat() === 'png' ? 'image/png' : 'image/jpeg';
     const extension = getExportFormat();
 
     if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
@@ -218,11 +236,12 @@ export function createScanExporter({
           },
         });
       }
-
       return;
     }
 
-    renderedPages.forEach((canvas, index) => {
+    // Download sequentially with a small delay to prevent browser popup blockers from flagging multi-file downloads
+    for (let index = 0; index < renderedPages.length; index++) {
+      const canvas = renderedPages[index];
       const link = document.createElement('a');
 
       link.download = renderedPages.length > 1
@@ -230,8 +249,14 @@ export function createScanExporter({
         : `${filename}.${extension}`;
 
       link.href = canvas.toDataURL(mimeType, getExportQuality());
+      document.body.appendChild(link);
       link.click();
-    });
+      document.body.removeChild(link);
+
+      if (index < renderedPages.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
   }
 
   async function triggerExport() {
@@ -240,6 +265,17 @@ export function createScanExporter({
     if (!pages.length || getDestroyed() || getIsExporting()) {
       setStatus('Nothing to export');
       return;
+    }
+
+    // CRITICAL: Pre-open print window synchronously if export format is PDF to preserve user gesture context
+    let preOpenedWindow: Window | null = null;
+    if (getExportFormat() === 'pdf' && (appStore.getState().mediaProcessingMode ?? 'browser') !== 'server') {
+      preOpenedWindow = window.open('about:blank', '_blank');
+      if (!preOpenedWindow) {
+        setStatus('Popup blocker prevented export. Please allow popups.');
+        return;
+      }
+      preOpenedWindow.document.write('<!DOCTYPE html><html><head><title>Preparing export...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;"><h3 style="color:#64748b;">Rendering document pages for PDF export...</h3></body></html>');
     }
 
     setIsExporting(true);
@@ -258,14 +294,20 @@ export function createScanExporter({
       }
 
       if (getExportFormat() === 'pdf') {
-        await exportPdf(renderedPages, safeName);
+        await exportPdf(renderedPages, safeName, preOpenedWindow);
       } else {
+        if (preOpenedWindow) {
+          preOpenedWindow.close();
+        }
         await exportImages(renderedPages, safeName);
       }
 
       setStatus(`Export completed: ${safeName}`);
     } catch (error) {
       console.error('Export failed:', error);
+      if (preOpenedWindow) {
+        try { preOpenedWindow.close(); } catch {}
+      }
       setStatus('Export failed');
     } finally {
       setIsExporting(false);

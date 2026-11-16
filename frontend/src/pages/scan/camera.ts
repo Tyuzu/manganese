@@ -71,16 +71,45 @@ export function createScanCameraController({
       throw new Error('Camera access requires a secure context (HTTPS or localhost).');
     }
 
-    const constraints: MediaStreamConstraints = {
-      video: {
-        facingMode: { ideal: currentFacingMode },
-        width: { ideal: 1280, max: 1920 },
-        height: { ideal: 720, max: 1080 },
+    // Robust candidate constraints with graceful fallbacks for Mobile Firefox & Android
+    const candidates: MediaStreamConstraints[] = [
+      {
+        video: {
+          facingMode: { exact: currentFacingMode },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+        },
+        audio: false,
       },
-      audio: false,
-    };
+      {
+        video: {
+          facingMode: { ideal: currentFacingMode },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          facingMode: { ideal: currentFacingMode === 'environment' ? 'user' : 'environment' },
+        },
+        audio: false,
+      },
+      {
+        video: true,
+        audio: false,
+      },
+    ];
 
-    return await navigator.mediaDevices.getUserMedia(constraints);
+    let lastError: unknown;
+
+    for (const constraints of candidates) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError ?? new Error('Camera access was denied or unavailable.');
   };
 
   const startCamera = async () => {
@@ -104,16 +133,17 @@ export function createScanCameraController({
 
       let errorMsg = 'Unable to access camera.';
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-        errorMsg = 'Camera permission denied. Please allow camera access in your browser settings.';
+        errorMsg = 'Camera permission denied. Please allow camera access in your mobile browser settings.';
       } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
         errorMsg = 'No camera device found.';
+      } else if (error.name === 'OverconstrainedError' || error.name === 'ConstraintNotSatisfiedError') {
+        errorMsg = 'Camera resolution constraints not supported by mobile browser.';
       }
       setStatus(errorMsg);
     }
   };
 
   const toggleCamera = async () => {
-    // Switch between 'environment' and 'user'
     currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
     if (cameraReady || stream) {
       await startCamera();

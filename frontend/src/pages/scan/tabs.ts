@@ -69,30 +69,10 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
       mode: ScanMode;
       status: string;
     }[] = [
-      {
-        id: 'pdf',
-        label: 'PDF document',
-        mode: 'pdf',
-        status: 'PDF Document',
-      },
-      {
-        id: 'id',
-        label: 'ID / Passport',
-        mode: 'pdf',
-        status: 'ID Card Mode',
-      },
-      {
-        id: 'ocr',
-        label: 'Text recognition',
-        mode: 'pdf',
-        status: 'OCR Text Mode',
-      },
-      {
-        id: 'photo',
-        label: 'HD Photo',
-        mode: 'photo',
-        status: 'HD Photo',
-      },
+      { id: 'pdf', label: 'PDF document', mode: 'pdf', status: 'PDF Document' },
+      { id: 'id', label: 'ID / Passport', mode: 'pdf', status: 'ID Card Mode' },
+      { id: 'ocr', label: 'Text recognition', mode: 'pdf', status: 'OCR Text Mode' },
+      { id: 'photo', label: 'HD Photo', mode: 'photo', status: 'HD Photo' },
     ];
 
     const grid = div(
@@ -116,6 +96,14 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
 
   const createFiltersTab = (toolContainer: HTMLElement) => {
     const page = options.getActivePage();
+    if (!page) {
+      toolContainer.append(
+        options.makeSectionTitle('Enhancement presets'),
+        div({ className: 'scan-info-card' }, options.textElement('Upload or capture a document to adjust filters and enhancement settings.'))
+      );
+      return;
+    }
+
     const filters: { id: FilterPreset; label: string }[] = [
       { id: 'magic', label: 'Magic color' },
       { id: 'gray', label: 'Grayscale' },
@@ -128,13 +116,8 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
       ...filters.map((filter) =>
         options.makePresetButton(
           filter.label,
-          page?.filter === filter.id,
+          page.filter === filter.id,
           () => {
-            if (!page) {
-              options.setStatus('Upload a document first');
-              return;
-            }
-
             options.onFilterChange(page, filter.id, filter.label);
           }
         )
@@ -145,23 +128,17 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
       { className: 'scan-control-card' },
       options.makeSlider(
         'Brightness',
-        page?.brightness ?? 100,
+        page.brightness,
         50,
         150,
-        (value) => {
-          if (!page) return;
-          options.onBrightnessChange(page, value);
-        }
+        (value) => options.onBrightnessChange(page, value)
       ),
       options.makeSlider(
         'Contrast',
-        page?.contrast ?? 100,
+        page.contrast,
         50,
         200,
-        (value) => {
-          if (!page) return;
-          options.onContrastChange(page, value);
-        }
+        (value) => options.onContrastChange(page, value)
       )
     );
 
@@ -174,35 +151,39 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
   };
 
   const createCropTab = (toolContainer: HTMLElement) => {
+    const page = options.getActivePage();
     toolContainer.append(
       options.makeSectionTitle('Perspective crop'),
       div(
         { className: 'scan-info-card' },
-        options.textElement(
-          'Move the four corner handles to select the document boundaries.'
-        ),
-        options.textElement(
-          'The current crop operation creates a rectangular crop from the selected bounds. Full perspective correction requires a homography transform.'
-        )
+        options.textElement('Move the four corner handles on the preview to select document boundaries.'),
+        options.textElement('The crop operation extracts and flattens the selected quadrilateral region.')
       ),
       options.makeButton(
         'Apply crop',
         'scan-button scan-button-primary scan-button-block',
-        () => void options.onApplyPerspectiveCrop()
+        () => void options.onApplyPerspectiveCrop(),
+        !page
       )
     );
   };
 
   const createSignTab = (toolContainer: HTMLElement) => {
     const page = options.getActivePage();
+    if (!page) {
+      toolContainer.append(
+        options.makeSectionTitle('Security & Signature'),
+        div({ className: 'scan-info-card' }, options.textElement('Upload a document first to add watermarks or signatures.'))
+      );
+      return;
+    }
 
     const watermarkInput = input({
       type: 'text',
-      value: page?.watermarkText ?? '',
+      value: page.watermarkText,
       placeholder: 'CONFIDENTIAL',
       className: 'scan-text-input',
       oninput: (event: Event) => {
-        if (!page) return;
         options.onWatermarkChange(page, (event.target as HTMLInputElement).value);
       },
     });
@@ -218,37 +199,31 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
         ),
         options.makeSlider(
           'Opacity',
-          page?.watermarkOpacity ?? 15,
+          page.watermarkOpacity ?? 15,
           5,
           50,
-          (value) => {
-            if (!page) return;
-            options.onWatermarkOpacityChange(page, value);
-          }
+          (value) => options.onWatermarkOpacityChange(page, value)
         )
       ),
       options.makeSectionTitle('Electronic signature'),
       div(
         { className: 'scan-control-card' },
         options.textElement(
-          page?.signatureDataUrl
-            ? 'A signature is attached.'
+          page.signatureDataUrl
+            ? 'A signature is attached to this page.'
             : 'No signature attached.',
           'scan-muted-text'
         ),
         options.makeButton(
-          page?.signatureDataUrl ? 'Redraw signature' : 'Draw signature',
+          page.signatureDataUrl ? 'Redraw signature' : 'Draw signature',
           'scan-button scan-button-primary scan-button-block',
           () => options.onOpenSignaturePadModal()
         ),
-        page?.signatureDataUrl
+        page.signatureDataUrl
           ? options.makeButton(
               'Remove signature',
               'scan-button scan-button-danger scan-button-block',
-              () => {
-                if (!page) return;
-                options.onSignatureRemove(page);
-              }
+              () => options.onSignatureRemove(page)
             )
           : null
       )
@@ -275,9 +250,7 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
       options.makeSectionTitle('Text recognition'),
       div(
         { className: 'scan-info-card' },
-        options.textElement(
-          'Extract text locally from your document using Tesseract.js.'
-        ),
+        options.textElement('Extract text locally from your document using Tesseract.js.'),
         runButton
       ),
       div(
@@ -287,9 +260,7 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
           ? options.makeButton(
               'Copy',
               'scan-button scan-button-muted scan-button-small',
-              () => {
-                options.onCopyExtractedText(page.extractedText || '');
-              }
+              () => options.onCopyExtractedText(page.extractedText || '')
             )
           : null
       ),
@@ -303,9 +274,7 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
       div(
         { className: 'scan-info-card' },
         options.textElement(`Pages in stack: ${options.pages.length}`),
-        options.textElement(
-          'Add images, switch between pages, or remove individual pages.'
-        )
+        options.textElement('Add images, switch between pages, or remove individual pages.')
       ),
       options.makeButton(
         'Add pages',
@@ -342,9 +311,7 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
         options.makePresetButton(
           format.toUpperCase(),
           options.exportFormat === format,
-          () => {
-            options.onExportFormatChange(format);
-          }
+          () => options.onExportFormatChange(format)
         )
       )
     );
@@ -360,9 +327,7 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
           Math.round(options.exportQuality * 100),
           40,
           100,
-          (value) => {
-            options.onExportQualityChange(value / 100);
-          }
+          (value) => options.onExportQualityChange(value / 100)
         ),
         options.makeButton(
           options.isExporting ? 'Exporting...' : `Export ${options.exportFormat.toUpperCase()}`,
@@ -387,32 +352,25 @@ export function createScanTabBuilder(options: ScanTabBuilderOptions) {
         case 'mode':
           createModeTab(toolContainer);
           break;
-
         case 'filters':
           createFiltersTab(toolContainer);
           break;
-
         case 'crop':
           createCropTab(toolContainer);
           break;
-
         case 'sign':
           createSignTab(toolContainer);
           break;
-
         case 'ocr':
           createOcrTab(toolContainer);
           break;
-
         case 'batch':
           createBatchTab(toolContainer);
           break;
-
         case 'export':
           createExportTab(toolContainer);
           break;
       }
-
     },
   };
 }

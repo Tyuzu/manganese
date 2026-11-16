@@ -42,46 +42,68 @@ export function createScanCropper({
     overlay.style.inset = '0';
     overlay.style.width = '100%';
     overlay.style.height = '100%';
-    overlay.style.pointerEvents = 'none'; // Allow pointer events on handles specifically
+    overlay.style.pointerEvents = 'none';
+    
+    // CRITICAL FIX: Prevent mobile browser default touch pan/zoom/scroll gestures
+    overlay.style.touchAction = 'none';
 
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-    const points = page.corners.map((point) => ({
+    polygon.classList.add('scan-crop-polygon');
+
+    const updatePolygonAndHandles = () => {
+      const currentRect = image.getBoundingClientRect();
+      const currentPoints = page.corners.map((point) => ({
+        x: point.x * currentRect.width,
+        y: point.y * currentRect.height,
+      }));
+
+      polygon.setAttribute(
+        'points',
+        currentPoints.map((point) => `${point.x},${point.y}`).join(' ')
+      );
+
+      handles.forEach((handle, i) => {
+        handle.setAttribute('cx', String(currentPoints[i].x));
+        handle.setAttribute('cy', String(currentPoints[i].y));
+      });
+    };
+
+    const initialPoints = page.corners.map((point) => ({
       x: point.x * rect.width,
       y: point.y * rect.height,
     }));
 
     polygon.setAttribute(
       'points',
-      points.map((point) => `${point.x},${point.y}`).join(' ')
+      initialPoints.map((point) => `${point.x},${point.y}`).join(' ')
     );
-    polygon.classList.add('scan-crop-polygon');
     overlay.append(polygon);
 
-    points.forEach((point, index) => {
+    const handles: SVGCircleElement[] = [];
+
+    initialPoints.forEach((point, index) => {
       const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       handle.setAttribute('cx', String(point.x));
       handle.setAttribute('cy', String(point.y));
-      handle.setAttribute('r', '10'); // Slightly larger touch target for mobile
+      handle.setAttribute('r', '12'); // Generous touch target for mobile
       handle.classList.add('scan-crop-handle');
-      handle.style.pointerEvents = 'auto'; // Enable pointer events for handles
+      handle.style.pointerEvents = 'auto';
+      handle.style.touchAction = 'none';
 
       handle.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         event.stopPropagation();
 
-        const currentActiveIndex = getActiveCornerIndex();
         setActiveCornerIndex(index);
         handle.setPointerCapture(event.pointerId);
-
-        if (currentActiveIndex !== index) {
-          renderStagePreview();
-        }
       });
 
       handle.addEventListener('pointermove', (event) => {
         if (getActiveCornerIndex() !== index) {
           return;
         }
+        event.preventDefault();
+        event.stopPropagation();
 
         const currentRect = image.getBoundingClientRect();
         if (!currentRect.width || !currentRect.height) return;
@@ -99,19 +121,25 @@ export function createScanCropper({
           ),
         };
 
-        renderStagePreview();
+        // Directly update SVG DOM without tearing down preview/handles
+        updatePolygonAndHandles();
       });
 
       const finishDrag = (event: PointerEvent) => {
         if (getActiveCornerIndex() === index) {
+          event.preventDefault();
+          event.stopPropagation();
+
           try {
             if (handle.hasPointerCapture(event.pointerId)) {
               handle.releasePointerCapture(event.pointerId);
             }
           } catch {
-            // Ignore if pointer capture was already lost
+            // Ignore capture release errors
           }
+
           setActiveCornerIndex(null);
+          renderStagePreview();
           persistState();
         }
       };
@@ -119,6 +147,7 @@ export function createScanCropper({
       handle.addEventListener('pointerup', finishDrag);
       handle.addEventListener('pointercancel', finishDrag);
 
+      handles.push(handle);
       overlay.append(handle);
     });
 
