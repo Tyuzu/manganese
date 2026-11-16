@@ -189,10 +189,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   });
 
   // ============================================================
-  // 3. VIDEO PREVIEW INTERACTION
-  // ============================================================
-
-  // ============================================================
   // 4. VIDEO TIMELINE AND PLAYBACK UI
   // ============================================================
 
@@ -351,18 +347,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       rows.push(
         div(
           {
-            className:
-              've-relative ve-h-8 ve-rounded-lg ve-border ve-border-sky-700/50 ve-bg-sky-950/40 ve-flex ve-items-center ve-justify-between ve-px-3 ve-text-[11px] ve-text-sky-200 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
+            className: 'timeline-row-audio',
           },
           div(
             {
-              className: 've-truncate ve-max-w-[70%]',
+              className: 'timeline-row-label',
             },
             `${track.label || 'Audio'} ${track.enabled ? '• Live' : '• Muted'}`,
           ),
           div(
             {
-              className: 've-text-[10px] ve-text-sky-300/80',
+              className: 'timeline-row-meta',
             },
             `${(track.volume * 100).toFixed(0)}%`,
           ),
@@ -374,18 +369,17 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       rows.push(
         div(
           {
-            className:
-              've-relative ve-h-8 ve-rounded-lg ve-border ve-border-violet-700/50 ve-bg-violet-950/35 ve-flex ve-items-center ve-justify-between ve-px-3 ve-text-[11px] ve-text-violet-100 ve-font-medium ve-overflow-hidden ve-shadow-inner ve-select-none',
+            className: 'timeline-row-caption',
           },
           div(
             {
-              className: 've-truncate ve-max-w-[70%]',
+              className: 'timeline-row-label',
             },
             `${track.label || 'Captions'} ${track.enabled ? '• Visible' : '• Hidden'}`,
           ),
           div(
             {
-              className: 've-text-[10px] ve-text-violet-200/80',
+              className: 'timeline-row-meta',
             },
             `${track.segments.length} cues`,
           ),
@@ -515,14 +509,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     renderToolControls();
   }
 
-  // ============================================================
-  // 6. INDEXEDDB PROJECT STORAGE
-  // ============================================================
-
-  // ============================================================
-  // 6. INDEXEDDB PROJECT STORAGE
-  // ============================================================
-
   async function hydrateProjectState() {
     await projectLifecycleController.hydrateProjectState();
   }
@@ -535,10 +521,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     await projectLifecycleController.importProjectFile();
   }
 
-  // ============================================================
-  // 7. UNDO AND REDO
-  // ============================================================
-
   function undo() {
     projectLifecycleController.undo();
   }
@@ -546,10 +528,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function redo() {
     projectLifecycleController.redo();
   }
-
-  // ============================================================
-  // 8. PLAYBACK SPEED CURVE
-  // ============================================================
 
   function getPlaybackRateAtTime(t: number): number {
     const y = cubicBezierValue(
@@ -583,10 +561,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     videoElement.playbackRate = getPlaybackRateAtTime(normalized);
   }
-
-  // ============================================================
-  // 9. SUBTITLE IMPORT AND EXPORT
-  // ============================================================
 
   function getCurrentCaptionStyle(): CaptionStyle {
     return {
@@ -705,17 +679,13 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     };
   }
 
-  // ============================================================
-  // 10. CAPTION PREVIEW
-  // ============================================================
-
   function updateCaptions() {
     const activeCaption = getActiveCaption();
 
     const resolvedText = activeCaption?.text ?? captionText;
 
     if (!resolvedText.trim()) {
-      captionOverlay.classList.add('ve-hidden');
+      captionOverlay.classList.add('hidden-state');
       return;
     }
 
@@ -747,12 +717,8 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     captionOverlay.style.transform =
       'translate(-50%, -50%)';
 
-    captionOverlay.classList.remove('ve-hidden');
+    captionOverlay.classList.remove('hidden-state');
   }
-
-  // ============================================================
-  // 11. MASKS AND VIDEO FILTERS
-  // ============================================================
 
   function applyMaskOverlay() {
     const visibleMasks = pendingMask
@@ -765,15 +731,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     maskOverlay.replaceChildren();
 
     if (!visibleMasks.length) {
-      maskOverlay.classList.add('ve-hidden');
+      maskOverlay.classList.add('hidden-state');
       return;
     }
 
-    maskOverlay.classList.remove('ve-hidden');
+    maskOverlay.classList.remove('hidden-state');
 
     for (const mask of visibleMasks) {
       const element = div({
-        className: 've-absolute ve-pointer-events-none',
+        className: 'mask-overlay-item',
 
         style: [
           'position:absolute',
@@ -854,10 +820,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     applyVideoFilters();
   }
 
-  // ============================================================
-  // 12. PLAYBACK CONTROLS
-  // ============================================================
-
   function syncPlaybackUI() {
     const isActive =
       !!videoElement.src &&
@@ -899,10 +861,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     },
     getVolume: () => volume,
   });
-
-  // ============================================================
-  // 13. LOAD AND RESTORE SOURCE VIDEO
-  // ============================================================
 
   const generateThumbnailStrip = createThumbnailStripGenerator({
     thumbnailStrip,
@@ -1043,18 +1001,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     videoSourceController.handleVideoUpload(event);
   };
 
-  // ============================================================
-  // 14. VIDEO THUMBNAIL GENERATION
-  // ============================================================
-
-  // ============================================================
-  // 15. CLIP OPERATIONS
-  // ============================================================
-
-  // ============================================================
-  // 16. LUT IMPORT
-  // ============================================================
-
   function updateRenderProgressUI(progress: number) {
     const safeProgress = clampValue(progress, 0, 100);
 
@@ -1140,10 +1086,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     updatePlaybackRateFromCurve,
   });
 
-  // ============================================================
-  // 20. SERVER AND BROWSER EXPORT
-  // ============================================================
-
   async function startVideoExport() {
     await videoExportController.startVideoExport();
   }
@@ -1151,10 +1093,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   function cancelVideoExport() {
     videoExportController.cancelVideoExport();
   }
-
-  // ============================================================
-  // 21. EDITOR RESET
-  // ============================================================
 
   function resetEditor() {
     resetEditorController({
@@ -1261,10 +1199,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     });
   }
 
-  // ============================================================
-  // 22. MAIN EDITOR UI
-  // ============================================================
-
   const fileInput = createVideoUploadDropzone({
     videoContainer,
     onFileSelected: handleVideoUpload,
@@ -1275,7 +1209,7 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
   }).fileInput;
 
   const toolContainer = div({
-    className: 've-space-y-4',
+    className: 'tool-container',
   });
 
   const tabs: { id: VideoTab; label: string }[] = [
@@ -1322,15 +1256,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     startVideoExport,
   });
 
-  // ============================================================
-  // 23. EDITOR SHELL AND FULLSCREEN
-  // ============================================================
-
-
-  // ============================================================
-  // 24. KEYBOARD SHORTCUTS
-  // ============================================================
-
   bindEditorShortcuts({
     undo,
     redo,
@@ -1350,10 +1275,6 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       flipH = next;
     },
   });
-
-  // ============================================================
-  // 25. REUSABLE UI CONTROLS
-  // ============================================================
 
   const {
     createSliderControl,
@@ -1504,10 +1425,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       VideoEditorState['aspectRatio'],
       string
     > = {
-      '16:9': '16 / ve-9',
-      '9:16': 've-9 / 16',
-      '1:1': 've-1 / ve-1',
-      '4:5': 've-4 / ve-5',
+      '16:9': '16 / 9',
+      '9:16': '9 / 16',
+      '1:1': '1 / 1',
+      '4:5': '4 / 5',
     };
     videoElement.style.aspectRatio = ratios[ratio];
   }
@@ -1518,19 +1439,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       .querySelectorAll('button')
       .forEach((element, index) => {
         const isSelected = tabs[index]?.id === tab;
-        element.className =
-          `inline-flex min-w-[70px] flex-1 items-center justify-center rounded-xl border px-2 py-2 text-[9px] font-bold uppercase tracking-[0.12em] transition-colors sm:min-w-[90px] sm:px-3 sm:text-[11px] ${
-            isSelected
-              ? 'border-slate-100/20 ve-bg-slate-900/60 ve-text-slate-50 ve-shadow-inner'
-              : 've-border-transparent ve-bg-transparent ve-text-slate-300 ve-hover:text-slate-100'
-          }`;
+        element.className = isSelected ? 'tab-button tab-button-selected' : 'tab-button tab-button-unselected';
       });
     renderToolControls();
   }
-
-  // ============================================================
-  // 26. DYNAMIC INSPECTOR PANELS
-  // ============================================================
 
   function renderTimelineTab() {
     const timelinePanel = createTimelinePanel({
@@ -1594,45 +1506,15 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
 
     if (activeTab === 'timeline') {
       renderTimelineTab();
-    }
-
-    // ----------------------------------------------------------
-    // FILTERS
-    // ----------------------------------------------------------
-
-    else if (activeTab === 'filters') {
+    } else if (activeTab === 'filters') {
       renderFiltersTab();
-    }
-
-    // ----------------------------------------------------------
-    // TRANSFORM
-    // ----------------------------------------------------------
-
-    else if (activeTab === 'transform') {
+    } else if (activeTab === 'transform') {
       renderTransformTab();
-    }
-
-    // ----------------------------------------------------------
-    // AUDIO
-    // ----------------------------------------------------------
-
-    else if (activeTab === 'audio') {
+    } else if (activeTab === 'audio') {
       editorPanels.renderAudioTab();
-    }
-
-    // ----------------------------------------------------------
-    // CAPTIONS
-    // ----------------------------------------------------------
-
-    else if (activeTab === 'captions') {
+    } else if (activeTab === 'captions') {
       editorPanels.renderCaptionsTab();
-    }
-
-    // ----------------------------------------------------------
-    // EXPORT
-    // ----------------------------------------------------------
-
-    else if (activeTab === 'export') {
+    } else if (activeTab === 'export') {
       const exportPanel = createExportPanel({
         toolContainer,
         renderProgress,
@@ -1681,15 +1563,10 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
       renderProgressFill = exportPanel.progressFill;
     }
 
-    // ----------------------------------------------------------
-    // PROJECT SUMMARY
-    // ----------------------------------------------------------
-
     toolContainer.append(
       div(
         {
-          className:
-            've-mt-6 ve-border-t ve-border-slate-700/60 ve-pt-4',
+          className: 'project-summary-wrapper',
         },
         createDetailPanel(
           'Project Summary',
@@ -1726,16 +1603,9 @@ export async function createVideoEditorPage(): Promise<HTMLElement> {
     );
   }
 
-  // ============================================================
-  // 27. INITIALIZATION
-  // ============================================================
-
   renderToolControls();
 
-  // Restore saved state after the entire UI and video element
-  // have been initialized.
   void hydrateProjectState();
 
   return root;
 }
-

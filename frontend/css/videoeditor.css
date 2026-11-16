@@ -6,7 +6,7 @@
 @import url("./videoeditor/videoeditorpanels.css");
 @import url("./videoeditor/videoeditorplayer.css");
 @import url("./videoeditor/videoeeditortimeline.css");
-
+@import url("./videoeditor/videoeditorindex.css");
 
 /* Video editor styles. This file replaces the Tailwind runtime for VideoEditor.ts. */
 :root {

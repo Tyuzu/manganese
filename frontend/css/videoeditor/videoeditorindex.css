@@ -1,0 +1,117 @@
+/* videoeditor.css - Pure CSS styles replacing Tailwind utility classes */
+
+.tool-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.hidden-state {
+  display: none !important;
+}
+
+.mask-overlay-item {
+  position: absolute;
+  pointer-events: none;
+}
+
+.timeline-row-audio {
+  position: relative;
+  height: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(3, 105, 161, 0.5);
+  background-color: rgba(8, 47, 73, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 11px;
+  color: #bae6fd;
+  font-weight: 500;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  user-select: none;
+}
+
+.timeline-row-caption {
+  position: relative;
+  height: 2rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(109, 40, 217, 0.5);
+  background-color: rgba(76, 29, 149, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 11px;
+  color: #ede9fe;
+  font-weight: 500;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  user-select: none;
+}
+
+.timeline-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.timeline-row-meta {
+  font-size: 10px;
+  color: rgba(237, 233, 254, 0.8);
+}
+
+.tab-button {
+  display: inline-flex;
+  min-width: 70px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.5rem 0.5rem;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  background: transparent;
+  color: #cbd5e1;
+}
+
+@media (min-width: 640px) {
+  .tab-button {
+    min-width: 90px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 11px;
+  }
+}
+
+.tab-button-selected {
+  border-color: rgba(248, 250, 252, 0.2);
+  background-color: rgba(15, 23, 42, 0.6);
+  color: #f8fafc;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+}
+
+.tab-button-unselected {
+  border-color: transparent;
+  background-color: transparent;
+  color: #cbd5e1;
+}
+
+.tab-button-unselected:hover {
+  color: #f8fafc;
+}
+
+.project-summary-wrapper {
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.6);
+  padding-top: 1rem;
+}
