@@ -1,7 +1,8 @@
+import { jsPDF } from 'jspdf';
 import { appStore } from '../../appState';
 import { processMediaOnServer } from '../../api';
 import type { ExportFormat, ScannedPage } from './types';
-import { loadImage } from './utils';
+import { getPageCropBounds, loadImage } from './utils';
 
 export interface ScanExportDependencies {
   getPages: () => ScannedPage[];
@@ -34,13 +35,16 @@ export function createScanExporter({
     page: ScannedPage
   ): Promise<HTMLCanvasElement> {
     const image = await loadImage(page.dataUrl);
+    const crop = getPageCropBounds(page, image.naturalWidth, image.naturalHeight);
 
     const rotated = page.rotation % 180 !== 0;
 
     const canvas = document.createElement('canvas');
+    const sourceWidth = crop.width;
+    const sourceHeight = crop.height;
 
-    canvas.width = rotated ? image.naturalHeight : image.naturalWidth;
-    canvas.height = rotated ? image.naturalWidth : image.naturalHeight;
+    canvas.width = rotated ? sourceHeight : sourceWidth;
+    canvas.height = rotated ? sourceWidth : sourceHeight;
 
     const context = canvas.getContext('2d');
 
@@ -56,8 +60,14 @@ export function createScanExporter({
 
     context.drawImage(
       image,
-      -image.naturalWidth / 2,
-      -image.naturalHeight / 2
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      -sourceWidth / 2,
+      -sourceHeight / 2,
+      sourceWidth,
+      sourceHeight
     );
 
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -128,85 +138,49 @@ export function createScanExporter({
       return;
     }
 
-    // Use pre-opened window or open one now
-    const printWindow = preOpenedWindow || window.open('', '_blank');
+    const doc = new jsPDF({
+      unit: 'pt',
+      format: 'a4',
+      orientation: renderedPages[0]?.width > renderedPages[0]?.height ? 'landscape' : 'portrait',
+    });
 
-    if (!printWindow) {
-      throw new Error('Popup blocker prevented export. Please allow popups for this site.');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    renderedPages.forEach((canvas, index) => {
+      const imgData = canvas.toDataURL('image/jpeg', getExportQuality());
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+      const drawWidth = imgWidth * ratio;
+      const drawHeight = imgHeight * ratio;
+      const x = (pageWidth - drawWidth) / 2;
+      const y = (pageHeight - drawHeight) / 2;
+
+      if (index > 0) {
+        doc.addPage();
+      }
+
+      doc.addImage(imgData, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
+    });
+
+    const pdfDataUrl = doc.output('datauristring');
+
+    if (preOpenedWindow) {
+      try {
+        preOpenedWindow.location.href = pdfDataUrl;
+      } catch {
+        preOpenedWindow.location.assign(pdfDataUrl);
+      }
+      return;
     }
 
-    const pageMarkup = renderedPages.map((canvas, index) => {
-      return `<section class="page"><img src="${canvas.toDataURL('image/jpeg', getExportQuality())}" alt="Page ${index + 1}"></section>`;
-    }).join('');
-
-    printWindow.document.open();
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${filename}</title>
-        <style>
-          * { box-sizing: border-box; }
-          html, body { margin: 0; padding: 0; background: #fff; }
-          .page {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            page-break-after: always;
-            break-after: page;
-          }
-          .page:last-child {
-            page-break-after: auto;
-            break-after: auto;
-          }
-          .page img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-          }
-          @page { margin: 0; size: auto; }
-          @media print {
-            html, body { width: 100%; height: 100%; }
-            .page { width: 100%; height: 100vh; }
-          }
-        </style>
-      </head>
-      <body>
-        ${pageMarkup}
-        <script>
-          // Wait for all images to fully load before triggering print dialog
-          window.addEventListener('load', () => {
-            const images = document.querySelectorAll('img');
-            let loadedCount = 0;
-            if (images.length === 0) {
-              window.print();
-              return;
-            }
-            images.forEach(img => {
-              if (img.complete) {
-                loadedCount++;
-                if (loadedCount === images.length) setTimeout(() => window.print(), 200);
-              } else {
-                img.onload = () => {
-                  loadedCount++;
-                  if (loadedCount === images.length) setTimeout(() => window.print(), 200);
-                };
-                img.onerror = () => {
-                  loadedCount++;
-                  if (loadedCount === images.length) setTimeout(() => window.print(), 200);
-                };
-              }
-            });
-          });
-        </script>
-      </body>
-      </html>
-    `);
-
-    printWindow.document.close();
+    const link = document.createElement('a');
+    link.href = pdfDataUrl;
+    link.download = `${filename}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async function exportImages(
@@ -239,22 +213,32 @@ export function createScanExporter({
       return;
     }
 
-    // Download sequentially with a small delay to prevent browser popup blockers from flagging multi-file downloads
     for (let index = 0; index < renderedPages.length; index++) {
       const canvas = renderedPages[index];
+      
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas blob conversion failed'));
+        }, mimeType, getExportQuality());
+      });
+
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
 
       link.download = renderedPages.length > 1
         ? `${filename}_page_${index + 1}.${extension}`
         : `${filename}.${extension}`;
 
-      link.href = canvas.toDataURL(mimeType, getExportQuality());
+      link.href = blobUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
       if (index < renderedPages.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 400));
       }
     }
   }
@@ -267,15 +251,14 @@ export function createScanExporter({
       return;
     }
 
-    // CRITICAL: Pre-open print window synchronously if export format is PDF to preserve user gesture context
     let preOpenedWindow: Window | null = null;
     if (getExportFormat() === 'pdf' && (appStore.getState().mediaProcessingMode ?? 'browser') !== 'server') {
-      preOpenedWindow = window.open('about:blank', '_blank');
+      preOpenedWindow = window.open('', '_blank');
       if (!preOpenedWindow) {
         setStatus('Popup blocker prevented export. Please allow popups.');
         return;
       }
-      preOpenedWindow.document.write('<!DOCTYPE html><html><head><title>Preparing export...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;"><h3 style="color:#64748b;">Rendering document pages for PDF export...</h3></body></html>');
+      preOpenedWindow.document.write('<!DOCTYPE html><html><head><title>Preparing export...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">Preparing PDF...</body></html>');
     }
 
     setIsExporting(true);
@@ -297,7 +280,7 @@ export function createScanExporter({
         await exportPdf(renderedPages, safeName, preOpenedWindow);
       } else {
         if (preOpenedWindow) {
-          preOpenedWindow.close();
+          try { preOpenedWindow.close(); } catch {}
         }
         await exportImages(renderedPages, safeName);
       }

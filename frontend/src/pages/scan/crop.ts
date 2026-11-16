@@ -1,5 +1,5 @@
 import type { ScanTab, ScannedPage } from './types';
-import { clamp, loadImage } from './utils';
+import { clamp, getPageCropBounds, loadImage } from './utils';
 
 export interface ScanCropDependencies {
   getActivePage: () => ScannedPage | null;
@@ -43,28 +43,44 @@ export function createScanCropper({
     overlay.style.width = '100%';
     overlay.style.height = '100%';
     overlay.style.pointerEvents = 'none';
-    
-    // CRITICAL FIX: Prevent mobile browser default touch pan/zoom/scroll gestures
     overlay.style.touchAction = 'none';
 
     const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
     polygon.classList.add('scan-crop-polygon');
+    overlay.append(polygon);
+
+    // 4 Corners: [TL (0), TR (1), BR (2), BL (3)]
+    // 4 Sides (midpoints): Top (4: between TL & TR), Right (5: between TR & BR), Bottom (6: between BR & BL), Left (7: between BL & TL)
 
     const updatePolygonAndHandles = () => {
       const currentRect = image.getBoundingClientRect();
-      const currentPoints = page.corners.map((point) => ({
+      const points = page.corners.map((point) => ({
         x: point.x * currentRect.width,
         y: point.y * currentRect.height,
       }));
 
       polygon.setAttribute(
         'points',
-        currentPoints.map((point) => `${point.x},${point.y}`).join(' ')
+        points.map((point) => `${point.x},${point.y}`).join(' ')
       );
 
-      handles.forEach((handle, i) => {
-        handle.setAttribute('cx', String(currentPoints[i].x));
-        handle.setAttribute('cy', String(currentPoints[i].y));
+      // Update 4 corner handles (0-3)
+      cornerHandles.forEach((handle, i) => {
+        handle.setAttribute('cx', String(points[i].x));
+        handle.setAttribute('cy', String(points[i].y));
+      });
+
+      // Update 4 side midpoint handles (4-7)
+      const midpoints = [
+        { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 }, // Top (0-1)
+        { x: (points[1].x + points[2].x) / 2, y: (points[1].y + points[2].y) / 2 }, // Right (1-2)
+        { x: (points[2].x + points[3].x) / 2, y: (points[2].y + points[3].y) / 2 }, // Bottom (2-3)
+        { x: (points[3].x + points[0].x) / 2, y: (points[3].y + points[0].y) / 2 }, // Left (3-0)
+      ];
+
+      sideHandles.forEach((handle, i) => {
+        handle.setAttribute('cx', String(midpoints[i].x));
+        handle.setAttribute('cy', String(midpoints[i].y));
       });
     };
 
@@ -77,31 +93,29 @@ export function createScanCropper({
       'points',
       initialPoints.map((point) => `${point.x},${point.y}`).join(' ')
     );
-    overlay.append(polygon);
 
-    const handles: SVGCircleElement[] = [];
+    const cornerHandles: SVGCircleElement[] = [];
+    const sideHandles: SVGCircleElement[] = [];
 
+    // --- Create 4 Corner Handles ---
     initialPoints.forEach((point, index) => {
       const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       handle.setAttribute('cx', String(point.x));
       handle.setAttribute('cy', String(point.y));
-      handle.setAttribute('r', '12'); // Generous touch target for mobile
-      handle.classList.add('scan-crop-handle');
+      handle.setAttribute('r', '12');
+      handle.classList.add('scan-crop-handle', 'scan-corner-handle');
       handle.style.pointerEvents = 'auto';
       handle.style.touchAction = 'none';
 
       handle.addEventListener('pointerdown', (event) => {
         event.preventDefault();
         event.stopPropagation();
-
         setActiveCornerIndex(index);
         handle.setPointerCapture(event.pointerId);
       });
 
       handle.addEventListener('pointermove', (event) => {
-        if (getActiveCornerIndex() !== index) {
-          return;
-        }
+        if (getActiveCornerIndex() !== index) return;
         event.preventDefault();
         event.stopPropagation();
 
@@ -109,19 +123,10 @@ export function createScanCropper({
         if (!currentRect.width || !currentRect.height) return;
 
         page.corners[index] = {
-          x: clamp(
-            (event.clientX - currentRect.left) / currentRect.width,
-            0,
-            1
-          ),
-          y: clamp(
-            (event.clientY - currentRect.top) / currentRect.height,
-            0,
-            1
-          ),
+          x: clamp((event.clientX - currentRect.left) / currentRect.width, 0, 1),
+          y: clamp((event.clientY - currentRect.top) / currentRect.height, 0, 1),
         };
 
-        // Directly update SVG DOM without tearing down preview/handles
         updatePolygonAndHandles();
       });
 
@@ -129,15 +134,11 @@ export function createScanCropper({
         if (getActiveCornerIndex() === index) {
           event.preventDefault();
           event.stopPropagation();
-
           try {
             if (handle.hasPointerCapture(event.pointerId)) {
               handle.releasePointerCapture(event.pointerId);
             }
-          } catch {
-            // Ignore capture release errors
-          }
-
+          } catch { }
           setActiveCornerIndex(null);
           renderStagePreview();
           persistState();
@@ -147,7 +148,87 @@ export function createScanCropper({
       handle.addEventListener('pointerup', finishDrag);
       handle.addEventListener('pointercancel', finishDrag);
 
-      handles.push(handle);
+      cornerHandles.push(handle);
+      overlay.append(handle);
+    });
+
+    // --- Create 4 Side-Drag Handles ---
+    // Mapping: 0 = Top (corners 0,1), 1 = Right (corners 1,2), 2 = Bottom (corners 2,3), 3 = Left (corners 3,0)
+    const sideMappings = [
+      { c1: 0, c2: 1 }, // Top
+      { c1: 1, c2: 2 }, // Right
+      { c1: 2, c2: 3 }, // Bottom
+      { c1: 3, c2: 0 }, // Left
+    ];
+
+    sideMappings.forEach((side, sideIndex) => {
+      const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      const midpointX = (initialPoints[side.c1].x + initialPoints[side.c2].x) / 2;
+      const midpointY = (initialPoints[side.c1].y + initialPoints[side.c2].y) / 2;
+
+      handle.setAttribute('cx', String(midpointX));
+      handle.setAttribute('cy', String(midpointY));
+      handle.setAttribute('r', '10');
+      handle.classList.add('scan-crop-handle', 'scan-side-handle');
+      handle.style.pointerEvents = 'auto';
+      handle.style.touchAction = 'none';
+
+      let lastClientX = 0;
+      let lastClientY = 0;
+
+      handle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+        setActiveCornerIndex(4 + sideIndex); // Offset to distinguish side handles
+        handle.setPointerCapture(event.pointerId);
+      });
+
+      handle.addEventListener('pointermove', (event) => {
+        if (getActiveCornerIndex() !== 4 + sideIndex) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        const currentRect = image.getBoundingClientRect();
+        if (!currentRect.width || !currentRect.height) return;
+
+        const dx = (event.clientX - lastClientX) / currentRect.width;
+        const dy = (event.clientY - lastClientY) / currentRect.height;
+        lastClientX = event.clientX;
+        lastClientY = event.clientY;
+
+        // Move both connected corners by the delta (dx, dy)
+        page.corners[side.c1] = {
+          x: clamp(page.corners[side.c1].x + dx, 0, 1),
+          y: clamp(page.corners[side.c1].y + dy, 0, 1),
+        };
+        page.corners[side.c2] = {
+          x: clamp(page.corners[side.c2].x + dx, 0, 1),
+          y: clamp(page.corners[side.c2].y + dy, 0, 1),
+        };
+
+        updatePolygonAndHandles();
+      });
+
+      const finishSideDrag = (event: PointerEvent) => {
+        if (getActiveCornerIndex() === 4 + sideIndex) {
+          event.preventDefault();
+          event.stopPropagation();
+          try {
+            if (handle.hasPointerCapture(event.pointerId)) {
+              handle.releasePointerCapture(event.pointerId);
+            }
+          } catch { }
+          setActiveCornerIndex(null);
+          persistState();
+        }
+      };
+
+      handle.addEventListener('pointerup', finishSideDrag);
+      handle.addEventListener('pointercancel', finishSideDrag);
+
+      sideHandles.push(handle);
       overlay.append(handle);
     });
 
@@ -165,22 +246,11 @@ export function createScanCropper({
 
     try {
       const image = await loadImage(page.dataUrl);
-      const [tl, tr, br, bl] = page.corners;
-
-      const sourceWidth = image.naturalWidth;
-      const sourceHeight = image.naturalHeight;
-
-      const minX = clamp(Math.min(tl.x, bl.x), 0, 1) * sourceWidth;
-      const minY = clamp(Math.min(tl.y, tr.y), 0, 1) * sourceHeight;
-      const maxX = clamp(Math.max(tr.x, br.x), 0, 1) * sourceWidth;
-      const maxY = clamp(Math.max(bl.y, br.y), 0, 1) * sourceHeight;
-
-      const width = Math.max(1, Math.round(maxX - minX));
-      const height = Math.max(1, Math.round(maxY - minY));
+      const crop = getPageCropBounds(page, image.naturalWidth, image.naturalHeight);
 
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = crop.width;
+      canvas.height = crop.height;
 
       const context = canvas.getContext('2d');
       if (!context) {
@@ -189,14 +259,14 @@ export function createScanCropper({
 
       context.drawImage(
         image,
-        minX,
-        minY,
-        width,
-        height,
+        crop.x,
+        crop.y,
+        crop.width,
+        crop.height,
         0,
         0,
-        width,
-        height
+        crop.width,
+        crop.height
       );
 
       page.dataUrl = canvas.toDataURL('image/jpeg', 0.95);
