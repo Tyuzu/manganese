@@ -1,5 +1,6 @@
 import { appStore, authSelectors, routeStateActions, routeStateSelectors } from '../appState';
 import { a as createAnchor, createErrorCard, div, h2 } from '../components/ui/dom';
+import "../../css/router.css";
 
 export type RouteHandler = (params: Record<string, string>) => void | Promise<void>;
 
@@ -97,8 +98,8 @@ export function createRouter() {
         const viewResult = route.handler(params);
         if (viewResult instanceof Promise && app) {
           app.replaceChildren(
-            div({ className: 'card mx-auto max-w-xl text-center' },
-              h2({ className: 'text-xl font-semibold text-slate-900' }, 'Loading module...')
+            div({ className: 'route-card' },
+              h2({ className: 'route-loading-title' }, 'Loading module...')
             )
           );
           await viewResult;
@@ -115,9 +116,9 @@ export function createRouter() {
     const app = document.getElementById('app');
     if (app) {
       app.replaceChildren(
-        div({ className: 'card mx-auto max-w-xl text-center' },
-          h2({ className: 'text-2xl font-bold tracking-tight text-slate-900' }, '404 - Page Not Found'),
-          createAnchor({ href: '/', className: 'mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500', 'data-link': '' }, 'Go Home')
+        div({ className: 'route-card' },
+          h2({ className: 'route-not-found-title' }, '404 - Page Not Found'),
+          createAnchor({ href: '/', className: 'route-home-btn', 'data-link': '' }, 'Go Home')
         )
       );
     }

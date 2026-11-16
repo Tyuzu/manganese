@@ -97,14 +97,14 @@
   },
   "screenshots": [
     {
-      "src": "/screenshots/desktop-workspace.png",
+      "src": "/screenshots/desktop-workspace.webp",
       "sizes": "1920x1080",
       "type": "image/png",
       "form_factor": "wide",
       "label": "PixelForge Studio Desktop Editor"
     },
     {
-      "src": "/screenshots/mobile-scanner.png",
+      "src": "/screenshots/mobile-scanner.webp",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",

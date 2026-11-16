@@ -1,0 +1,51 @@
+/* Replaces: card mx-auto max-w-xl text-center */
+.route-card {
+  max-width: 36rem; /* 576px (max-w-xl) */
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem;
+  text-align: center;
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Replaces: text-xl font-semibold text-slate-900 */
+.route-loading-title {
+  margin: 0;
+  font-size: 1.25rem; /* 20px */
+  line-height: 1.75rem; /* 28px */
+  font-weight: 600;
+  color: #0f172a; /* slate-900 */
+}
+
+/* Replaces: text-2xl font-bold tracking-tight text-slate-900 */
+.route-not-found-title {
+  margin: 0;
+  font-size: 1.5rem; /* 24px */
+  line-height: 2rem; /* 32px */
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #0f172a; /* slate-900 */
+}
+
+/* Replaces: mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 */
+.route-home-btn {
+  margin-top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: #2563eb; /* blue-600 */
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem; /* 14px */
+  line-height: 1.25rem; /* 20px */
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.route-home-btn:hover {
+  background-color: #3b82f6; /* blue-500 */
+}
