@@ -1,235 +1,511 @@
+
 import { FILTER_DEFINITIONS } from './types';
 
+const createElement = <K extends keyof HTMLElementTagNameMap>(
+  tag: K,
+  className?: string,
+  attributes: Record<string, string> = {},
+): HTMLElementTagNameMap[K] => {
+  const element = document.createElement(tag);
+
+  if (className) element.className = className;
+
+  for (const [key, value] of Object.entries(attributes)) {
+    element.setAttribute(key, value);
+  }
+
+  return element;
+};
+
+const button = (
+  label: string,
+  action: string,
+  variant = '',
+): HTMLButtonElement => {
+  const element = createElement('button', `ie-button ${variant}`.trim(), {
+    type: 'button',
+    'data-action': action,
+  });
+
+  element.textContent = label;
+  return element;
+};
+
+const section = (
+  title: string,
+  content: HTMLElement[],
+): HTMLElement => {
+  const wrapper = createElement('section', 'ie-section');
+
+  const heading = createElement('h3', 'ie-section-title');
+  heading.textContent = title;
+
+  wrapper.append(heading, ...content);
+  return wrapper;
+};
+
+const field = (
+  label: string,
+  control: HTMLElement,
+  className = '',
+): HTMLLabelElement => {
+  const wrapper = createElement(
+    'label',
+    `ie-field ${className}`.trim(),
+  );
+
+  const title = createElement('span', 'ie-field-label');
+  title.textContent = label;
+
+  wrapper.append(title, control);
+  return wrapper;
+};
+
+const rangeControl = (
+  role: string,
+  min: number,
+  max: number,
+  value: number,
+  step = 1,
+): HTMLInputElement => {
+  return createElement('input', '', {
+    type: 'range',
+    min: String(min),
+    max: String(max),
+    value: String(value),
+    step: String(step),
+    'data-role': role,
+  });
+};
+
+const valueLabel = (
+  role: string,
+  value: string,
+): HTMLSpanElement => {
+  const element = createElement('span', 'ie-value', {
+    'data-role': role,
+    'aria-live': 'polite',
+  });
+
+  element.textContent = value;
+  return element;
+};
+
+const buttonRow = (
+  ...buttons: HTMLButtonElement[]
+): HTMLDivElement => {
+  const row = createElement('div', 'ie-button-row');
+  row.append(...buttons);
+  return row;
+};
+
 export function buildImageStudioShell(): HTMLDivElement {
-  const root = document.createElement('div');
-  root.className = 'image-studio';
+  const root = createElement('div', 'image-studio');
 
-  root.insertAdjacentHTML('beforeend', `
-    <header class="ie-topbar">
-      <div class="ie-brand">PIXEL<span>STUDIO</span></div>
+  // Header
+  const header = createElement('header', 'ie-topbar');
+  header.setAttribute('aria-label', 'Image studio toolbar');
 
-      <button class="ie-button" data-action="open">Open image</button>
-      <button class="ie-button" data-action="import-project">Import project</button>
-      <button class="ie-button" data-action="save-project">Export project JSON</button>
-      <button class="ie-button" data-action="flush-all">Flush all</button>
+  const brand = createElement('div', 'ie-brand');
+  brand.textContent = 'PIXEL';
 
-      <select class="ie-select" data-role="saved-projects" style="width:150px">
-        <option value="">Saved projects</option>
-      </select>
+  const brandAccent = createElement('span');
+  brandAccent.textContent = 'STUDIO';
+  brand.append(brandAccent);
 
-      <select class="ie-select" data-role="export-format" style="width:95px">
-        <option value="image/png">PNG</option>
-        <option value="image/jpeg">JPEG</option>
-        <option value="image/webp">WebP</option>
-        <option value="image/avif">AVIF</option>
-      </select>
+  const actions = createElement('div', 'ie-header-actions');
 
-      <button class="ie-button primary" data-action="export">Export image</button>
+  actions.append(
+    button('Open image', 'open'),
+    button('Import project', 'import-project'),
+    button('Export project JSON', 'save-project'),
+    button('Flush all', 'flush-all'),
+  );
 
-      <span class="ie-status-wrap">
-        <span class="ie-loader" data-role="loader" hidden></span>
-        <span class="ie-status" data-role="status">Ready</span>
-      </span>
+  const savedProjects = createElement('select', 'ie-select', {
+    'data-role': 'saved-projects',
+    'aria-label': 'Saved projects',
+  });
 
-      <input data-role="file-input" type="file" accept="image/*" multiple hidden>
-      <input data-role="project-input" type="file" accept=".json,application/json" hidden>
-    </header>
+  savedProjects.style.width = '150px';
 
-    <nav class="ie-tabs" data-role="tabs"></nav>
+  const savedOption = createElement('option');
+  savedOption.value = '';
+  savedOption.textContent = 'Saved projects';
+  savedProjects.append(savedOption);
 
-    <div class="ie-layout">
-      <aside class="ie-sidebar left">
-        <section class="ie-section">
-          <h3 class="ie-section-title">Transform</h3>
+  const exportFormat = createElement('select', 'ie-select', {
+    'data-role': 'export-format',
+    'aria-label': 'Export format',
+  });
 
-          <div class="ie-button-row">
-            <button class="ie-button" data-action="rotate-left">↶ Rotate</button>
-            <button class="ie-button" data-action="rotate-right">Rotate ↷</button>
-          </div>
+  exportFormat.style.width = '95px';
 
-          <div class="ie-button-row" style="margin-top:7px">
-            <button class="ie-button" data-action="flip-x">Flip H</button>
-            <button class="ie-button" data-action="flip-y">Flip V</button>
-          </div>
-        </section>
+  const formats = [
+    ['image/png', 'PNG'],
+    ['image/jpeg', 'JPEG'],
+    ['image/webp', 'WebP'],
+    ['image/avif', 'AVIF'],
+  ];
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">Crop · source pixels</h3>
+  for (const [value, label] of formats) {
+    const option = createElement('option');
+    option.value = value;
+    option.textContent = label;
+    exportFormat.append(option);
+  }
 
-          <div class="ie-crop-grid">
-            <label class="ie-field">
-              <span class="ie-field-label">X</span>
-              <input type="number" data-role="crop-x" min="0" value="0">
-            </label>
+  actions.append(
+    savedProjects,
+    exportFormat,
+    button('Export image', 'export', 'primary'),
+  );
 
-            <label class="ie-field">
-              <span class="ie-field-label">Y</span>
-              <input type="number" data-role="crop-y" min="0" value="0">
-            </label>
+  const status = createElement('div', 'ie-status-wrap', {
+    role: 'status',
+    'aria-live': 'polite',
+  });
 
-            <label class="ie-field">
-              <span class="ie-field-label">Width</span>
-              <input type="number" data-role="crop-width" min="1" value="1">
-            </label>
+  const loader = createElement('span', 'ie-loader', {
+    'data-role': 'loader',
+    'aria-label': 'Processing',
+  });
 
-            <label class="ie-field">
-              <span class="ie-field-label">Height</span>
-              <input type="number" data-role="crop-height" min="1" value="1">
-            </label>
-          </div>
+  loader.hidden = true;
 
-          <div class="ie-button-row">
-            <button class="ie-button" data-action="apply-crop">Apply crop</button>
-            <button class="ie-button" data-action="reset-crop">Reset</button>
-          </div>
+  const statusText = createElement('span', 'ie-status', {
+    'data-role': 'status',
+  });
 
-          <p class="ie-small-note">
-            Crop coordinates refer to the original image, before rotation.
-          </p>
-        </section>
+  statusText.textContent = 'Ready';
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">Mask brush</h3>
+  status.append(loader, statusText);
 
-          <button class="ie-button" data-action="toggle-brush" style="width:100%">
-            Enable mask brush
-          </button>
+  const fileInput = createElement('input', '', {
+    type: 'file',
+    accept: 'image/*',
+    multiple: '',
+    hidden: '',
+    'data-role': 'file-input',
+    'aria-label': 'Choose images',
+  });
 
-          <label class="ie-field" style="margin-top:12px">
-            <span class="ie-field-label">
-              Brush size
-              <span class="ie-value" data-role="brush-value">32 px</span>
-            </span>
-            <input type="range" data-role="brush-size" min="2" max="200" value="32">
-          </label>
+  const projectInput = createElement('input', '', {
+    type: 'file',
+    accept: '.json,application/json',
+    hidden: '',
+    'data-role': 'project-input',
+    'aria-label': 'Import project',
+  });
 
-          <label class="ie-check">
-            <input type="checkbox" data-role="mask-enabled">
-            Apply adjustments only to mask
-          </label>
+  header.append(
+    brand,
+    actions,
+    status,
+    fileInput,
+    projectInput,
+  );
 
-          <button class="ie-button" data-action="clear-mask" style="width:100%">
-            Clear mask
-          </button>
+  // Navigation
+  const tabs = createElement('nav', 'ie-tabs', {
+    'data-role': 'tabs',
+    'aria-label': 'Editor tools',
+  });
 
-          <p class="ie-small-note">
-            Paint on the image to define where adjustments are applied.
-          </p>
-        </section>
+  // Left sidebar
+  const leftSidebar = createElement('aside', 'ie-sidebar left', {
+    'aria-label': 'Image tools',
+  });
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">View</h3>
+  // Transform
+  leftSidebar.append(
+    section('Transform', [
+      buttonRow(
+        button('↶ Rotate', 'rotate-left'),
+        button('Rotate ↷', 'rotate-right'),
+      ),
+      buttonRow(
+        button('Flip H', 'flip-x'),
+        button('Flip V', 'flip-y'),
+      ),
+    ]),
+  );
 
-          <label class="ie-field">
-            <span class="ie-field-label">
-              Zoom
-              <span class="ie-value" data-role="zoom-value">100%</span>
-            </span>
-            <input type="range" data-role="zoom" min="25" max="400" value="100" step="5">
-          </label>
+  // Crop
+  const cropGrid = createElement('div', 'ie-crop-grid');
 
-          <button class="ie-button" data-action="fit" style="width:100%">
-            Fit image
-          </button>
-        </section>
-      </aside>
+  const cropFields = [
+    ['X', 'crop-x', '0'],
+    ['Y', 'crop-y', '0'],
+    ['Width', 'crop-width', '1'],
+    ['Height', 'crop-height', '1'],
+  ];
 
-      <main class="ie-workspace">
-        <div class="ie-workspace-toolbar">
-          <span data-role="document-info">No image open</span>
-          <span style="margin-left:auto" data-role="render-info"></span>
-        </div>
+  for (const [label, role, initial] of cropFields) {
+    const input = createElement('input', '', {
+      type: 'number',
+      min: role === 'crop-x' || role === 'crop-y' ? '0' : '1',
+      value: initial,
+      'data-role': role,
+      'aria-label': `Crop ${label}`,
+    });
 
-        <div class="ie-canvas-scroll" data-role="canvas-scroll">
-          <div class="ie-empty" data-role="empty">
-            <strong>Open an image to begin</strong>
-            Your original image remains unchanged. Edits are stored as project settings.
-          </div>
+    cropGrid.append(field(label, input));
+  }
 
-          <div class="ie-canvas-frame" data-role="canvas-frame" hidden>
-            <canvas class="ie-main-canvas" data-role="canvas"></canvas>
-            <canvas class="ie-mask-overlay" data-role="mask-overlay"></canvas>
-          </div>
-        </div>
-      </main>
+  const cropNote = createElement('p', 'ie-small-note');
+  cropNote.textContent =
+    'Crop coordinates refer to the original image before rotation.';
 
-      <aside class="ie-sidebar right">
-        <section class="ie-section">
-          <h3 class="ie-section-title">Adjustments</h3>
-          <div data-role="filter-controls"></div>
-        </section>
+  leftSidebar.append(
+    section('Crop · source pixels', [
+      cropGrid,
+      buttonRow(
+        button('Apply crop', 'apply-crop'),
+        button('Reset', 'reset-crop'),
+      ),
+      cropNote,
+    ]),
+  );
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">Text overlay</h3>
+  // Mask brush
+  const brushSize = rangeControl('brush-size', 2, 200, 32);
 
-          <label class="ie-field">
-            <span class="ie-field-label">Bottom watermark / caption</span>
-            <input type="text" data-role="text" placeholder="Enter text...">
-          </label>
+  const brushLabel = createElement('span', 'ie-field-label');
+  brushLabel.textContent = 'Brush size';
 
-          <p class="ie-small-note">
-            Text is rendered during preview and export.
-          </p>
-        </section>
+  const brushValue = valueLabel('brush-value', '32 px');
+  brushLabel.append(brushValue);
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">Export quality</h3>
+  const brushField = createElement('label', 'ie-field');
+  brushField.append(brushLabel, brushSize);
 
-          <label class="ie-field">
-            <span class="ie-field-label">
-              Quality
-              <span class="ie-value" data-role="quality-value">92%</span>
-            </span>
-            <input type="range" data-role="quality" min="10" max="100" value="92">
-          </label>
+  const maskCheckbox = createElement('input', '', {
+    type: 'checkbox',
+    'data-role': 'mask-enabled',
+  });
 
-          <p class="ie-small-note">
-            Quality affects JPEG, WebP and AVIF. PNG is lossless.
-          </p>
-        </section>
+  const maskLabel = createElement('label', 'ie-check');
+  maskLabel.append(
+    maskCheckbox,
+    document.createTextNode(' Apply adjustments only to mask'),
+  );
 
-        <section class="ie-section">
-          <h3 class="ie-section-title">Project</h3>
+  const maskNote = createElement('p', 'ie-small-note');
+  maskNote.textContent =
+    'Paint directly on the image to define the adjustment area.';
 
-          <div class="ie-button-row">
-            <button class="ie-button" data-action="reset">Reset edits</button>
-            <button class="ie-button" data-action="close">Close document</button>
-          </div>
-        </section>
-      </aside>
-    </div>
+  leftSidebar.append(
+    section('Mask brush', [
+      button('Enable mask brush', 'toggle-brush'),
+      brushField,
+      maskLabel,
+      button('Clear mask', 'clear-mask'),
+      maskNote,
+    ]),
+  );
 
-    <footer class="ie-footer">
-      <span>Worker rendering · Tiled processing · IndexedDB autosave</span>
-      <span data-role="engine-status">Checking renderer…</span>
-    </footer>
-  `);
+  // View
+  const zoom = rangeControl('zoom', 25, 400, 100, 5);
+
+  const zoomLabel = createElement('span', 'ie-field-label');
+  zoomLabel.textContent = 'Zoom';
+
+  zoomLabel.append(valueLabel('zoom-value', '100%'));
+
+  const zoomField = createElement('label', 'ie-field');
+  zoomField.append(zoomLabel, zoom);
+
+  leftSidebar.append(
+    section('View', [
+      zoomField,
+      button('Fit image', 'fit'),
+    ]),
+  );
+
+  // Workspace
+  const workspace = createElement('main', 'ie-workspace', {
+    'aria-label': 'Image editing workspace',
+  });
+
+  const toolbar = createElement('div', 'ie-workspace-toolbar');
+
+  const documentInfo = createElement('span', '', {
+    'data-role': 'document-info',
+  });
+
+  documentInfo.textContent = 'No image open';
+
+  const renderInfo = createElement('span', '', {
+    'data-role': 'render-info',
+  });
+
+  toolbar.append(documentInfo, renderInfo);
+
+  const canvasScroll = createElement('div', 'ie-canvas-scroll', {
+    'data-role': 'canvas-scroll',
+  });
+
+  const emptyState = createElement('div', 'ie-empty', {
+    'data-role': 'empty',
+  });
+
+  const emptyTitle = createElement('strong');
+  emptyTitle.textContent = 'Open an image to begin';
+
+  const emptyDescription = createElement('p');
+  emptyDescription.textContent =
+    'Your original image remains unchanged. All edits are stored as project settings.';
+
+  emptyState.append(emptyTitle, emptyDescription);
+
+  const canvasFrame = createElement('div', 'ie-canvas-frame', {
+    'data-role': 'canvas-frame',
+  });
+
+  canvasFrame.hidden = true;
+
+  const canvas = createElement('canvas', 'ie-main-canvas', {
+    'data-role': 'canvas',
+    'aria-label': 'Image editing canvas',
+  });
+
+  const maskOverlay = createElement('canvas', 'ie-mask-overlay', {
+    'data-role': 'mask-overlay',
+    'aria-hidden': 'true',
+  });
+
+  canvasFrame.append(canvas, maskOverlay);
+  canvasScroll.append(emptyState, canvasFrame);
+
+  workspace.append(toolbar, canvasScroll);
+
+  // Right sidebar
+  const rightSidebar = createElement('aside', 'ie-sidebar right', {
+    'aria-label': 'Image adjustments',
+  });
+
+  const filterContainer = createElement('div', '', {
+    'data-role': 'filter-controls',
+  });
+
+  rightSidebar.append(
+    section('Adjustments', [filterContainer]),
+  );
+
+  // Text overlay
+  const textInput = createElement('input', '', {
+    type: 'text',
+    'data-role': 'text',
+    placeholder: 'Enter text...',
+    'aria-label': 'Watermark or caption',
+  });
+
+  const textNote = createElement('p', 'ie-small-note');
+  textNote.textContent =
+    'Text is rendered during preview and export.';
+
+  rightSidebar.append(
+    section('Text overlay', [
+      field('Bottom watermark / caption', textInput),
+      textNote,
+    ]),
+  );
+
+  // Export quality
+  const quality = rangeControl('quality', 10, 100, 92);
+
+  const qualityLabel = createElement('span', 'ie-field-label');
+  qualityLabel.textContent = 'Quality';
+
+  qualityLabel.append(valueLabel('quality-value', '92%'));
+
+  const qualityField = createElement('label', 'ie-field');
+  qualityField.append(qualityLabel, quality);
+
+  const qualityNote = createElement('p', 'ie-small-note');
+  qualityNote.textContent =
+    'Quality affects JPEG, WebP and AVIF. PNG is lossless.';
+
+  rightSidebar.append(
+    section('Export quality', [
+      qualityField,
+      qualityNote,
+    ]),
+  );
+
+  // Project
+  rightSidebar.append(
+    section('Project', [
+      buttonRow(
+        button('Reset edits', 'reset'),
+        button('Close document', 'close'),
+      ),
+    ]),
+  );
+
+  // Layout
+  const layout = createElement('div', 'ie-layout');
+  layout.append(leftSidebar, workspace, rightSidebar);
+
+  // Footer
+  const footer = createElement('footer', 'ie-footer');
+
+  const engineDescription = createElement('span');
+  engineDescription.textContent =
+    'Worker rendering · Tiled processing · IndexedDB autosave';
+
+  const engineStatus = createElement('span', '', {
+    'data-role': 'engine-status',
+    'aria-live': 'polite',
+  });
+
+  engineStatus.textContent = 'Checking renderer…';
+
+  footer.append(engineDescription, engineStatus);
+
+  root.append(header, tabs, layout, footer);
 
   return root;
 }
 
-export function buildFilterControls(container: HTMLDivElement): void {
-  container.replaceChildren();
+export function buildFilterControls(
+  container: HTMLDivElement,
+): void {
+  const fragment = document.createDocumentFragment();
 
   for (const definition of FILTER_DEFINITIONS) {
-    const field = document.createElement('label');
-    field.className = 'ie-field';
+    const wrapper = createElement('label', 'ie-field');
 
-    field.innerHTML = `
-      <span class="ie-field-label">
-        <span>${definition.label}</span>
-        <span class="ie-value" data-filter-value="${definition.key}">0</span>
-      </span>
-      <input
-        type="range"
-        data-filter="${definition.key}"
-        min="${definition.min}"
-        max="${definition.max}"
-        step="${definition.step}"
-        value="0"
-      >
-    `;
+    const header = createElement('span', 'ie-field-label');
 
-    container.appendChild(field);
+    const title = createElement('span');
+    title.textContent = definition.label;
+
+    const value = createElement('span', 'ie-value', {
+      'data-filter-value': definition.key,
+      'aria-live': 'polite',
+    });
+
+    value.textContent = '0';
+
+    header.append(title, value);
+
+    const input = rangeControl(
+      '',
+      definition.min,
+      definition.max,
+      0,
+      definition.step,
+    );
+
+    input.removeAttribute('data-role');
+    input.setAttribute('data-filter', definition.key);
+    input.setAttribute('aria-label', definition.label);
+
+    wrapper.append(header, input);
+    fragment.append(wrapper);
   }
+
+  container.replaceChildren(fragment);
 }
