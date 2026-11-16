@@ -114,8 +114,7 @@ export function createScanExporter({
 
   async function exportPdf(
     renderedPages: HTMLCanvasElement[],
-    filename: string,
-    preOpenedWindow?: Window | null
+    filename: string
   ) {
     if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
       for (let index = 0; index < renderedPages.length; index++) {
@@ -164,23 +163,18 @@ export function createScanExporter({
       doc.addImage(imgData, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
     });
 
-    const pdfDataUrl = doc.output('datauristring');
-
-    if (preOpenedWindow) {
-      try {
-        preOpenedWindow.location.href = pdfDataUrl;
-      } catch {
-        preOpenedWindow.location.assign(pdfDataUrl);
-      }
-      return;
-    }
-
+    // Generate reliable blob object URL for desktop and mobile download
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
-    link.href = pdfDataUrl;
+
+    link.href = pdfUrl;
     link.download = `${filename}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
   }
 
   async function exportImages(
@@ -251,16 +245,6 @@ export function createScanExporter({
       return;
     }
 
-    let preOpenedWindow: Window | null = null;
-    if (getExportFormat() === 'pdf' && (appStore.getState().mediaProcessingMode ?? 'browser') !== 'server') {
-      preOpenedWindow = window.open('', '_blank');
-      if (!preOpenedWindow) {
-        setStatus('Popup blocker prevented export. Please allow popups.');
-        return;
-      }
-      preOpenedWindow.document.write('<!DOCTYPE html><html><head><title>Preparing export...</title></head><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;">Preparing PDF...</body></html>');
-    }
-
     setIsExporting(true);
     renderToolControls();
 
@@ -277,20 +261,14 @@ export function createScanExporter({
       }
 
       if (getExportFormat() === 'pdf') {
-        await exportPdf(renderedPages, safeName, preOpenedWindow);
+        await exportPdf(renderedPages, safeName);
       } else {
-        if (preOpenedWindow) {
-          try { preOpenedWindow.close(); } catch {}
-        }
         await exportImages(renderedPages, safeName);
       }
 
       setStatus(`Export completed: ${safeName}`);
     } catch (error) {
       console.error('Export failed:', error);
-      if (preOpenedWindow) {
-        try { preOpenedWindow.close(); } catch {}
-      }
       setStatus('Export failed');
     } finally {
       setIsExporting(false);
