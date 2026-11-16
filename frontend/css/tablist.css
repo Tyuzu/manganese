@@ -1,18 +1,19 @@
 /* ==========================================================================
-   Base Tablist Container
-   ================================================================---------- */
+   Fluent Tablist Containers
+   ========================================================================== */
 .editor-tablist,
 .scan-tab-list,
 .pdf-tablist {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-xs);
   overflow-x: auto;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
-  padding: 4px;
-  background-color: var(--tablist-bg, #f3f4f6);
-  border-radius: 8px;
+  padding: var(--space-xs);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
   width: 100%;
 }
 
@@ -23,50 +24,58 @@
 }
 
 /* ==========================================================================
-   Base Tab Button
-   ================================================================---------- */
+   Base Tab Button (Fluent Controls)
+   ========================================================================== */
 .editor-tab {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
-  color: var(--tab-text, #4b5563);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-tight);
+  color: var(--color-muted);
   background: transparent;
-  border: none;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.2s ease-in-out;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .editor-tab:hover {
-  color: var(--tab-hover-text, #111827);
-  background-color: var(--tab-hover-bg, rgba(0, 0, 0, 0.04));
+  color: var(--color-fg);
+  background-color: var(--color-bg-tertiary);
 }
 
 .editor-tab:focus-visible {
-  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline: 2px solid var(--color-input-focus);
   outline-offset: 2px;
 }
 
 /* ==========================================================================
-   Active States (Covers active, is-active, aria-selected="true", and variant active classes)
-   ================================================================---------- */
+   Active States (Supporting aria-selected, classes, and variants)
+   ========================================================================== */
 .editor-tab[aria-selected="true"],
 .editor-tab.active,
 .editor-tab.is-active,
 .editor-tab.pdf-tab-active {
-  color: var(--tab-active-text, #ffffff);
-  background-color: var(--tab-active-bg, #2563eb);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  font-weight: 600;
+  color: var(--color-primary-fg);
+  background-color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-elev-1);
 }
 
-/* Specific variant tweaks if needed */
+.editor-tab[aria-selected="true"]:hover,
+.editor-tab.active:hover,
+.editor-tab.is-active:hover,
+.editor-tab.pdf-tab-active:hover {
+  background-color: var(--color-primary-hover);
+}
+
+/* Inactive variant modifiers */
 .pdf-tab-inactive,
 .tab-item.inactive {
-  color: var(--tab-inactive-text, #6b7280);
+  color: var(--color-light);
 }

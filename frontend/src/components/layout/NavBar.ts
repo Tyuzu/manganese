@@ -1,79 +1,126 @@
+
 import "../../../css/nav.css";
-import { a, button, div, nav, span } from '../ui/dom';
+import { a, button, div, nav, span } from "../ui/dom";
 
-/** Compute normalized active link state matching subpaths properly */
-function getNavLinkClass(path: string, href: string): string {
-  const normalizedPath = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
-  const normalizedHref = href.endsWith("/") && href !== "/" ? href.slice(0, -1) : href;
-  const isActive = normalizedPath === normalizedHref || normalizedPath.startsWith(`${normalizedHref}/`);
+interface NavItem {
+  label: string;
+  href: string;
+  icon: string;
+}
 
-  return [
-    'nav-link',
-    isActive ? 'is-active' : ''
-  ].filter(Boolean).join(' ');
+const NAV_ITEMS: NavItem[] = [
+  { label: "Dashboard", href: "/", icon: "⌂" },
+  { label: "Image Studio", href: "/images", icon: "▧" },
+  { label: "Video Editor", href: "/videos", icon: "▷" },
+  { label: "Scan", href: "/scan", icon: "◎" },
+  { label: "PDF Workspace", href: "/pdf", icon: "▤" },
+];
+
+function normalizePath(path: string): string {
+  if (path.length > 1 && path.endsWith("/")) {
+    return path.slice(0, -1);
+  }
+
+  return path;
+}
+
+function isActiveRoute(path: string, href: string): boolean {
+  const current = normalizePath(path);
+  const target = normalizePath(href);
+
+  if (target === "/") {
+    return current === "/";
+  }
+
+  return current === target || current.startsWith(`${target}/`);
+}
+
+function createNavLink(item: NavItem, currentPath: string): HTMLElement {
+  const active = isActiveRoute(currentPath, item.href);
+
+  return a(
+    {
+      href: item.href,
+      className: `nav-link${active ? " is-active" : ""}`,
+      "data-link": "",
+      ...(active ? { "aria-current": "page" } : {}),
+    },
+    span({ className: "nav-link-icon", "aria-hidden": "true" }, item.icon),
+    span({ className: "nav-link-label" }, item.label),
+    ...(active
+      ? [span({ className: "nav-link-indicator", "aria-hidden": "true" }, "")]
+      : [])
+  );
 }
 
 export function createNavElement(): HTMLElement {
   const currentPath = window.location.pathname;
 
-  const navItems = [
-    a({ href: '/', className: getNavLinkClass(currentPath, '/'), 'data-link': '' }, 'Dashboard'),
-    a({ href: '/images', className: getNavLinkClass(currentPath, '/images'), 'data-link': '' }, 'Image Studio'),
-    a({ href: '/videos', className: getNavLinkClass(currentPath, '/videos'), 'data-link': '' }, 'Video Editor'),
-    a({ href: '/scan', className: getNavLinkClass(currentPath, '/scan'), 'data-link': '' }, 'Scan'),
-    a({ href: '/pdf', className: getNavLinkClass(currentPath, '/pdf'), 'data-link': '' }, 'PDF Workspace')
-  ];
-
-  // For mobile top row: Show primary quick-access links or keep all items accessible inside the dropdown sheet
-  const previewItems = navItems.slice(0, 2).map((item) => {
-    const clone = item.cloneNode(true) as HTMLElement;
-    clone.classList.add('nav-preview-link');
-    return clone;
-  });
-
   const navEl = nav({
-    className: 'nav-bar mobile-optimized',
-    role: 'navigation',
+    className: "nav-bar",
+    role: "navigation",
+    "aria-label": "Main navigation",
   });
 
-  const navPreview = div({ className: 'nav-preview' }, ...previewItems);
-
-  // Full list used for desktop view & expanded mobile drawer
-  const navList = div({
-    className: 'nav-links',
-    'data-nav-list': ''
-  }, ...navItems);
-
-  const toggleButton = button({
-    type: 'button',
-    className: 'nav-toggle',
-    'aria-expanded': 'false',
-    'aria-label': 'Toggle navigation menu',
-    onClick: () => {
-      const nextOpen = navEl.dataset.open !== 'true';
-      navEl.dataset.open = String(nextOpen);
-      toggleButton.setAttribute('aria-expanded', String(nextOpen));
-      
-      const caret = toggleButton.querySelector('.nav-toggle-caret') as HTMLElement;
-      if (caret) {
-        caret.style.transform = nextOpen ? 'rotate(180deg)' : 'rotate(0deg)';
-      }
-
-      navList.classList.toggle('is-open', nextOpen);
-      
-      // Toggle body or container lock class if desired for full overlay
-      navEl.classList.toggle('menu-expanded', nextOpen);
-    }
-  },
-    span({ className: 'nav-toggle-label' }, 'Menu'),
-    span({ className: 'nav-toggle-caret' }, '▾')
+  const brand = div(
+    { className: "nav-brand" },
+    span({ className: "nav-brand-mark" }, "✦"),
+    span({ className: "nav-brand-name" }, "Workspace")
   );
 
-  navEl.dataset.open = 'false';
-  navEl.append(
-    div({ className: 'nav-mobile-row' }, navPreview, toggleButton),
-    navList
+  const navList = div(
+    {
+      className: "nav-links",
+      "data-nav-list": "",
+    },
+    ...NAV_ITEMS.map((item) => createNavLink(item, currentPath))
   );
+
+  const toggleButton = button(
+    {
+      type: "button",
+      className: "nav-toggle",
+      "aria-expanded": "false",
+      "aria-controls": "main-navigation-links",
+      "aria-label": "Open navigation menu",
+      onClick: () => {
+        const isOpen = navEl.dataset.open === "true";
+        const nextOpen = !isOpen;
+
+        navEl.dataset.open = String(nextOpen);
+
+        toggleButton.setAttribute(
+          "aria-expanded",
+          String(nextOpen)
+        );
+
+        toggleButton.setAttribute(
+          "aria-label",
+          nextOpen ? "Close navigation menu" : "Open navigation menu"
+        );
+
+        navList.classList.toggle("is-open", nextOpen);
+        navEl.classList.toggle("menu-expanded", nextOpen);
+      },
+    },
+    span({ className: "nav-toggle-label" }, "Menu"),
+    span(
+      { className: "nav-toggle-icon", "aria-hidden": "true" },
+      "☰"
+    )
+  );
+
+  navList.id = "main-navigation-links";
+
+  const mobileHeader = div(
+    { className: "nav-mobile-header" },
+    brand,
+    toggleButton
+  );
+
+  navEl.dataset.open = "false";
+
+  navEl.append(mobileHeader, navList);
 
   return navEl;
 }
