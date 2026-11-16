@@ -51,52 +51,49 @@ const STUDIO_METRICS: StudioMetric[] = [
 function createFluentMetricCard({ label, value, badge }: StudioMetric): HTMLElement {
   return div(
     {
-      className:
-        'flex flex-col justify-between rounded-lg border border-slate-800 bg-slate-900/90 p-4 transition-colors hover:border-slate-700',
+      className: 'fluent-metric-card',
     },
     div(
-      { className: 'flex items-center justify-between' },
-      p({ className: 'm-0 text-xs font-semibold uppercase tracking-wider text-slate-400' }, label),
+      { className: 'fluent-metric-header' },
+      p({ className: 'fluent-metric-label' }, label),
       badge
         ? span(
             {
-              className:
-                'rounded bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-400',
+              className: 'fluent-metric-badge',
             },
             badge
           )
         : null
     ),
-    p({ className: 'm-0 mt-3 text-2xl font-semibold tracking-tight text-white' }, value)
+    p({ className: 'fluent-metric-value' }, value)
   );
 }
 
 export function createHomePage(): HTMLElement {
   // --- HEADER SECTION (Fluent Hub Header) ---
   const headerSection = div(
-    { className: 'flex flex-col gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center sm:justify-between' },
+    { className: 'fluent-header-section' },
     div(
-      {},
+      { className: 'fluent-header-copy' },
       div(
-        { className: 'mb-2 inline-flex items-center gap-2 font-mono text-xs font-semibold text-sky-400' },
-        span({ className: 'h-2 w-2 rounded-full bg-sky-500' }),
+        { className: 'fluent-kicker' },
+        span({ className: 'fluent-status-dot' }),
         'FLUENT STUDIO WORKSPACE'
       ),
       h1(
-        { className: 'm-0 text-2xl font-semibold tracking-tight text-white sm:text-3xl' },
+        { className: 'fluent-title' },
         'Creative Command Center'
       ),
       p(
-        { className: 'm-0 mt-1 text-sm text-slate-400' },
+        { className: 'fluent-subtitle' },
         'Manage media pipelines, edit assets, and convert documents in one unified Fluent environment.'
       )
     ),
     div(
-      { className: 'flex items-center gap-3' },
+      { className: 'fluent-header-actions' },
       button(
         {
-          className:
-            'inline-flex items-center gap-2 rounded bg-sky-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-950',
+          className: 'fluent-primary-button',
           events: {
             click: () => router.navigate('/images'),
           },
@@ -108,41 +105,38 @@ export function createHomePage(): HTMLElement {
 
   // --- TELEMETRY / METRICS ROW ---
   const metricsSection = div(
-    { className: 'mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3' },
+    { className: 'fluent-metric-row' },
     ...STUDIO_METRICS.map(createFluentMetricCard)
   );
 
   // --- TOOLBAR / WORKSPACE SELECTOR SECTION ---
   const toolbarSection = div(
     {
-      className: 'mt-6 rounded-lg border border-slate-800 bg-slate-900/50 p-4',
+      className: 'fluent-toolbar-section',
     },
     createMediaProcessingModeSelector({
       label: 'Workspace Pipeline & Engine Settings',
-      className: 'w-full',
+      className: 'fluent-toolbar-control',
     })
   );
 
   // --- FEATURE GRID SECTION ---
   const launchpadHeader = div(
-    { className: 'mb-4 flex items-center justify-between' },
-    h2({ className: 'm-0 text-base font-semibold tracking-tight text-white' }, 'Available Workspaces'),
-    span({ className: 'font-mono text-xs text-slate-400' }, '4 Active Modules')
+    { className: 'fluent-launchpad-header' },
+    h2({ className: 'fluent-section-title' }, 'Available Workspaces'),
+    span({ className: 'fluent-section-meta' }, '4 Active Modules')
   );
 
   const featureGridSection = div(
-    { className: 'mt-8' },
+    { className: 'fluent-feature-section' },
     launchpadHeader,
-    createFeatureGrid(DASHBOARD_FEATURES, (route) => router.navigate(route))
+    createFeatureGrid(DASHBOARD_FEATURES, (route) => router.navigate(route), 'fluent-feature-grid')
   );
 
   // --- ROOT FLUENT CONTAINER ---
   return div(
     {
-      className: cn(
-        uiClasses.card,
-        'mx-auto max-w-6xl rounded-xl border border-slate-800 bg-slate-950 p-6 shadow-xl sm:p-8'
-      ),
+      className: cn(uiClasses.card, 'fluent-page-shell'),
     },
     headerSection,
     metricsSection,

@@ -4,7 +4,7 @@ import { authActions } from '../appState';
 import { router } from '../main';
 
 export function createLoginPage(): HTMLElement {
-  const errorDiv = div({ className: 'mt-2 min-h-5 text-sm font-medium text-red-600' });
+  const errorDiv = div({ className: 'fluent-form-error' });
   const urlParams = new URLSearchParams(window.location.search);
   const redirectTarget = urlParams.get('redirect');
 
@@ -12,23 +12,23 @@ export function createLoginPage(): HTMLElement {
     type: 'text',
     required: true,
     value: 'admin',
-    className: 'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+    className: 'fluent-input'
   });
 
   const passwordInput = input({
     type: 'password',
     required: true,
     value: 'secret',
-    className: 'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+    className: 'fluent-input'
   });
 
   const guestButton = button({
     type: 'button',
-    className: 'w-full rounded-xl border border-slate-300 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700'
+    className: 'fluent-guest-button'
   }, 'Continue as Guest');
 
   const loginForm = form({
-    className: 'mt-5 flex flex-col gap-4',
+    className: 'fluent-login-form',
     onSubmit: async (e: Event) => {
       e.preventDefault();
       errorDiv.textContent = '';
@@ -51,15 +51,15 @@ export function createLoginPage(): HTMLElement {
       }
     }
   },
-    div({ className: 'flex flex-col gap-2' },
-      label({ className: 'text-sm font-semibold text-slate-700' }, 'Username (try "admin")'),
+    div({ className: 'fluent-field' },
+      label({ className: 'fluent-field-label' }, 'Username (try "admin")'),
       usernameInput
     ),
-    div({ className: 'flex flex-col gap-2' },
-      label({ className: 'text-sm font-semibold text-slate-700' }, 'Password (try "secret")'),
+    div({ className: 'fluent-field' },
+      label({ className: 'fluent-field-label' }, 'Password (try "secret")'),
       passwordInput
     ),
-    button({ type: 'submit', className: 'w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500' }, 'Sign In'),
+    button({ type: 'submit', className: 'fluent-primary-button full-width' }, 'Sign In'),
     guestButton,
     errorDiv
   );
@@ -70,8 +70,8 @@ export function createLoginPage(): HTMLElement {
     router.navigate(destination);
   });
 
-  return div({ className: 'card mx-auto w-full max-w-xl rounded-[28px] border border-slate-200/80 bg-white/90 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.10)] backdrop-blur-sm sm:p-7' },
-    h2({ className: 'text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl' }, 'Login'),
+  return div({ className: 'fluent-login-card' },
+    h2({ className: 'fluent-login-title' }, 'Login'),
     loginForm
   );
 }

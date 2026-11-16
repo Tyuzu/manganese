@@ -1,24 +1,54 @@
-/* =========================================================
-   PDF EDITOR
-   ========================================================= */
+/* ==========================================================================
+   Fluent UI PDF Editor Stylesheet (Dark Theme)
+   ================================================================          */
+
+:root {
+  --fluent-neutral-layer-1: #111418;
+  --fluent-neutral-layer-2: #161b22;
+  --fluent-neutral-layer-3: #1f2630;
+  --fluent-neutral-layer-4: #2d3748;
+  --fluent-neutral-stroke: #374151;
+  --fluent-neutral-stroke-hover: #4b5563;
+  --fluent-brand: #0078d4;
+  --fluent-brand-hover: #106ebe;
+  --fluent-brand-active: #005a9e;
+  --fluent-brand-tint: rgba(0, 120, 212, 0.15);
+  --fluent-text-primary: #f3f4f6;
+  --fluent-text-secondary: #9ca3af;
+  --fluent-text-disabled: #6b7280;
+  --fluent-focus-ring: #60a5fa;
+  --fluent-success-bg: rgba(16, 124, 65, 0.2);
+  --fluent-success-border: #107c41;
+  --fluent-success-text: #6fcf97;
+  --fluent-danger-hover: rgba(239, 68, 68, 0.2);
+  --fluent-danger-text: #f87171;
+  --fluent-shadow-elevation: 0 10px 30px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --fluent-radius-small: 4px;
+  --fluent-radius-medium: 8px;
+  --fluent-radius-large: 12px;
+  --fluent-radius-xl: 16px;
+}
 
 .pdf-editor-root {
   width: 100%;
   min-width: 0;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--fluent-text-primary);
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .pdf-editor-surface {
   width: 100%;
-  max-width: 1240px;
-  max-height: min(92dvh, 1000px);
+  max-width: 1280px;
+  max-height: min(94dvh, 1020px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--surface-primary, #18212b);
-  border: 1px solid var(--border-color, #344250);
-  border-radius: 22px;
-  color: var(--text-primary, #e5e7eb);
+  background: var(--fluent-neutral-layer-1);
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-xl);
+  box-shadow: var(--fluent-shadow-elevation);
+  color: var(--fluent-text-primary);
 }
 
 .pdf-editor-surface:fullscreen {
@@ -28,7 +58,7 @@
   max-height: none;
   border-radius: 0;
   border: 0;
-  background: #101820;
+  background: #0b0f14;
 }
 
 .pdf-editor-surface,
@@ -36,23 +66,20 @@
   box-sizing: border-box;
 }
 
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
+/* Tab Navigation (Fluent Pivot) */
 .pdf-tablist {
   display: flex;
   align-items: center;
   width: 100%;
   min-width: 0;
-  gap: 6px;
-  padding: 9px 12px;
+  gap: 4px;
+  padding: 8px 16px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #526273 transparent;
-  background: #17212b;
-  border-bottom: 1px solid #344250;
+  scrollbar-color: var(--fluent-neutral-stroke) transparent;
+  background: var(--fluent-neutral-layer-2);
+  border-bottom: 1px solid var(--fluent-neutral-stroke);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -61,77 +88,68 @@
   align-items: center;
   justify-content: center;
   flex: 1 0 auto;
-  min-width: 76px;
-  min-height: 38px;
-  padding: 8px 13px;
+  min-width: 80px;
+  min-height: 36px;
+  padding: 6px 14px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--fluent-radius-medium);
   background: transparent;
-  color: #aab7c4;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: .08em;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
-  transition:
-    background .18s ease,
-    color .18s ease,
-    border-color .18s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .pdf-tablist button:hover {
-  color: #fff;
-  background: #273542;
+  color: var(--fluent-text-primary);
+  background: var(--fluent-neutral-layer-3);
 }
 
 .pdf-tablist button.pdf-tab-active {
-  color: #f1f5f9;
-  background: #293744;
-  border-color: #526273;
+  color: #fff;
+  background: var(--fluent-neutral-layer-4);
+  border-color: var(--fluent-neutral-stroke-hover);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .pdf-tablist button:focus-visible {
-  outline: 2px solid #60a5fa;
-  outline-offset: 2px;
+  outline: 2px solid var(--fluent-focus-ring);
+  outline-offset: 1px;
 }
 
 .pdf-tablist button.pdf-tab-inactive {
-  color: #9eacba;
+  color: var(--fluent-text-secondary);
 }
 
-/* =========================================================
-   WORKSPACE
-   ========================================================= */
-
+/* Workspace Layout */
 .pdf-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   align-items: stretch;
-  gap: 14px;
+  gap: 16px;
   width: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 14px;
+  padding: 16px;
   overflow: hidden;
-  background: #202d38;
+  background: var(--fluent-neutral-layer-2);
 }
-
-/* =========================================================
-   DOCUMENT STAGE
-   ========================================================= */
 
 .pdf-stage {
   display: flex;
   flex-direction: column;
   position: relative;
   min-width: 0;
-  min-height: 420px;
+  min-height: 440px;
   overflow: hidden;
   padding: 14px;
-  border: 1px solid #354657;
-  border-radius: 16px;
-  background: #17212b;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-large);
+  background: var(--fluent-neutral-layer-1);
 }
 
 .pdf-stage-header {
@@ -139,10 +157,6 @@
   min-width: 0;
   margin-bottom: 12px;
 }
-
-/* =========================================================
-   QUICK ACTIONS
-   ========================================================= */
 
 .pdf-quick-actions {
   display: flex;
@@ -162,12 +176,12 @@
 
 .pdf-page-counter {
   flex: 0 0 auto;
-  padding: 7px 10px;
-  border: 1px solid #405365;
-  border-radius: 8px;
-  background: #263644;
-  color: #a5d8ff;
-  font-family: monospace;
+  padding: 6px 10px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-3);
+  color: var(--fluent-focus-ring);
+  font-family: Consolas, Monaco, monospace;
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
@@ -177,8 +191,8 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  color: #aab8c6;
-  font-size: 11px;
+  color: var(--fluent-text-secondary);
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -190,68 +204,63 @@
   gap: 8px;
 }
 
-/* =========================================================
-   BUTTONS
-   ========================================================= */
-
+/* Buttons (Fluent UI CommandBar / Standard Buttons) */
 .pdf-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 37px;
-  padding: 9px 13px;
+  min-height: 36px;
+  padding: 8px 14px;
   border: 1px solid transparent;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 650;
+  border-radius: var(--fluent-radius-medium);
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
-  transition:
-    background .18s ease,
-    border-color .18s ease,
-    transform .18s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
 .pdf-button:active {
-  transform: scale(.98);
+  transform: scale(0.98);
 }
 
 .pdf-button:disabled {
-  opacity: .4;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
 }
 
 .pdf-button-primary {
   color: #fff;
-  background: #2563a6;
-  border-color: #397ab8;
+  background: var(--fluent-brand);
+  border-color: transparent;
 }
 
 .pdf-button-primary:hover:not(:disabled) {
-  background: #3078bd;
+  background: var(--fluent-brand-hover);
+}
+
+.pdf-button-primary:active:not(:disabled) {
+  background: var(--fluent-brand-active);
 }
 
 .pdf-button-secondary {
-  color: #d5e0e9;
-  background: #293744;
-  border-color: #405365;
+  color: var(--fluent-text-primary);
+  background: var(--fluent-neutral-layer-3);
+  border-color: var(--fluent-neutral-stroke);
 }
 
 .pdf-button-secondary:hover:not(:disabled) {
-  background: #344656;
-  border-color: #61788c;
+  background: var(--fluent-neutral-layer-4);
+  border-color: var(--fluent-neutral-stroke-hover);
 }
 
 .pdf-full-width {
   width: 100%;
 }
 
-/* =========================================================
-   PREVIEW CONTAINER
-   ========================================================= */
-
+/* Document Preview Canvas Area */
 .pdf-preview-container {
   position: relative;
   display: flex;
@@ -260,28 +269,24 @@
   justify-content: center;
   width: 100%;
   min-width: 0;
-  min-height: 300px;
+  min-height: 320px;
   overflow: hidden;
   padding: 16px;
-  border: 1px solid #2c3c4a;
-  border-radius: 12px;
-  background-color: #0d151d;
-  background-image:
-    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-  background-size: 24px 24px;
-  transition: border-color .2s ease;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background-color: var(--fluent-neutral-layer-2);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), 
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+  transition: border-color 0.2s ease;
 }
 
 .pdf-preview-container.is-dragging {
-  border-color: #60a5fa;
-  outline: 2px solid rgba(96,165,250,.2);
-  background-color: #172b3c;
+  border-color: var(--fluent-focus-ring);
+  outline: 2px solid var(--fluent-brand-tint);
+  background-color: rgba(0, 120, 212, 0.05);
 }
-
-/* =========================================================
-   EMPTY DROPZONE
-   ========================================================= */
 
 .pdf-dropzone {
   display: flex;
@@ -291,68 +296,63 @@
   width: 100%;
   min-height: 280px;
   padding: 24px;
-  border: 2px dashed #405365;
-  border-radius: 14px;
-  background: rgba(30,43,56,.5);
+  border: 2px dashed var(--fluent-neutral-stroke-hover);
+  border-radius: var(--fluent-radius-large);
+  background: rgba(22, 27, 34, 0.6);
   text-align: center;
   cursor: pointer;
-  transition:
-    border-color .2s ease,
-    background .2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .pdf-dropzone:hover {
-  border-color: #5297ce;
-  background: rgba(39,68,91,.35);
+  border-color: var(--fluent-brand);
+  background: var(--fluent-neutral-layer-3);
 }
 
 .pdf-upload-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 58px;
-  height: 58px;
-  margin-bottom: 17px;
-  border: 1px solid #405365;
-  border-radius: 15px;
-  background: #263746;
-  color: #8cc9f6;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-large);
+  background: var(--fluent-neutral-layer-3);
+  color: var(--fluent-focus-ring);
 }
 
 .pdf-upload-icon .pdf-icon {
-  width: 27px;
-  height: 27px;
+  width: 26px;
+  height: 26px;
 }
 
 .pdf-dropzone-title {
-  color: #e2eaf1;
+  color: var(--fluent-text-primary);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .pdf-dropzone-description {
   max-width: 320px;
-  margin-top: 7px;
-  color: #98a9b8;
+  margin-top: 6px;
+  color: var(--fluent-text-secondary);
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .pdf-supported-formats {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   margin-top: 16px;
-  color: #7f93a5;
+  color: var(--fluent-text-disabled);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: .08em;
+  letter-spacing: .06em;
 }
 
-/* =========================================================
-   DOCUMENT CANVAS
-   ========================================================= */
-
+.pdf-document-canvas-wrapper,
 .pdf-document-canvas {
   display: flex;
   align-items: center;
@@ -362,19 +362,18 @@
   min-width: 0;
   min-height: 0;
   transform-origin: center center;
-  transition:
-    transform .15s ease,
-    filter .15s ease;
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
+.pdf-rendered-canvas,
 .pdf-document-image {
   display: block;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 3px;
+  border-radius: var(--fluent-radius-small);
   background: #fff;
-  box-shadow: 0 12px 35px rgba(0,0,0,.4);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .pdf-document-frame {
@@ -383,9 +382,9 @@
   height: 100%;
   min-height: 300px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--fluent-radius-small);
   background: #fff;
-  box-shadow: 0 12px 35px rgba(0,0,0,.4);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .pdf-blank-page {
@@ -397,28 +396,25 @@
   aspect-ratio: 210 / 297;
   max-height: 100%;
   padding: 24px;
-  border: 1px solid #d6dce2;
-  border-radius: 3px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-small);
   background: #fff;
-  color: #84909b;
-  box-shadow: 0 12px 35px rgba(0,0,0,.4);
+  color: var(--fluent-text-disabled);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .pdf-blank-page-title {
-  color: #334155;
-  font-size: 12px;
+  color: #1f2937;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .pdf-blank-page-description {
-  margin-top: 8px;
-  font-size: 10px;
+  margin-top: 6px;
+  font-size: 11px;
 }
 
-/* =========================================================
-   STAGE HUD
-   ========================================================= */
-
+/* Stage HUD (Bottom Controls Overlay) */
 .pdf-stage-hud {
   display: flex;
   flex-wrap: wrap;
@@ -427,10 +423,10 @@
   justify-content: center;
   gap: 8px;
   margin-top: 12px;
-  padding: 9px;
-  border: 1px solid #344657;
-  border-radius: 11px;
-  background: #202e3a;
+  padding: 8px 12px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-large);
+  background: var(--fluent-neutral-layer-2);
 }
 
 .pdf-zoom-controls {
@@ -440,28 +436,31 @@
 }
 
 .pdf-zoom-label {
-  min-width: 46px;
-  color: #b7c6d3;
-  font-family: monospace;
+  min-width: 48px;
+  color: var(--fluent-text-primary);
+  font-family: Consolas, Monaco, monospace;
   font-size: 11px;
   text-align: center;
+  font-weight: 600;
 }
 
 .pdf-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 35px;
-  height: 35px;
-  border: 1px solid #405365;
-  border-radius: 8px;
-  background: #2a3947;
-  color: #d5e0e9;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-3);
+  color: var(--fluent-text-primary);
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .pdf-icon-button:hover {
-  background: #3a4c5d;
+  background: var(--fluent-neutral-layer-4);
+  border-color: var(--fluent-neutral-stroke-hover);
 }
 
 .pdf-icon {
@@ -474,36 +473,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  min-height: 35px;
-  padding: 7px 11px;
-  border: 1px solid #405365;
-  border-radius: 8px;
-  background: #2a3947;
-  color: #d5e0e9;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-3);
+  color: var(--fluent-text-primary);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .pdf-hud-button:hover {
-  background: #3a4c5d;
+  background: var(--fluent-neutral-layer-4);
+  border-color: var(--fluent-neutral-stroke-hover);
 }
 
 .pdf-ocr-button {
-  min-height: 35px;
+  min-height: 34px;
 }
 
 .pdf-hud-divider {
   width: 1px;
-  height: 23px;
-  background: #435566;
+  height: 22px;
+  background: var(--fluent-neutral-stroke);
 }
 
-/* =========================================================
-   INSPECTOR
-   ========================================================= */
-
+/* Inspector Panel */
 .pdf-inspector {
   display: flex;
   flex-direction: column;
@@ -511,29 +509,29 @@
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
-  padding: 14px;
-  border: 1px solid #354657;
-  border-radius: 15px;
-  background: #263643;
+  padding: 16px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-large);
+  background: var(--fluent-neutral-layer-1);
 }
 
 .pdf-inspector-heading {
   flex: 0 0 auto;
-  padding-bottom: 13px;
-  border-bottom: 1px solid #405160;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--fluent-neutral-stroke);
 }
 
 .pdf-inspector-title {
-  color: #edf3f8;
+  color: var(--fluent-text-primary);
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .pdf-inspector-subtitle {
   display: block;
-  margin-top: 4px;
-  color: #9bacba;
-  font-size: 10px;
+  margin-top: 3px;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
 }
 
 .pdf-tool-container {
@@ -541,54 +539,47 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  gap: 17px;
+  gap: 16px;
   padding-top: 14px;
-  padding-right: 3px;
+  padding-right: 4px;
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #506274 transparent;
+  scrollbar-color: var(--fluent-neutral-stroke) transparent;
 }
-
-/* =========================================================
-   SECTION HEADINGS
-   ========================================================= */
 
 .pdf-section-heading {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .pdf-section-title {
-  color: #e5edf4;
+  color: var(--fluent-text-primary);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .pdf-section-description {
-  color: #98aab9;
-  font-size: 10px;
-  line-height: 1.5;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .pdf-control-group {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
 }
 
 .pdf-control-label {
-  color: #cbd7e1;
+  color: var(--fluent-text-primary);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
-/* =========================================================
-   PAGE THUMBNAILS
-   ========================================================= */
-
+/* Page Thumbnails */
 .pdf-page-list {
   display: flex;
   flex-direction: column;
@@ -597,33 +588,33 @@
 
 .pdf-thumbnail {
   display: grid;
-  grid-template-columns: 43px 23px minmax(0,1fr) auto;
+  grid-template-columns: 42px 24px minmax(0,1fr) auto;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 65px;
+  min-height: 60px;
   padding: 8px;
-  border: 1px solid #405160;
-  border-radius: 10px;
-  background: #1c2934;
-  color: #d3dce5;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-2);
+  color: var(--fluent-text-primary);
   cursor: pointer;
-  transition:
-    border-color .15s ease,
-    background .15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .pdf-thumbnail:hover {
-  border-color: #70869a;
+  border-color: var(--fluent-neutral-stroke-hover);
+  background: var(--fluent-neutral-layer-3);
 }
 
 .pdf-thumbnail.is-selected {
-  border-color: #62a7d8;
-  background: #263d50;
+  border-color: var(--fluent-focus-ring);
+  background: var(--fluent-neutral-layer-3);
+  box-shadow: inset 0 0 0 1px var(--fluent-focus-ring);
 }
 
 .pdf-thumbnail:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--fluent-focus-ring);
   outline-offset: 2px;
 }
 
@@ -632,11 +623,11 @@
   flex-direction: column;
   justify-content: center;
   gap: 4px;
-  width: 43px;
-  height: 49px;
-  padding: 7px 5px;
-  border-radius: 3px;
-  background: #f5f7fa;
+  width: 42px;
+  height: 48px;
+  padding: 6px 4px;
+  border-radius: var(--fluent-radius-small);
+  background: #fff;
 }
 
 .pdf-thumbnail-lines {
@@ -659,24 +650,24 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  border-radius: 6px;
-  background: #334656;
-  color: #c7e6ff;
-  font-family: monospace;
+  border-radius: var(--fluent-radius-small);
+  background: var(--fluent-neutral-layer-4);
+  color: var(--fluent-focus-ring);
+  font-family: Consolas, monospace;
   font-size: 10px;
   font-weight: 700;
 }
 
 .pdf-thumbnail.is-selected .pdf-thumbnail-number {
-  background: #367db4;
+  background: var(--fluent-brand);
   color: white;
 }
 
 .pdf-thumbnail-name {
   min-width: 0;
   overflow: hidden;
-  color: #dce5ed;
-  font-size: 10px;
+  color: var(--fluent-text-primary);
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -691,27 +682,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 27px;
-  height: 29px;
+  width: 26px;
+  height: 28px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--fluent-radius-small);
   background: transparent;
-  color: #a8b7c5;
-  font-size: 13px;
+  color: var(--fluent-text-secondary);
+  font-size: 12px;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .pdf-thumbnail-actions button:hover {
-  background: #405365;
+  background: var(--fluent-neutral-layer-4);
   color: #fff;
 }
 
 .pdf-thumbnail-actions button:last-child:hover {
-  color: #fb7185;
+  background: var(--fluent-danger-hover);
+  color: var(--fluent-danger-text);
 }
 
 .pdf-thumbnail-actions button:disabled {
-  opacity: .3;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
@@ -721,14 +714,16 @@
   gap: 8px;
 }
 
-/* =========================================================
-   PRESETS
-   ========================================================= */
-
-.pdf-preset-grid {
+/* Presets & Export Grids */
+.pdf-preset-grid,
+.pdf-export-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
+  gap: 8px;
+}
+
+.pdf-export-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .pdf-preset-grid > *,
@@ -738,84 +733,77 @@
 
 .pdf-preset-grid button,
 .pdf-export-grid button {
-  min-height: 43px;
-  padding: 8px 5px;
-  border: 1px solid #455b6d;
-  border-radius: 8px;
-  background: #1d2c38;
-  color: #cbd8e2;
-  font-size: 10px;
-  line-height: 1.35;
+  min-height: 42px;
+  padding: 8px 6px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-2);
+  color: var(--fluent-text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.3;
   cursor: pointer;
-  transition: background .15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .pdf-preset-grid button:hover,
 .pdf-export-grid button:hover {
-  border-color: #6a92b1;
-  background: #304759;
+  background: var(--fluent-neutral-layer-3);
+  border-color: var(--fluent-neutral-stroke-hover);
 }
 
-/* =========================================================
-   SLIDERS
-   ========================================================= */
-
+/* Sliders & Inputs */
 .pdf-tool-container input[type="range"] {
   width: 100%;
-  accent-color: #60a5fa;
+  accent-color: var(--fluent-focus-ring);
   cursor: pointer;
+  height: 6px;
 }
 
 .pdf-tool-container input[type="range"]:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--fluent-focus-ring);
   outline-offset: 4px;
 }
 
-/* =========================================================
-   SELECT
-   ========================================================= */
-
 .pdf-select {
   width: 100%;
-  min-height: 39px;
-  padding: 9px 11px;
-  border: 1px solid #43586a;
-  border-radius: 8px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
   outline: none;
-  background: #182630;
-  color: #dce6ee;
+  background: var(--fluent-neutral-layer-2);
+  color: var(--fluent-text-primary);
   font-size: 11px;
+  transition: border-color 0.15s ease;
 }
 
 .pdf-select:focus {
-  border-color: #60a5fa;
+  border-color: var(--fluent-focus-ring);
 }
-
-/* =========================================================
-   OCR TEXTAREA
-   ========================================================= */
 
 .pdf-textarea {
   width: 100%;
-  min-height: 165px;
-  padding: 11px;
+  min-height: 160px;
+  padding: 10px 12px;
   resize: vertical;
-  border: 1px solid #43586a;
-  border-radius: 9px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
   outline: none;
-  background: #17232d;
-  color: #dbe6ee;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  line-height: 1.65;
+  background: var(--fluent-neutral-layer-2);
+  color: var(--fluent-text-primary);
+  font-family: Consolas, Monaco, "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease;
 }
 
 .pdf-textarea:focus {
-  border-color: #60a5fa;
+  border-color: var(--fluent-focus-ring);
 }
 
 .pdf-textarea::placeholder {
-  color: #708293;
+  color: var(--fluent-text-disabled);
 }
 
 .pdf-button-grid {
@@ -824,14 +812,11 @@
   gap: 8px;
 }
 
-/* =========================================================
-   MERGE
-   ========================================================= */
-
+/* Merge Queue */
 .pdf-merge-list {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
   max-height: 220px;
   overflow-y: auto;
 }
@@ -842,16 +827,16 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  padding: 9px;
-  border: 1px solid #405160;
-  border-radius: 9px;
-  background: #1b2934;
+  padding: 8px 10px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-2);
 }
 
 .pdf-merge-file-info {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -860,12 +845,12 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 23px;
-  height: 23px;
-  border-radius: 6px;
-  background: #334858;
-  color: #b9dfff;
-  font-family: monospace;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--fluent-radius-small);
+  background: var(--fluent-neutral-layer-4);
+  color: var(--fluent-focus-ring);
+  font-family: Consolas, monospace;
   font-size: 10px;
 }
 
@@ -873,21 +858,21 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 
 .pdf-merge-file-name {
-  max-width: 170px;
+  max-width: 160px;
   overflow: hidden;
-  color: #dce5ed;
-  font-size: 10px;
+  color: var(--fluent-text-primary);
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .pdf-merge-file-size {
-  color: #92a5b5;
-  font-size: 9px;
+  color: var(--fluent-text-secondary);
+  font-size: 10px;
 }
 
 .pdf-remove-button {
@@ -895,107 +880,95 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 29px;
-  height: 29px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--fluent-radius-small);
   background: transparent;
-  color: #9bacba;
+  color: var(--fluent-text-secondary);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .pdf-remove-button:hover {
-  background: #49313b;
-  color: #fb7185;
+  background: var(--fluent-danger-hover);
+  color: var(--fluent-danger-text);
 }
 
 .pdf-merge-upload {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 9px;
-  border: 1px dashed #536a7d;
-  border-radius: 9px;
-  background: #1d2d39;
-  color: #b8d8ef;
+  min-height: 38px;
+  padding: 8px;
+  border: 1px dashed var(--fluent-neutral-stroke-hover);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-2);
+  color: var(--fluent-focus-ring);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .pdf-merge-upload:hover {
-  border-color: #76b5e3;
-  background: #273f51;
+  border-color: var(--fluent-focus-ring);
+  background: var(--fluent-neutral-layer-3);
 }
 
 .pdf-empty-message {
-  padding: 18px 10px;
-  border: 1px dashed #405160;
-  border-radius: 9px;
-  color: #8799a8;
-  font-size: 10px;
+  padding: 16px 10px;
+  border: 1px dashed var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
   text-align: center;
 }
 
 .pdf-helper-text {
-  color: #8da0af;
-  font-size: 10px;
-  line-height: 1.6;
-}
-
-/* =========================================================
-   EXPORT
-   ========================================================= */
-
-.pdf-export-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .pdf-export-summary {
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr);
-  gap: 10px;
-  padding: 11px;
-  border: 1px solid #405160;
-  border-radius: 9px;
-  background: #1b2934;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-2);
 }
 
 .pdf-export-summary span {
-  color: #9aabb9;
-  font-size: 10px;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
 }
 
 .pdf-export-summary strong {
   min-width: 0;
   overflow: hidden;
-  color: #dce6ee;
-  font-size: 10px;
+  color: var(--fluent-text-primary);
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* =========================================================
-   SUMMARY
-   ========================================================= */
-
 .pdf-summary {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 14px;
-  border-top: 1px solid #405160;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--fluent-neutral-stroke);
 }
 
 .pdf-summary-title {
   margin-bottom: 2px;
-  color: #e3edf5;
+  color: var(--fluent-text-primary);
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 700;
 }
 
 .pdf-summary-row {
@@ -1007,56 +980,51 @@
 }
 
 .pdf-summary-row span {
-  color: #99aab8;
-  font-size: 10px;
+  color: var(--fluent-text-secondary);
+  font-size: 11px;
 }
 
 .pdf-summary-row strong {
   max-width: 65%;
   overflow: hidden;
-  color: #d5e0e8;
-  font-size: 10px;
+  color: var(--fluent-text-primary);
+  font-size: 11px;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* =========================================================
-   TOAST
-   ========================================================= */
-
+/* Toast Notifications (Fluent MessageBar style) */
 .pdf-toast-container {
   position: absolute;
   z-index: 50;
-  top: 12px;
+  top: 16px;
   left: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: max-content;
-  max-width: calc(100% - 30px);
+  max-width: calc(100% - 32px);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .pdf-toast {
   max-width: 100%;
-  padding: 10px 15px;
-  border: 1px solid #405365;
-  border-radius: 9px;
-  background: rgba(19,31,42,.96);
-  color: #cce4f5;
-  font-size: 11px;
+  padding: 10px 16px;
+  border: 1px solid var(--fluent-neutral-stroke);
+  border-radius: var(--fluent-radius-medium);
+  background: var(--fluent-neutral-layer-3);
+  color: var(--fluent-text-primary);
+  font-size: 12px;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.4;
   text-align: center;
   opacity: 0;
-  transform: translateY(-7px);
-  transition:
-    opacity .2s ease,
-    transform .2s ease;
-  box-shadow: 0 8px 25px rgba(0,0,0,.25);
+  transform: translateY(-8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 .pdf-toast.is-visible {
@@ -1065,18 +1033,15 @@
 }
 
 .pdf-toast.is-success {
-  border-color: #397a62;
-  color: #a7e6c8;
+  background: var(--fluent-success-bg);
+  border-color: var(--fluent-success-border);
+  color: var(--fluent-success-text);
 }
 
 .pdf-toast.is-info {
-  border-color: #405e79;
-  color: #b7dafa;
+  border-color: var(--fluent-neutral-stroke-hover);
+  color: var(--fluent-focus-ring);
 }
-
-/* =========================================================
-   FILE INPUT
-   ========================================================= */
 
 .pdf-hidden-input {
   position: absolute;
@@ -1090,82 +1055,54 @@
   border: 0;
 }
 
-/* =========================================================
-   TABLET
-   ========================================================= */
-
+/* Responsive Layout Breakpoints */
 @media (max-width: 1050px) {
   .pdf-workspace {
-    grid-template-columns: minmax(0, 1fr) 260px;
-    gap: 10px;
-    padding: 10px;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 12px;
+    padding: 12px;
   }
-
   .pdf-inspector {
-    padding: 11px;
+    padding: 12px;
   }
-
   .pdf-stage {
-    padding: 11px;
+    padding: 12px;
   }
-
   .pdf-thumbnail {
     grid-template-columns: 36px 20px minmax(0,1fr) auto;
     gap: 6px;
   }
-
   .pdf-thumbnail-preview {
     width: 36px;
   }
-
-  .pdf-thumbnail-actions button {
-    width: 24px;
-  }
-
-  .pdf-hud-button {
-    padding: 7px 9px;
-  }
 }
-
-/* =========================================================
-   TABLET / SMALL LAPTOP
-   ========================================================= */
 
 @media (max-width: 800px) {
   .pdf-editor-surface {
-    max-height: 95dvh;
+    max-height: 96dvh;
   }
-
   .pdf-workspace {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(350px, 1fr) auto;
+    grid-template-rows: minmax(360px, 1fr) auto;
     gap: 12px;
     overflow-y: auto;
   }
-
   .pdf-stage {
     min-height: 400px;
   }
-
   .pdf-inspector {
     max-height: none;
     overflow: visible;
   }
-
   .pdf-tool-container {
-    max-height: 430px;
+    max-height: 440px;
   }
-
   .pdf-page-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 }
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
 
 @media (max-width: 600px) {
   .pdf-editor-surface {
@@ -1176,280 +1113,69 @@
     border-radius: 0;
     border: 0;
   }
-
   .pdf-tablist {
-    gap: 5px;
-    padding: 8px;
+    gap: 4px;
+    padding: 8px 12px;
   }
-
   .pdf-tablist button {
     flex: 0 0 auto;
     min-width: 72px;
-    min-height: 39px;
-    padding: 8px 11px;
-    font-size: 9px;
+    min-height: 38px;
+    padding: 6px 10px;
+    font-size: 10px;
   }
-
   .pdf-workspace {
     display: flex;
     flex-direction: column;
-    gap: 11px;
+    gap: 12px;
     min-height: 0;
-    padding: 9px;
+    padding: 10px;
     overflow-y: auto;
-    overflow-x: hidden;
   }
-
-  /* Document stage appears before editing tools. */
-
   .pdf-stage {
     flex: 0 0 auto;
-    min-height: 370px;
-    padding: 9px;
-    border-radius: 12px;
+    min-height: 360px;
+    padding: 10px;
   }
-
-  .pdf-stage-header {
-    margin-bottom: 9px;
-  }
-
   .pdf-quick-actions {
     align-items: flex-start;
     flex-direction: column;
-    gap: 9px;
+    gap: 8px;
   }
-
   .pdf-document-info {
     width: 100%;
   }
-
-  .pdf-document-name {
-    flex: 1;
-  }
-
   .pdf-quick-buttons {
     width: 100%;
   }
-
   .pdf-quick-buttons .pdf-button {
     flex: 1;
   }
-
   .pdf-preview-container {
-    min-height: 260px;
-    padding: 9px;
+    min-height: 250px;
   }
-
-  .pdf-document-frame {
-    min-height: 240px;
-  }
-
-  .pdf-dropzone {
-    min-height: 240px;
-    padding: 16px;
-  }
-
-  .pdf-stage-hud {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 9px;
-    padding: 7px;
-  }
-
-  .pdf-icon-button {
-    width: 36px;
-    height: 36px;
-  }
-
-  .pdf-hud-button {
-    flex: 1 1 auto;
-    min-height: 36px;
-    padding: 7px;
-    font-size: 10px;
-  }
-
-  .pdf-ocr-button {
-    flex: 1 1 100%;
-  }
-
-  .pdf-hud-divider {
-    display: none;
-  }
-
-  /* Inspector becomes a full-width section below the stage. */
-
-  .pdf-inspector {
-    flex: 0 0 auto;
-    width: 100%;
-    max-height: none;
-    padding: 12px;
-    border-radius: 12px;
-  }
-
-  .pdf-inspector-heading {
-    padding-bottom: 10px;
-  }
-
-  .pdf-tool-container {
-    max-height: none;
-    overflow: visible;
-    padding-top: 12px;
-    padding-right: 0;
-    gap: 15px;
-  }
-
-  /* Horizontal page thumbnails on mobile. */
-
   .pdf-page-list {
     display: flex;
     flex-direction: row;
     align-items: stretch;
-    gap: 9px;
+    gap: 8px;
     width: 100%;
-    padding-bottom: 8px;
+    padding-bottom: 6px;
     overflow-x: auto;
-    overflow-y: hidden;
     scroll-snap-type: x mandatory;
-    scrollbar-width: thin;
-    scrollbar-color: #526a7d transparent;
-    -webkit-overflow-scrolling: touch;
   }
-
   .pdf-thumbnail {
-    display: flex;
+    flex: 0 0 110px;
+    min-height: 135px;
+    padding: 8px;
+    scroll-snap-align: start;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-start;
-    flex: 0 0 115px;
-    gap: 7px;
-    min-height: 140px;
-    padding: 9px;
-    scroll-snap-align: start;
   }
-
   .pdf-thumbnail-preview {
-    width: 62px;
-    height: 78px;
-    padding: 11px 7px;
-    gap: 6px;
+    width: 58px;
+    height: 72px;
   }
-
-  .pdf-thumbnail-number {
-    width: 21px;
-    height: 21px;
-  }
-
-  .pdf-thumbnail-name {
-    width: 100%;
-    font-size: 9px;
-    text-align: center;
-  }
-
-  .pdf-thumbnail-actions {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .pdf-thumbnail-actions button {
-    width: 31px;
-    height: 29px;
-  }
-
-  .pdf-page-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .pdf-preset-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .pdf-textarea {
-    min-height: 145px;
-  }
-
-  .pdf-summary {
-    margin-top: 3px;
-  }
-
-  .pdf-merge-list {
-    max-height: 190px;
-  }
-}
-
-/* =========================================================
-   SMALL MOBILE
-   ========================================================= */
-
-@media (max-width: 380px) {
-  .pdf-stage {
-    min-height: 330px;
-  }
-
-  .pdf-preview-container {
-    min-height: 220px;
-  }
-
-  .pdf-document-frame {
-    min-height: 200px;
-  }
-
-  .pdf-quick-buttons .pdf-button {
-    padding: 8px 9px;
-    font-size: 10px;
-  }
-
-  .pdf-hud-button {
-    font-size: 9px;
-  }
-
-  .pdf-preset-grid button,
-  .pdf-export-grid button {
-    font-size: 9px;
-  }
-
-  .pdf-thumbnail {
-    flex-basis: 105px;
-  }
-}
-
-/* =========================================================
-   TOUCH DEVICES
-   ========================================================= */
-
-@media (hover: none) and (pointer: coarse) {
-  .pdf-button,
-  .pdf-icon-button,
-  .pdf-hud-button,
-  .pdf-thumbnail-actions button,
-  .pdf-remove-button {
-    min-height: 40px;
-  }
-
-  .pdf-thumbnail-actions button {
-    min-width: 34px;
-  }
-
-  .pdf-tool-container input[type="range"] {
-    min-height: 32px;
-  }
-
-  .pdf-tablist button {
-    min-height: 42px;
-  }
-}
-
-/* =========================================================
-   ACCESSIBILITY
-   ========================================================= */
-
-.pdf-editor-surface button:focus-visible,
-.pdf-editor-surface select:focus-visible,
-.pdf-editor-surface textarea:focus-visible,
-.pdf-editor-surface label:focus-visible {
-  outline: 2px solid #60a5fa;
-  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1457,8 +1183,7 @@
   .pdf-editor-surface *::before,
   .pdf-editor-surface *::after {
     scroll-behavior: auto !important;
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

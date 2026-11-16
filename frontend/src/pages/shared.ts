@@ -16,30 +16,27 @@ export function createFeatureCard(
   options?: { cardClassName?: string; actionClassName?: string }
 ): HTMLElement {
   const card = div({
-    className: cn(
-      'group relative flex h-full flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-[0_18px_36px_rgba(15,23,42,0.22)] transition-all hover:border-slate-700 hover:bg-slate-900',
-      options?.cardClassName
-    ),
+    className: cn('fluent-feature-card', options?.cardClassName),
   });
 
-  const headerRow = div({ className: 'flex items-start justify-between gap-3' },
-    div({ className: 'flex items-center gap-3' },
-      feature.icon ? div({ className: 'rounded-xl bg-slate-800/80 p-2.5 text-cyan-400 border border-slate-700/50' }, feature.icon) : '',
-      h2({ className: 'm-0 text-xl font-bold text-white tracking-tight' }, feature.title)
+  const headerRow = div({ className: 'fluent-feature-header' },
+    div({ className: 'fluent-feature-heading' },
+      feature.icon ? div({ className: 'fluent-feature-icon' }, feature.icon) : '',
+      h2({ className: 'fluent-feature-title' }, feature.title)
     ),
     feature.badge
-      ? span({ className: 'rounded-full bg-cyan-950/80 px-2.5 py-1 text-[10px] font-mono font-bold text-cyan-300 border border-cyan-800/50' }, feature.badge)
+      ? span({ className: 'fluent-feature-badge' }, feature.badge)
       : ''
   );
 
   card.append(
     headerRow,
-    p({ className: 'm-0 text-sm leading-6 text-slate-400' }, feature.description)
+    p({ className: 'fluent-feature-desc' }, feature.description)
   );
 
   const actionButton = createButton('primary', {
     type: 'button',
-    className: cn('mt-auto w-full transition-all group-hover:shadow-cyan-600/20', options?.actionClassName)
+    className: cn('fluent-feature-action', options?.actionClassName)
   }, feature.action);
 
   actionButton.addEventListener('click', (e) => {
@@ -54,7 +51,7 @@ export function createFeatureCard(
 export function createFeatureGrid(
   features: DashboardFeature[],
   onNavigate: (route: string) => void,
-  gridClassName = 'mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4'
+  gridClassName = 'fluent-feature-grid'
 ): HTMLElement {
   const grid = div({ className: gridClassName });
   features.forEach((feature) => {
@@ -66,32 +63,32 @@ export function createFeatureGrid(
 export function createMediaProcessingModeSelector(options?: { label?: string; className?: string }): HTMLElement {
   const label = options?.label ?? 'Edit location';
   const wrapper = div({
-    className: cn('flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-3 shadow-inner shadow-slate-950/40', options?.className)
+    className: cn('fluent-mode-selector', options?.className)
   });
 
-  const title = p({ className: 'm-0 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300' }, label);
-  const buttons = div({ className: 'grid grid-cols-2 gap-2' });
+  const title = p({ className: 'fluent-mode-title' }, label);
+  const buttons = div({ className: 'fluent-mode-buttons' });
 
   const browserButton = button({
     type: 'button',
-    className: 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-sky-500/40 bg-sky-500/10 text-sky-100',
+    className: 'fluent-mode-button fluent-mode-button-browser',
     onclick: () => mediaModeActions.set('browser')
   }, 'Browser');
 
   const serverButton = button({
     type: 'button',
-    className: 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white',
+    className: 'fluent-mode-button fluent-mode-button-server',
     onclick: () => mediaModeActions.set('server')
   }, 'Server');
 
   const syncSelection = (nextMode: MediaProcessingMode) => {
     const isBrowser = nextMode === 'browser';
     browserButton.className = isBrowser
-      ? 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-sky-500/40 bg-sky-500/10 text-sky-100 shadow-[0_0_0_1px_rgba(56,189,248,0.15)]'
-      : 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white';
+      ? 'fluent-mode-button fluent-mode-button-browser fluent-mode-button-active'
+      : 'fluent-mode-button fluent-mode-button-browser';
     serverButton.className = !isBrowser
-      ? 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-violet-500/40 bg-violet-500/10 text-violet-100 shadow-[0_0_0_1px_rgba(167,139,250,0.15)]'
-      : 'rounded-xl border px-3 py-2 text-xs font-semibold transition-all border-slate-700 bg-slate-800/80 text-slate-200 hover:border-slate-500 hover:text-white';
+      ? 'fluent-mode-button fluent-mode-button-server fluent-mode-button-active'
+      : 'fluent-mode-button fluent-mode-button-server';
     browserButton.setAttribute('aria-pressed', String(isBrowser));
     serverButton.setAttribute('aria-pressed', String(!isBrowser));
   };

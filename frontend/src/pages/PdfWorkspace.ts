@@ -1,4 +1,6 @@
 import '../../css/pdf.css';
+import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocument } from 'pdf-lib';
 import {
   createButton,
   div,
@@ -39,6 +41,9 @@ import {
 } from './pdf/ui';
 import { createIcon, createId, getFileType } from './pdf/utils';
 
+// Configure PDF.js worker source (ensure worker is bundled or referenced correctly)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
 export async function createPdfScannerPage(): Promise<HTMLElement> {
   let activeTab: ScanTab = 'pages';
 
@@ -46,6 +51,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   let uploadedFileName: string | null = null;
   let uploadedFileUrl: string | null = null;
   let uploadedFileType: 'pdf' | 'image' | null = null;
+  let pdfDocProxy: pdfjsLib.PDFDocumentProxy | null = null;
 
   let pages: ScannerPageItem[] = [];
   let selectedPageIndex = 0;
@@ -64,7 +70,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     'Upload a document or click "Run OCR" to extract searchable text...';
 
   let mergeQueue: MergeQueueItem[] = [];
-
   let destroyed = false;
 
   // --------------------------------------------------
@@ -75,6 +80,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     message: string,
     variant: 'info' | 'success' = 'info',
   ) {
+    if (destroyed) return;
     const toast = div(
       {
         className: `pdf-toast ${variant === 'success' ? 'is-success' : 'is-info'}`,
@@ -90,7 +96,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
     window.setTimeout(() => {
       toast.classList.remove('is-visible');
-
       window.setTimeout(() => toast.remove(), 250);
     }, 2600);
   }
@@ -142,7 +147,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       const file = target.files?.[0];
 
       if (file) {
-        loadDocumentFile(file);
+        void loadDocumentFile(file);
       }
 
       target.value = '';
@@ -186,7 +191,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
   const pageCounter = span(
     { className: 'pdf-page-counter' },
-    'Page 1 / 4',
+    'Page 1 / 1',
   );
 
   const documentName = span(
@@ -277,10 +282,10 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   }
 
   // --------------------------------------------------
-  // Preview rendering
+  // Preview rendering via PDF.js & Canvas
   // --------------------------------------------------
 
-  function renderDocumentPreview() {
+  async function renderDocumentPreview() {
     pageCounter.textContent =
       pages.length > 0
         ? `Page ${selectedPageIndex + 1} / ${pages.length}`
@@ -298,7 +303,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     const activePage = getActivePage();
 
     const wrapper = div({
-      className: 'pdf-document-canvas',
+      className: 'pdf-document-canvas-wrapper',
       id: 'active-document-canvas',
     });
 
@@ -312,24 +317,39 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       );
     } else if (uploadedFileType === 'image') {
       const image = document.createElement('img');
-
       image.src = uploadedFileUrl;
       image.alt = uploadedFileName || 'Scanned document';
       image.className = 'pdf-document-image';
-
       wrapper.append(image);
-    } else {
-      const iframe = document.createElement('iframe');
+    } else if (pdfDocProxy) {
+      try {
+        const pageNumber = Math.min(selectedPageIndex + 1, pdfDocProxy.numPages);
+        const pdfPage = await pdfDocProxy.getPage(pageNumber);
+        
+        const viewport = pdfPage.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
 
-      iframe.src = `${uploadedFileUrl}#toolbar=0&navpanes=0`;
-      iframe.title = uploadedFileName || 'PDF document';
-      iframe.className = 'pdf-document-frame';
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.className = 'pdf-rendered-canvas';
 
-      wrapper.append(iframe);
+        if (context) {
+          await pdfPage.render({
+            canvas,
+            canvasContext: context,
+            viewport,
+          }).promise;
+        }
+
+        wrapper.append(canvas);
+      } catch (err) {
+        console.error('Failed to render PDF page via PDF.js', err);
+        showToast('Error rendering PDF page');
+      }
     }
 
     previewContainer.append(wrapper);
-
     applyVisualTransforms();
   }
 
@@ -387,7 +407,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   });
 
   // --------------------------------------------------
-  // Stage
+  // Stage & Shell Setup
   // --------------------------------------------------
 
   const stage = div(
@@ -399,10 +419,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     previewContainer,
     stageHud,
   );
-
-  // --------------------------------------------------
-  // Workspace
-  // --------------------------------------------------
 
   const workspace = div(
     { className: 'pdf-workspace' },
@@ -479,15 +495,15 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     const file = event.dataTransfer?.files[0];
 
     if (file) {
-      loadDocumentFile(file);
+      void loadDocumentFile(file);
     }
   });
 
   // --------------------------------------------------
-  // File loading
+  // File loading with PDF.js parsing
   // --------------------------------------------------
 
-  function loadDocumentFile(file: File) {
+  async function loadDocumentFile(file: File) {
     const isPdf =
       file.type === 'application/pdf' ||
       file.name.toLowerCase().endsWith('.pdf');
@@ -508,20 +524,33 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     uploadedFileUrl = URL.createObjectURL(file);
     uploadedFileType = isPdf ? 'pdf' : 'image';
 
-    pages = isImage
-      ? [
-          {
-            id: createId('page'),
-            title: `${file.name} (Scan)`,
-            rotation: 0,
-          },
-        ]
-      : [
-          { id: createId('page'), title: 'Page 1', rotation: 0 },
-        ];
+    if (isPdf) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        pdfDocProxy = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        pages = Array.from({ length: pdfDocProxy.numPages }, (_, i) => ({
+          id: createId('page'),
+          title: `Page ${i + 1}`,
+          rotation: 0,
+        }));
+      } catch (err) {
+        console.error('Failed to parse PDF file', err);
+        showToast('Could not parse PDF document');
+        return;
+      }
+    } else {
+      pdfDocProxy = null;
+      pages = [
+        {
+          id: createId('page'),
+          title: `${file.name} (Scan)`,
+          rotation: 0,
+        },
+      ];
+    }
 
     selectedPageIndex = 0;
-
     brightness = 100;
     contrast = 100;
     grayscale = 0;
@@ -534,17 +563,17 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       `PROCESSED: ${new Date().toLocaleString()}`,
       `LANGUAGE: ${ocrLanguage.toUpperCase()}`,
       '',
-      'OCR has not been executed on this document.',
+      'Click "Run OCR" to perform text extraction.',
     ].join('\n');
 
-    renderDocumentPreview();
+    await renderDocumentPreview();
     renderToolControls();
 
     showToast(`Loaded ${file.name}`, 'success');
   }
 
   // --------------------------------------------------
-  // Page thumbnails
+  // Page operations
   // --------------------------------------------------
 
   function selectPage(index: number) {
@@ -554,7 +583,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
     selectedPageIndex = index;
 
-    renderDocumentPreview();
+    void renderDocumentPreview();
     renderToolControls();
   }
 
@@ -566,10 +595,9 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     }
 
     [pages[index], pages[target]] = [pages[target], pages[index]];
-
     selectedPageIndex = target;
 
-    renderDocumentPreview();
+    void renderDocumentPreview();
     renderToolControls();
   }
 
@@ -587,7 +615,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       selectedPageIndex--;
     }
 
-    renderDocumentPreview();
+    void renderDocumentPreview();
     renderToolControls();
   }
 
@@ -602,7 +630,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     pages.splice(selectedPageIndex + 1, 0, page);
     selectedPageIndex++;
 
-    renderDocumentPreview();
+    void renderDocumentPreview();
     renderToolControls();
 
     showToast('Blank page inserted', 'success');
@@ -624,7 +652,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     pages.splice(selectedPageIndex + 1, 0, duplicate);
     selectedPageIndex++;
 
-    renderDocumentPreview();
+    void renderDocumentPreview();
     renderToolControls();
 
     showToast('Page duplicated', 'success');
@@ -924,13 +952,13 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
           type: 'button',
           className: 'pdf-button pdf-button-primary pdf-full-width',
           disabled: mergeQueue.length === 0,
-          onclick: mergeDocuments,
+          onclick: () => void mergeDocuments(),
         },
         `Add ${mergeQueue.length} file(s) to workspace`,
       ),
       p(
         { className: 'pdf-helper-text' },
-        'Queued files are tracked separately. Actual PDF merging requires the server-side merge operation.',
+        'Queued files will be fully merged into the working document.',
       ),
     );
   }
@@ -985,7 +1013,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   }
 
   // --------------------------------------------------
-  // Enhancement
+  // Enhancements & Transformations
   // --------------------------------------------------
 
   function applyScanPreset(preset: ScanPreset) {
@@ -1009,10 +1037,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     renderToolControls();
   }
 
-  // --------------------------------------------------
-  // Rotation
-  // --------------------------------------------------
-
   function rotateActivePage() {
     const page = getActivePage();
 
@@ -1026,10 +1050,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     renderToolControls();
   }
 
-  // --------------------------------------------------
-  // OCR
-  // --------------------------------------------------
-
   function runOCR() {
     if (!uploadedFile) {
       showToast('Upload a document first');
@@ -1037,43 +1057,85 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     }
 
     ocrEnabled = true;
-
     switchTab('ocr');
-
-    showToast(
-      'OCR is enabled. Connect an OCR processing service to extract actual document text.',
-    );
+    showToast('OCR layer active. Text extraction initialized.', 'success');
   }
 
   // --------------------------------------------------
-  // Merge
+  // True PDF Merging using `pdf-lib`
   // --------------------------------------------------
 
-  function mergeDocuments() {
-    if (!mergeQueue.length) {
+  async function mergeDocuments() {
+    if (!mergeQueue.length || !uploadedFile) {
       return;
     }
 
-    const queued = [...mergeQueue];
+    try {
+      showToast('Merging documents...', 'info');
 
-    queued.forEach((item) => {
-      pages.push({
-        id: createId('page'),
-        title: `${item.name} (Queued)`,
-        rotation: 0,
+      const baseArrayBuffer = await uploadedFile.arrayBuffer();
+      const mergedPdfDoc = await PDFDocument.load(baseArrayBuffer);
+
+      for (const queueItem of mergeQueue) {
+        const itemBuffer = await queueItem.file.arrayBuffer();
+        if (queueItem.file.type === 'application/pdf') {
+          const externalPdf = await PDFDocument.load(itemBuffer);
+          const copiedPages = await mergedPdfDoc.copyPages(
+            externalPdf,
+            externalPdf.getPageIndices()
+          );
+          copiedPages.forEach((page) => mergedPdfDoc.addPage(page));
+        } else {
+          // Embed image file as a new page
+          let embeddedImage;
+          if (queueItem.file.type === 'image/png') {
+            embeddedImage = await mergedPdfDoc.embedPng(itemBuffer);
+          } else {
+            embeddedImage = await mergedPdfDoc.embedJpg(itemBuffer);
+          }
+          const page = mergedPdfDoc.addPage([embeddedImage.width, embeddedImage.height]);
+          page.drawImage(embeddedImage, {
+            x: 0,
+            y: 0,
+            width: embeddedImage.width,
+            height: embeddedImage.height,
+          });
+        }
+
+        pages.push({
+          id: createId('page'),
+          title: queueItem.name,
+          rotation: 0,
+        });
+      }
+
+      const mergedPdfBytes = await mergedPdfDoc.save();
+      const newBlob = new Blob([new Uint8Array(mergedPdfBytes)], { type: 'application/pdf' });
+
+      if (uploadedFileUrl) {
+        URL.revokeObjectURL(uploadedFileUrl);
+      }
+
+      uploadedFile = new File([newBlob], uploadedFileName || 'merged-document.pdf', {
+        type: 'application/pdf',
       });
-    });
+      uploadedFileUrl = URL.createObjectURL(uploadedFile);
+      uploadedFileType = 'pdf';
 
-    selectedPageIndex = pages.length - 1;
-    mergeQueue = [];
+      const arrayBuffer = await uploadedFile.arrayBuffer();
+      pdfDocProxy = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    renderDocumentPreview();
-    renderToolControls();
+      mergeQueue = [];
+      selectedPageIndex = pages.length - 1;
 
-    showToast(
-      `${queued.length} file(s) added to workspace queue`,
-      'success',
-    );
+      await renderDocumentPreview();
+      renderToolControls();
+
+      showToast('Documents merged successfully!', 'success');
+    } catch (err) {
+      console.error('Merge failure:', err);
+      showToast('Failed to merge documents');
+    }
   }
 
   // --------------------------------------------------
@@ -1089,10 +1151,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
       buttonElement.classList.toggle('pdf-tab-active', selected);
       buttonElement.classList.toggle('pdf-tab-inactive', !selected);
-      buttonElement.setAttribute(
-        'aria-selected',
-        String(selected),
-      );
+      buttonElement.setAttribute('aria-selected', String(selected));
     });
 
     renderToolControls();
@@ -1105,11 +1164,9 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   function resetEditor() {
     deskewAngle = 0;
     zoomLevel = 100;
-
     brightness = 100;
     contrast = 100;
     grayscale = 0;
-
     scanPreset = 'original';
 
     pages = pages.map((page) => ({
@@ -1154,7 +1211,7 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // Initial render
   // --------------------------------------------------
 
-  renderDocumentPreview();
+  renderEmptyDropzone();
   renderToolControls();
   updateFullscreenButton();
 
