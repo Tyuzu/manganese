@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PixelForge Studio icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101827"/>
+      <stop offset="100%" stop-color="#0b1220"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="64" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#stroke)" stroke-width="18" stroke-linejoin="round">
+    <path d="M256 72 402 164 256 256 110 164 256 72Z"/>
+    <path d="M110 164v184l146 92V256L110 164Z"/>
+    <path d="M402 164v184L256 440V256l146-92Z"/>
+  </g>
+  <g fill="#f8fafc" opacity="0.9">
+    <rect x="120" y="168" width="136" height="136" rx="18"/>
+    <rect x="256" y="168" width="136" height="136" rx="18"/>
+    <rect x="120" y="208" width="136" height="136" rx="18"/>
+    <rect x="256" y="208" width="136" height="136" rx="18"/>
+  </g>
+</svg>

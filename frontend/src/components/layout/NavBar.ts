@@ -16,12 +16,16 @@ const NAV_ITEMS: NavItem[] = [
   { label: "PDF Workspace", href: "/pdf", icon: "▤" },
 ];
 
+const NAV_ID = "main-navigation-links";
+
 function normalizePath(path: string): string {
-  if (path.length > 1 && path.endsWith("/")) {
-    return path.slice(0, -1);
+  const normalized = path.split("?")[0].split("#")[0];
+
+  if (normalized.length > 1 && normalized.endsWith("/")) {
+    return normalized.slice(0, -1);
   }
 
-  return path;
+  return normalized || "/";
 }
 
 function isActiveRoute(path: string, href: string): boolean {
@@ -35,7 +39,10 @@ function isActiveRoute(path: string, href: string): boolean {
   return current === target || current.startsWith(`${target}/`);
 }
 
-function createNavLink(item: NavItem, currentPath: string): HTMLElement {
+function createNavLink(
+  item: NavItem,
+  currentPath: string
+): HTMLElement {
   const active = isActiveRoute(currentPath, item.href);
 
   return a(
@@ -45,35 +52,42 @@ function createNavLink(item: NavItem, currentPath: string): HTMLElement {
       "data-link": "",
       ...(active ? { "aria-current": "page" } : {}),
     },
-    span({ className: "nav-link-icon", "aria-hidden": "true" }, item.icon),
-    span({ className: "nav-link-label" }, item.label),
-    ...(active
-      ? [span({ className: "nav-link-indicator", "aria-hidden": "true" }, "")]
-      : [])
+    span(
+      {
+        className: "nav-link-icon",
+        "aria-hidden": "true",
+      },
+      item.icon
+    ),
+    span(
+      { className: "nav-link-label" },
+      item.label
+    ),
+    span({
+      className: "nav-link-indicator",
+      "aria-hidden": "true",
+    })
   );
 }
 
 export function createNavElement(): HTMLElement {
-  const currentPath = window.location.pathname;
-
   const navEl = nav({
     className: "nav-bar",
     role: "navigation",
     "aria-label": "Main navigation",
   });
 
-  const brand = div(
-    { className: "nav-brand" },
-    span({ className: "nav-brand-mark" }, "✦"),
-    span({ className: "nav-brand-name" }, "Workspace")
-  );
+  const currentPath = window.location.pathname;
 
   const navList = div(
     {
       className: "nav-links",
+      id: NAV_ID,
       "data-nav-list": "",
     },
-    ...NAV_ITEMS.map((item) => createNavLink(item, currentPath))
+    ...NAV_ITEMS.map((item) =>
+      createNavLink(item, currentPath)
+    )
   );
 
   const toggleButton = button(
@@ -81,46 +95,91 @@ export function createNavElement(): HTMLElement {
       type: "button",
       className: "nav-toggle",
       "aria-expanded": "false",
-      "aria-controls": "main-navigation-links",
+      "aria-controls": NAV_ID,
       "aria-label": "Open navigation menu",
       onClick: () => {
-        const isOpen = navEl.dataset.open === "true";
-        const nextOpen = !isOpen;
+        const nextOpen = navEl.dataset.open !== "true";
 
-        navEl.dataset.open = String(nextOpen);
-
-        toggleButton.setAttribute(
-          "aria-expanded",
-          String(nextOpen)
-        );
-
-        toggleButton.setAttribute(
-          "aria-label",
-          nextOpen ? "Close navigation menu" : "Open navigation menu"
-        );
-
-        navList.classList.toggle("is-open", nextOpen);
-        navEl.classList.toggle("menu-expanded", nextOpen);
+        setMenuState(nextOpen);
       },
     },
-    span({ className: "nav-toggle-label" }, "Menu"),
     span(
-      { className: "nav-toggle-icon", "aria-hidden": "true" },
+      { className: "nav-toggle-label" },
+      "Menu"
+    ),
+    span(
+      {
+        className: "nav-toggle-icon",
+        "aria-hidden": "true",
+      },
       "☰"
     )
   );
 
-  navList.id = "main-navigation-links";
+  function setMenuState(open: boolean): void {
+    navEl.dataset.open = String(open);
 
-  const mobileHeader = div(
+    toggleButton.setAttribute(
+      "aria-expanded",
+      String(open)
+    );
+
+    toggleButton.setAttribute(
+      "aria-label",
+      open ? "Close navigation menu" : "Open navigation menu"
+    );
+
+    navList.classList.toggle("is-open", open);
+    navEl.classList.toggle("menu-expanded", open);
+  }
+
+  // Close the mobile menu after navigation.
+  navList.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const link = target.closest("a");
+
+    if (link) {
+      setMenuState(false);
+    }
+  });
+
+  // Initial state.
+  setMenuState(false);
+
+  const mobileControls = div(
     { className: "nav-mobile-header" },
-    brand,
     toggleButton
   );
 
-  navEl.dataset.open = "false";
-
-  navEl.append(mobileHeader, navList);
+  navEl.append(mobileControls, navList);
 
   return navEl;
+}
+
+/**
+ * Refresh active navigation state after client-side routing.
+ * Call this after router navigation if the nav element remains mounted.
+ */
+export function updateNavActiveState(path: string): void {
+  const navList = document.querySelector(".nav-links");
+
+  if (!navList) return;
+
+  NAV_ITEMS.forEach((item) => {
+    const link = Array.from(
+      navList.querySelectorAll("a")
+    ).find((element) => element.getAttribute("href") === item.href);
+
+    if (!link) return;
+
+    const active = isActiveRoute(path, item.href);
+
+    link.classList.toggle("is-active", active);
+
+    if (active) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
 }

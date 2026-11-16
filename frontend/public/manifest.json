@@ -1,0 +1,114 @@
+{
+  "id": "/",
+  "name": "PixelForge Studio",
+  "short_name": "PixelForge",
+  "description": "Creative workspace for image, PDF, scan, and video editing.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "productivity",
+    "utilities",
+    "creativity",
+    "photo"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Image Editor",
+      "short_name": "Image",
+      "description": "Open canvas image editor",
+      "url": "/image",
+      "icons": [{ "src": "/icons/shortcut-image.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "PDF & Document Scan",
+      "short_name": "Scan PDF",
+      "description": "Scan, crop, sign, or OCR documents",
+      "url": "/pdf",
+      "icons": [{ "src": "/icons/shortcut-pdf.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Video Studio",
+      "short_name": "Video",
+      "description": "Render and edit video timelines",
+      "url": "/video",
+      "icons": [{ "src": "/icons/shortcut-video.png", "sizes": "96x96" }]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/open-file",
+      "accept": {
+        "image/*": [".png", ".jpg", ".jpeg", ".webp", ".avif"],
+        "application/pdf": [".pdf"],
+        "video/*": [".mp4", ".webm", ".mov"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*", "application/pdf", "video/*"]
+        }
+      ]
+    }
+  },
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop-workspace.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "PixelForge Studio Desktop Editor"
+    },
+    {
+      "src": "/screenshots/mobile-scanner.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Document Scanner & OCR on Mobile"
+    }
+  ]
+}

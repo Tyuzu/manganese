@@ -1,110 +1,314 @@
 
-/* --- Header --- */
+/* ============================================
+   APPLICATION HEADER
+   Fluent Design System
+============================================ */
+
 .app-header {
-  background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  padding: var(--space-md) var(--space-lg);
+    position: relative;
+    z-index: 110;
+
+    width: 100%;
+
+    color: var(--color-fg);
+    background: var(--color-surface);
+
+    border-bottom: 1px solid var(--color-border);
+
+    font-family: var(--font-base);
+    box-sizing: border-box;
 }
 
+/* ============================================
+   BRAND ROW
+============================================ */
+
 .brand-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-lg);
+
+    width: 100%;
+    max-width: var(--max-width);
+    min-height: 76px;
+
+    margin: 0 auto;
+    padding: var(--space-md) var(--container-padding);
+
+    box-sizing: border-box;
 }
 
 .brand-block {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+
+    min-width: 0;
 }
 
 .brand-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background-color: var(--color-primary);
-  color: var(--color-primary-fg);
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-lg);
-  border-radius: var(--radius-sm);
+    display: grid;
+    place-items: center;
+
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+
+    color: var(--color-primary-fg);
+    background: var(--color-primary);
+
+    border-radius: var(--radius-md);
+
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+}
+
+.brand-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xxs);
+
+    min-width: 0;
 }
 
 .brand-copy h1 {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-fg);
-  line-height: var(--line-height-tight);
+    margin: 0;
+
+    color: var(--color-fg);
+
+    font-family: var(--font-heading);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-heading);
 }
 
 .brand-copy p {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-muted);
+    margin: 0;
+
+    color: var(--color-muted);
+
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-normal);
 }
 
-/* Header Meta & Controls */
+/* ============================================
+   HEADER ACTIONS
+============================================ */
+
 .header-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
 }
 
-.workspace-badge, .active-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--font-size-sm);
-  color: var(--color-muted);
-  background-color: var(--color-bg-tertiary);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-full);
+/* Workspace badge */
+
+.workspace-badge,
+.active-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+
+    min-height: 30px;
+    padding: 0 var(--space-sm);
+
+    border-radius: var(--radius-sm);
+
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
 }
 
-.workspace-dot, .active-status-dot, .fluent-status-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--color-success);
-  border-radius: var(--radius-circle);
+.workspace-badge {
+    color: var(--color-muted);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border-light);
+}
+
+.workspace-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+
+    background: var(--color-primary);
+    border-radius: var(--radius-circle);
+}
+
+.active-status-badge {
+    color: var(--color-success);
+    background: rgba(16, 124, 65, 0.07);
+    border: 1px solid rgba(16, 124, 65, 0.12);
+}
+
+.active-status-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+
+    background: var(--color-success);
+    border-radius: var(--radius-circle);
+}
+
+/* ============================================
+   THEME SELECTOR
+============================================ */
+
+.header-theme-select-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
 }
 
 .header-theme-select {
-  padding: var(--space-xs) var(--space-sm);
-  font-family: var(--font-base);
-  font-size: var(--font-size-sm);
-  border: 1px solid var(--color-input-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-input-bg);
-  color: var(--color-fg);
-  cursor: pointer;
+    min-height: 34px;
+    max-width: 150px;
+
+    padding: 0 30px 0 var(--space-sm);
+
+    color: var(--color-fg);
+    background-color: var(--color-input-bg);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+
+    font-family: var(--font-base);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+
+    cursor: pointer;
+    outline: none;
+
+    transition:
+        border-color var(--transition-medium),
+        box-shadow var(--transition-medium);
 }
 
-.header-theme-select:focus {
-  outline: none;
-  border-color: var(--color-input-focus);
+.header-theme-select:hover {
+    border-color: var(--color-light);
 }
 
-.header-action-btn, .fluent-ui-btn, .fluent-primary-button {
-  padding: var(--space-xs) var(--space-md);
-  font-family: var(--font-base);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+.header-theme-select:focus-visible {
+    border-color: var(--color-primary);
+    outline: 2px solid rgba(0, 120, 212, 0.2);
+    outline-offset: 1px;
 }
+
+/* ============================================
+   HEADER ACTION BUTTON
+============================================ */
 
 .header-action-btn {
-  background-color: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-fg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 34px;
+    padding: 0 var(--space-md);
+
+    color: var(--color-btn-fg);
+    background: var(--color-btn-bg);
+
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+
+    font-family: var(--font-base);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+
+    white-space: nowrap;
+    cursor: pointer;
+
+    transition:
+        background-color var(--transition-medium),
+        border-color var(--transition-medium);
 }
 
 .header-action-btn:hover {
-  background-color: var(--color-bg-tertiary);
+    background: var(--color-btn-hover-bg);
+}
+
+.header-action-btn:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* ============================================
+   NAVIGATION SHELL
+============================================ */
+
+.nav-shell {
+    width: 100%;
+    background: var(--color-surface);
+}
+
+/* ============================================
+   RESPONSIVE
+============================================ */
+
+@media (max-width: 760px) {
+    .brand-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: var(--space-md);
+
+        padding: var(--space-md);
+    }
+
+    .header-meta {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .workspace-badge {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .brand-copy h1 {
+        font-size: var(--font-size-base);
+    }
+
+    .brand-copy p {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 420px) {
+    .header-meta {
+        gap: var(--space-xs);
+    }
+
+    .workspace-badge,
+    .active-status-badge {
+        min-height: 28px;
+        padding: 0 6px;
+        font-size: 10px;
+    }
+
+    .header-theme-select {
+        max-width: 115px;
+    }
+
+    .header-action-btn {
+        min-height: 32px;
+        padding: 0 var(--space-sm);
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY
+============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .app-header *,
+    .app-header *::before,
+    .app-header *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
 }

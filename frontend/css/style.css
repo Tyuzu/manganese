@@ -1,3 +1,40 @@
 ﻿@import url("themes.css");
 @import url("layout.css");
 @import url("tablist.css");
+
+
+.skip-to-content {
+    position: absolute;
+    top: -100px;
+    left: var(--space-md);
+    z-index: 9999;
+
+    padding: var(--space-sm) var(--space-md);
+
+    color: var(--color-primary-fg);
+    background: var(--color-primary);
+
+    border-radius: var(--radius-sm);
+
+    font-size: var(--font-size-sm);
+    text-decoration: none;
+}
+
+.skip-to-content:focus {
+    top: var(--space-md);
+}
+
+.noscript-message {
+    max-width: var(--max-width-sm);
+    margin: var(--space-xxl) auto;
+    padding: var(--space-lg);
+
+    color: var(--color-fg);
+    background: var(--color-bg-secondary);
+
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+
+    font-family: var(--font-base);
+    text-align: center;
+}

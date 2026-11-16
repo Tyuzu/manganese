@@ -1,16 +1,120 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
+  <!-- ==========================================
+       CORE DOCUMENT & SECURITY CONFIGURATION
+  =========================================== -->
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PixelForge Studio</title>
-  <link rel="stylesheet" href="./css/style.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>PixelForge Studio | Online Image, Video &amp; PDF Workspace</title>
+  <meta
+    name="description"
+    content="PixelForge Studio is an all-in-one creative workspace for image editing, video editing, document scanning, and PDF management. Create, edit, and manage your projects in one place."
+  />
+  <meta name="application-name" content="PixelForge Studio" />
+  <meta name="author" content="PixelForge Studio" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+
+  <!-- Replace with your actual production URL -->
+  <link rel="canonical" href="https://pixellete.netlify.app/" />
+
+  <!-- ==========================================
+       THEME, PWA & MOBILE CONFIGURATION
+  =========================================== -->
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="PixelForge" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- ==========================================
+       FAVICONS & APP ICONS
+  =========================================== -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+  <!-- ==========================================
+       OPEN GRAPH / SOCIAL SHARING
+  =========================================== -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="PixelForge Studio" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:url" content="https://pixellete.netlify.app/" />
+  <meta property="og:title" content="PixelForge Studio | Your Creative Workspace" />
+  <meta
+    property="og:description"
+    content="Edit images, create videos, scan documents, and manage PDFs with PixelForge Studio, your all-in-one creative workspace."
+  />
+  <meta property="og:image" content="https://pixellete.netlify.app/images/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="PixelForge Studio creative workspace interface" />
+
+  <!-- Twitter / X Cards (inherits og:title, og:description, og:image automatically) -->
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- ==========================================
+       STYLESHEETS & PRELOADS
+  =========================================== -->
+  <!-- Note: If using Vite/Webpack, import CSS in main.ts instead of linking /css/style.css manually -->
+  <!-- <link rel="stylesheet" href="/css/style.css" /> -->
+
+  <!-- ==========================================
+       STRUCTURED DATA / JSON-LD
+  =========================================== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "PixelForge Studio",
+    "url": "https://pixellete.netlify.app/",
+    "description": "An all-in-one creative workspace for image editing, video editing, document scanning, and PDF management.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "All",
+    "browserRequirements": "Requires JavaScript and a modern web browser (Chrome, Firefox, Safari, Edge).",
+    "screenshot": "https://pixellete.netlify.app/images/og-image.png",
+    "featureList": [
+      "Online Image Editing",
+      "Video Editing",
+      "Document Scanning",
+      "PDF Management"
+    ],
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
 </head>
 
 <body>
+  <!-- Accessibility Skip Link (point to the <main id="main-content"> rendered inside #app) -->
+  <a href="#main-content" class="skip-to-content">Skip to main content</a>
+
+  <!-- Application Root -->
   <div id="app"></div>
+
+  <!-- Fallback for disabled JavaScript -->
+  <noscript>
+    <div style="max-width: 480px; margin: 4rem auto; padding: 2rem; font-family: system-ui, sans-serif; text-align: center; border: 1px solid #cbd5e1; border-radius: 12px;">
+      <h1 style="font-size: 1.5rem; margin-bottom: 0.75rem;">JavaScript is Required</h1>
+      <p style="color: #475569; line-height: 1.6;">
+        PixelForge Studio requires JavaScript to run its image, video, and PDF tools. Please enable JavaScript in your browser settings and reload this page.
+      </p>
+    </div>
+  </noscript>
+
+  <!-- Application Entry Point -->
   <script type="module" src="/src/main.ts"></script>
 </body>
-
 </html>

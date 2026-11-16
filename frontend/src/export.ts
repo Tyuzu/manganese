@@ -46,16 +46,18 @@ function ensureAppRoot(mountId: string, root?: HTMLElement | string | null): HTM
 
 export function bootstrapDolomite(options: DolomiteBootstrapOptions = {}): DolomiteAppInstance {
   const mountId = options.mountId ?? 'app';
-  const globalWindow = window as Window & {
-    [APP_GLOBAL_KEY]?: DolomiteAppInstance;
+  const appKey = APP_GLOBAL_KEY;
+  const globalWindow = window as unknown as Window & {
+    [key: string]: unknown;
     Dolomite?: {
       bootstrap: typeof bootstrapDolomite;
       app: DolomiteAppInstance;
     };
   };
 
-  if (globalWindow[APP_GLOBAL_KEY]) {
-    return globalWindow[APP_GLOBAL_KEY]!;
+  const existingApp = globalWindow[appKey] as DolomiteAppInstance | undefined;
+  if (existingApp) {
+    return existingApp;
   }
 
   ensureAppRoot(mountId, options.root);
@@ -92,7 +94,7 @@ export function bootstrapDolomite(options: DolomiteBootstrapOptions = {}): Dolom
     mount: (target) => ensureAppRoot(mountId, target),
   };
 
-  globalWindow[APP_GLOBAL_KEY] = api;
+  globalWindow[appKey] = api;
   globalWindow.Dolomite = {
     ...(globalWindow.Dolomite ?? {}),
     bootstrap: bootstrapDolomite,
