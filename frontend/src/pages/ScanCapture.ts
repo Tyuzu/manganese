@@ -1,149 +1,26 @@
 import '../../css/scan.css';
 import { button, createButton, div, input, label, p, span, svgElement } from '../components/ui/dom';
-import { appStore } from '../appState';
-import { processMediaOnServer } from '../api';
 import {
   createEditorFooter,
   createEditorShell,
   createEditorTabNav,
 } from './shared';
 import { createScanCameraController } from './scan/camera';
+import { createScanCropper } from './scan/crop';
+import { createScanExporter } from './scan/export';
 import type { ScanMode } from './scan/controls';
+import { loadSessionFromIdb, saveSessionToIdb } from './scan/storage';
+import {
+  FILTERS,
+  TABS,
+  type DocumentPreset,
+  type ExportFormat,
+  type FilterPreset,
+  type ScanTab,
+  type ScannedPage,
+} from './scan/types';
+import { clamp, createId } from './scan/utils';
 import { createWorker } from 'tesseract.js';
-
-type ScanTab = 'mode' | 'filters' | 'crop' | 'sign' | 'ocr' | 'batch' | 'export';
-type FilterPreset = 'magic' | 'gray' | 'bw' | 'original';
-type DocumentPreset = 'pdf' | 'id' | 'ocr' | 'photo';
-type ExportFormat = 'pdf' | 'jpg' | 'png';
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface ScannedPage {
-  id: string;
-  name: string;
-  dataUrl: string;
-  filter: FilterPreset;
-  rotation: number;
-  flipX: boolean;
-  brightness: number;
-  contrast: number;
-  corners: [Point, Point, Point, Point];
-  signatureDataUrl?: string | null;
-  watermarkText?: string;
-  watermarkOpacity?: number;
-  extractedText?: string;
-}
-
-interface SavedSession {
-  pages: ScannedPage[];
-  activePageIndex: number;
-}
-
-const DB_NAME = 'OmniScanStudio';
-const DB_VERSION = 1;
-const STORE_NAME = 'sessions';
-const SESSION_KEY = 'current_stack';
-
-const FILTERS: Record<FilterPreset, string> = {
-  magic: 'contrast(125%) brightness(105%) saturate(115%)',
-  gray: 'grayscale(100%) contrast(115%)',
-  bw: 'grayscale(100%) contrast(195%) brightness(110%)',
-  original: '',
-};
-
-const TABS: { id: ScanTab; label: string }[] = [
-  { id: 'mode', label: 'Mode' },
-  { id: 'filters', label: 'Adjust' },
-  { id: 'crop', label: 'Crop' },
-  { id: 'sign', label: 'Sign' },
-  { id: 'ocr', label: 'OCR' },
-  { id: 'batch', label: 'Batch' },
-  { id: 'export', label: 'Export' },
-];
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function saveSessionToIdb(session: SavedSession): Promise<void> {
-  let db: IDBDatabase | undefined;
-
-  try {
-    db = await openDb();
-
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db!.transaction(STORE_NAME, 'readwrite');
-
-      transaction.objectStore(STORE_NAME).put(session, SESSION_KEY);
-
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
-  } catch (error) {
-    console.warn('Scan session persistence failed:', error);
-  } finally {
-    db?.close();
-  }
-}
-
-async function loadSessionFromIdb(): Promise<SavedSession | null> {
-  let db: IDBDatabase | undefined;
-
-  try {
-    db = await openDb();
-
-    return await new Promise((resolve, reject) => {
-      const transaction = db!.transaction(STORE_NAME, 'readonly');
-      const request = transaction.objectStore(STORE_NAME).get(SESSION_KEY);
-
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
-    });
-  } catch (error) {
-    console.warn('Unable to restore scan session:', error);
-    return null;
-  } finally {
-    db?.close();
-  }
-}
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Unable to load image'));
-
-    image.src = src;
-  });
-}
-
-function createId(): string {
-  return typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
 
 export async function createScanPage(): Promise<HTMLElement> {
   // State
@@ -689,109 +566,24 @@ export async function createScanPage(): Promise<HTMLElement> {
     previewFrame.append(wrapper);
   }
 
-  function renderCropOverlay(
+  const scanCropper = createScanCropper({
+    getActivePage,
+    renderStagePreview,
+    renderAll,
+    persistState,
+    switchTab,
+    setStatus,
+    getActiveCornerIndex: () => activeCornerIndex,
+    setActiveCornerIndex: (index) => {
+      activeCornerIndex = index;
+    },
+  });
+
+  const renderCropOverlay = (
     wrapper: HTMLElement,
     image: HTMLImageElement,
     page: ScannedPage
-  ) {
-    wrapper.querySelector('.scan-crop-overlay')?.remove();
-
-    const rect = image.getBoundingClientRect();
-
-    if (!rect.width || !rect.height) {
-      return;
-    }
-
-    const overlay = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'svg'
-    );
-
-    overlay.classList.add('scan-crop-overlay');
-
-    overlay.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
-    overlay.setAttribute('preserveAspectRatio', 'none');
-
-    const polygon = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'polygon'
-    );
-
-    const points = page.corners.map((point) => ({
-      x: point.x * rect.width,
-      y: point.y * rect.height,
-    }));
-
-    polygon.setAttribute(
-      'points',
-      points.map((point) => `${point.x},${point.y}`).join(' ')
-    );
-
-    polygon.classList.add('scan-crop-polygon');
-    overlay.append(polygon);
-
-    points.forEach((point, index) => {
-      const handle = document.createElementNS(
-        'http://www.w3.org/2000/svg',
-        'circle'
-      );
-
-      handle.setAttribute('cx', String(point.x));
-      handle.setAttribute('cy', String(point.y));
-      handle.setAttribute('r', '9');
-      handle.classList.add('scan-crop-handle');
-
-      handle.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        activeCornerIndex = index;
-        handle.setPointerCapture(event.pointerId);
-      });
-
-      handle.addEventListener('pointermove', (event) => {
-        if (activeCornerIndex !== index) {
-          return;
-        }
-
-        const currentRect = image.getBoundingClientRect();
-
-        page.corners[index] = {
-          x: clamp(
-            (event.clientX - currentRect.left) / currentRect.width,
-            0,
-            1
-          ),
-          y: clamp(
-            (event.clientY - currentRect.top) / currentRect.height,
-            0,
-            1
-          ),
-        };
-
-        renderStagePreview();
-      });
-
-      const finishDrag = () => {
-        if (activeCornerIndex === index) {
-          activeCornerIndex = null;
-          persistState();
-        }
-      };
-
-      handle.addEventListener('pointerup', finishDrag);
-      handle.addEventListener('pointercancel', finishDrag);
-
-      overlay.append(handle);
-    });
-
-    overlay.style.position = 'absolute';
-    overlay.style.inset = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-
-    wrapper.append(overlay);
-  }
+  ) => scanCropper.renderCropOverlay(wrapper, image, page);
 
   // Camera HUD
 
@@ -868,6 +660,22 @@ export async function createScanPage(): Promise<HTMLElement> {
     previewFrame,
     getMode: () => currentMode,
     setStatus,
+  });
+
+  const scanExporter = createScanExporter({
+    getPages: () => pages,
+    getCurrentMode: () => currentMode,
+    getExportFormat: () => exportFormat,
+    getExportQuality: () => exportQuality,
+    getFilename: () => scanName,
+    setStatus,
+    renderToolControls,
+    getDestroyed: () => destroyed,
+    computeCssFilter,
+    getIsExporting: () => isExporting,
+    setIsExporting: (value: boolean) => {
+      isExporting = value;
+    },
   });
 
   // Rotation and flipping
@@ -1570,91 +1378,7 @@ export async function createScanPage(): Promise<HTMLElement> {
   // Crop
 
   async function applyPerspectiveCrop() {
-    const page = getActivePage();
-
-    if (!page) {
-      setStatus('No page selected');
-      return;
-    }
-
-    setStatus('Applying crop...');
-
-    try {
-      const image = await loadImage(page.dataUrl);
-
-      const [tl, tr, br, bl] = page.corners;
-
-      const sourceWidth = image.naturalWidth;
-      const sourceHeight = image.naturalHeight;
-
-      const minX = clamp(
-        Math.min(tl.x, bl.x),
-        0,
-        1
-      ) * sourceWidth;
-
-      const minY = clamp(
-        Math.min(tl.y, tr.y),
-        0,
-        1
-      ) * sourceHeight;
-
-      const maxX = clamp(
-        Math.max(tr.x, br.x),
-        0,
-        1
-      ) * sourceWidth;
-
-      const maxY = clamp(
-        Math.max(bl.y, br.y),
-        0,
-        1
-      ) * sourceHeight;
-
-      const width = Math.max(1, Math.round(maxX - minX));
-      const height = Math.max(1, Math.round(maxY - minY));
-
-      const canvas = document.createElement('canvas');
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        throw new Error('Canvas unavailable');
-      }
-
-      context.drawImage(
-        image,
-        minX,
-        minY,
-        width,
-        height,
-        0,
-        0,
-        width,
-        height
-      );
-
-      page.dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-
-      page.corners = [
-        { x: 0.05, y: 0.05 },
-        { x: 0.95, y: 0.05 },
-        { x: 0.95, y: 0.95 },
-        { x: 0.05, y: 0.95 },
-      ];
-
-      renderAll();
-      switchTab('filters');
-      persistState();
-
-      setStatus('Crop applied');
-    } catch (error) {
-      console.error('Crop failed:', error);
-      setStatus('Crop failed');
-    }
+    await scanCropper.applyPerspectiveCrop();
   }
 
   // Page management
@@ -1688,248 +1412,8 @@ export async function createScanPage(): Promise<HTMLElement> {
 
   // Rendering and export
 
-  async function renderPageToCanvas(
-    page: ScannedPage
-  ): Promise<HTMLCanvasElement> {
-    const image = await loadImage(page.dataUrl);
-
-    const rotated = page.rotation % 180 !== 0;
-
-    const canvas = document.createElement('canvas');
-
-    canvas.width = rotated ? image.naturalHeight : image.naturalWidth;
-    canvas.height = rotated ? image.naturalWidth : image.naturalHeight;
-
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      throw new Error('Canvas unavailable');
-    }
-
-    context.filter = computeCssFilter(page);
-
-    context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate((page.rotation * Math.PI) / 180);
-    context.scale(page.flipX ? -1 : 1, 1);
-
-    context.drawImage(
-      image,
-      -image.naturalWidth / 2,
-      -image.naturalHeight / 2
-    );
-
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.filter = 'none';
-
-    if (page.watermarkText) {
-      context.save();
-
-      context.translate(canvas.width / 2, canvas.height / 2);
-      context.rotate(-Math.PI / 6);
-
-      const fontSize = Math.max(24, canvas.width * 0.055);
-
-      context.font = `900 ${fontSize}px sans-serif`;
-      context.fillStyle = `rgba(255,255,255,${(page.watermarkOpacity ?? 15) / 100})`;
-      context.textAlign = 'center';
-      context.fillText(page.watermarkText, 0, 0);
-
-      context.restore();
-    }
-
-    if (page.signatureDataUrl) {
-      const signature = await loadImage(page.signatureDataUrl);
-
-      const signatureWidth = Math.min(
-        canvas.width * 0.3,
-        signature.naturalWidth
-      );
-
-      const signatureHeight =
-        signatureWidth * (signature.naturalHeight / signature.naturalWidth);
-
-      context.drawImage(
-        signature,
-        canvas.width - signatureWidth - 30,
-        canvas.height - signatureHeight - 30,
-        signatureWidth,
-        signatureHeight
-      );
-    }
-
-    return canvas;
-  }
-
   async function triggerExport() {
-    if (!pages.length || isExporting) {
-      setStatus('Nothing to export');
-      return;
-    }
-
-    isExporting = true;
-    renderToolControls();
-
-    try {
-      const safeName = (scanName.trim() || 'Scan')
-        .replace(/[<>:"/\\|?*]/g, '_');
-
-      setStatus('Rendering document...');
-
-      const renderedPages: HTMLCanvasElement[] = [];
-
-      for (const page of pages) {
-        renderedPages.push(await renderPageToCanvas(page));
-      }
-
-      if (exportFormat === 'pdf') {
-        await exportPdf(renderedPages, safeName);
-      } else {
-        await exportImages(renderedPages, safeName);
-      }
-
-      setStatus(`Export completed: ${safeName}`);
-    } catch (error) {
-      console.error('Export failed:', error);
-      setStatus('Export failed');
-    } finally {
-      isExporting = false;
-
-      if (!destroyed) {
-        renderToolControls();
-      }
-    }
-  }
-
-  async function exportPdf(
-    renderedPages: HTMLCanvasElement[],
-    filename: string
-  ) {
-    if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
-      for (let index = 0; index < renderedPages.length; index++) {
-        const canvas = renderedPages[index];
-
-        await processMediaOnServer({
-          operation: 'scan-export',
-          mediaType: 'scan',
-          fileName: `${filename}_page_${index + 1}.png`,
-          dataUrl: canvas.toDataURL('image/png'),
-          mode: 'server',
-          metadata: {
-            exportFormat: 'pdf',
-            pageNumber: index + 1,
-            pageCount: renderedPages.length,
-            mode: currentMode,
-          },
-        });
-      }
-
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-
-    if (!printWindow) {
-      throw new Error('Allow popups to export PDF');
-    }
-
-    const pageMarkup = renderedPages.map((canvas) => {
-      return `<section class="page"><img src="${canvas.toDataURL('image/jpeg', exportQuality)}"></section>`;
-    }).join('');
-
-    printWindow.document.open();
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${filename}</title>
-        <style>
-          * { box-sizing: border-box; }
-          html, body { margin: 0; padding: 0; }
-          .page {
-            width: 100%;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            page-break-after: always;
-            break-after: page;
-            padding: 0;
-          }
-          .page:last-child {
-            page-break-after: auto;
-            break-after: auto;
-          }
-          .page img {
-            max-width: 100%;
-            max-height: 100vh;
-            object-fit: contain;
-          }
-          @page { margin: 0; }
-          @media print {
-            .page { height: 100vh; }
-          }
-        </style>
-      </head>
-      <body>${pageMarkup}</body>
-      </html>
-    `);
-
-    printWindow.document.close();
-
-    await new Promise<void>((resolve) => {
-      printWindow.addEventListener('load', () => resolve(), { once: true });
-      setTimeout(resolve, 500);
-    });
-
-    printWindow.focus();
-    printWindow.print();
-  }
-
-  async function exportImages(
-    renderedPages: HTMLCanvasElement[],
-    filename: string
-  ) {
-    const mimeType = exportFormat === 'png'
-      ? 'image/png'
-      : 'image/jpeg';
-
-    const extension = exportFormat;
-
-    if ((appStore.getState().mediaProcessingMode ?? 'browser') === 'server') {
-      for (let index = 0; index < renderedPages.length; index++) {
-        await processMediaOnServer({
-          operation: 'scan-export',
-          mediaType: 'scan',
-          fileName: `${filename}_page_${index + 1}.${extension}`,
-          dataUrl: renderedPages[index].toDataURL(
-            mimeType,
-            exportQuality
-          ),
-          mode: 'server',
-          metadata: {
-            exportFormat,
-            quality: exportQuality,
-            pageNumber: index + 1,
-            pageCount: renderedPages.length,
-            mode: currentMode,
-          },
-        });
-      }
-
-      return;
-    }
-
-    renderedPages.forEach((canvas, index) => {
-      const link = document.createElement('a');
-
-      link.download = renderedPages.length > 1
-        ? `${filename}_page_${index + 1}.${extension}`
-        : `${filename}.${extension}`;
-
-      link.href = canvas.toDataURL(mimeType, exportQuality);
-      link.click();
-    });
+    await scanExporter.triggerExport();
   }
 
   // Tabs and reset
