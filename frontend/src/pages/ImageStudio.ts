@@ -1,3 +1,5 @@
+import '../../css/imagestudio.css';
+
 /* image-editor.ts
  *
  * Self-contained browser image editor.
