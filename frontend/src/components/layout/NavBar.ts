@@ -1,7 +1,10 @@
 import { a, button, div, nav, span } from '../ui/dom';
 
+/** Compute normalized active link state matching subpaths properly */
 function getNavLinkClass(path: string, href: string): string {
-  const isActive = path === href || (href !== '/' && (path === href || path.startsWith(`${href}/`)));
+  const normalizedPath = path.endsWith("/") && path !== "/" ? path.slice(0, -1) : path;
+  const normalizedHref = href.endsWith("/") && href !== "/" ? href.slice(0, -1) : href;
+  const isActive = normalizedPath === normalizedHref || normalizedPath.startsWith(`${normalizedHref}/`);
 
   return [
     'nav-link',
@@ -11,6 +14,7 @@ function getNavLinkClass(path: string, href: string): string {
 
 export function createNavElement(): HTMLElement {
   const currentPath = window.location.pathname;
+
   const navItems = [
     a({ href: '/', className: getNavLinkClass(currentPath, '/'), 'data-link': '' }, 'Dashboard'),
     a({ href: '/images', className: getNavLinkClass(currentPath, '/images'), 'data-link': '' }, 'Image Studio'),

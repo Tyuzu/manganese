@@ -1,242 +1,402 @@
-/* --- PixelForge Studio - Fluent Document Studio / Scan Component Styles --- */
+/* ==========================================================================
+   DOCUMENT STUDIO — Fluent Design System Stylesheet
+   ========================================================================== */
 
-.scan-root {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  font-family: var(--font-base);
-  color: var(--color-fg);
-  background-color: var(--color-bg);
+/* *,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
+body {
+  margin: 0;
+  font-family: var(--font-base, 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif);
+  font-size: var(--font-size-sm, 0.875rem);
+  line-height: var(--line-height-normal, 1.4285);
+  color: var(--color-fg, #242424);
+  background-color: var(--color-bg, #ffffff);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-selection-bg, #0078d4);
+  color: var(--color-selection-fg, #ffffff);
+} */
+
+/* ==========================================================================
+   Root Layout & Modal Shell
+   ========================================================================== */
+.scan-root,
 .scan-editor-root {
+  /* position: fixed; */
+  position: relative;
+  inset: 0;
+  z-index: 1000;
   display: flex;
-  flex-direction: column;
-  width: 100%;
-}
-
-.scan-editor-modal {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-elev-2);
-  display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* background-color: var(--color-overlay, rgba(0, 0, 0, 0.4)); */
+  /* padding: var(--space-md, 16px); */
   overflow: hidden;
 }
 
-/* --- Title Bar --- */
+.scan-editor-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1440px;
+  height: 92vh;
+  /* background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-elev-3, 0 16px 32px rgba(0, 0, 0, 0.12), 0 0 8px rgba(0, 0, 0, 0.08)); */
+  overflow: hidden;
+}
+
 .editor-shell-wrapper {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
+/* ==========================================================================
+   Title Bar
+   ========================================================================== */
 .editor-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  height: 48px;
+  padding: 0 var(--space-md, 16px);
+  background-color: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  flex-shrink: 0;
 }
 
 .editor-title-heading {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-fg);
-  margin: 0;
+  font-family: var(--font-heading, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-base, 1rem);
+  font-weight: var(--font-weight-bold, 700);
+  color: var(--color-fg, #242424);
 }
 
 .editor-title-actions-wrap {
   display: flex;
-  gap: var(--space-xs);
+  align-items: center;
+  gap: var(--space-xs, 4px);
 }
 
 .editor-title-icon-btn {
+  appearance: none;
+  border: none;
   background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--color-muted, #616161);
+  font-size: var(--font-size-lg, 1.25rem);
   cursor: pointer;
-  font-size: var(--font-size-base);
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: background-color var(--transition-fast, 100ms), color var(--transition-fast, 100ms);
 }
 
 .editor-title-icon-btn:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-fg);
+  background-color: var(--color-card-hover, #f5f5f5);
+  color: var(--color-fg, #242424);
 }
 
 .editor-close-btn:hover {
-  background-color: var(--color-error);
-  color: #ffffff;
-  border-color: var(--color-error);
+  background-color: rgba(209, 52, 56, 0.1);
+  color: var(--color-error, #d13438);
 }
 
-/* --- Tab List --- */
+/* ==========================================================================
+   Scan Tab List
+   ========================================================================== */
 .scan-tab-list {
   display: flex;
-  background-color: var(--color-bg-secondary);
-  border-bottom: 1px solid var(--color-border);
-  padding: 0 var(--space-lg);
-  gap: var(--space-xs);
+  align-items: center;
+  gap: var(--space-xxs, 2px);
+  height: 40px;
+  padding: 0 var(--space-md, 16px);
+  background-color: var(--color-bg-secondary, #fafafa);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
-.editor-tab.scan-tab {
-  padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-base);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-regular);
-  background: transparent;
+.scan-tab {
+  appearance: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--color-muted);
+  background: transparent;
+  height: 100%;
+  padding: 0 var(--space-md, 16px);
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  color: var(--color-muted, #616161);
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition: all var(--transition-fast, 100ms);
   white-space: nowrap;
 }
 
-.editor-tab.scan-tab:hover {
-  color: var(--color-fg);
+.scan-tab:hover {
+  color: var(--color-fg, #242424);
+  background-color: var(--color-card-hover, #f5f5f5);
 }
 
-.editor-tab.scan-tab.is-active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-  font-weight: var(--font-weight-medium);
-  background-color: var(--color-surface);
+.scan-tab.is-active {
+  color: var(--color-primary, #0078d4);
+  background-color: var(--color-surface, #ffffff);
+  border-bottom: 2px solid var(--color-primary, #0078d4);
 }
 
-/* --- Workspace Layout (3-Column Grid) --- */
+/* ==========================================================================
+   Scan Workspace Layout (3-Column: Pages Reel | Stage | Inspector)
+   ========================================================================== */
 .scan-workspace {
   display: grid;
-  grid-template-columns: 240px 1fr 280px;
-  min-height: 560px;
-  background-color: var(--color-space);
+  grid-template-columns: 240px 1fr 320px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 1024px) {
-  .scan-workspace {
-    grid-template-columns: 1fr;
-  }
-  .scan-sidebar {
-    border-right: none !important;
-    border-bottom: 1px solid var(--color-border);
-  }
-}
-
-/* --- Sidebars --- */
 .scan-sidebar {
-  background-color: var(--color-surface);
   display: flex;
   flex-direction: column;
+  background-color: var(--color-bg-secondary, #fafafa);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .scan-sidebar-pages {
-  border-right: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border, #e0e0e0);
+  padding: var(--space-md, 16px);
+  gap: var(--space-sm, 8px);
 }
 
 .scan-sidebar-inspector {
-  border-left: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border, #e0e0e0);
+  padding: var(--space-md, 16px);
 }
 
 .scan-panel-heading {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  justify-content: space-between;
+  font-family: var(--font-heading, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #616161);
+  margin-bottom: var(--space-xs, 4px);
 }
 
 .scan-reel-count {
-  font-size: var(--font-size-xs);
-  background-color: var(--color-bg-tertiary);
-  padding: 2px var(--space-xs);
-  border-radius: var(--radius-full);
-  color: var(--color-muted);
+  font-family: var(--font-mono, 'Consolas', monospace);
 }
 
 .scan-page-reel {
-  flex: 1;
-  padding: var(--space-md);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
 }
 
 .scan-empty-reel {
-  font-size: var(--font-size-xs);
-  color: var(--color-muted);
+  padding: var(--space-md, 16px);
   text-align: center;
-  padding: var(--space-lg) 0;
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-light, #8a8a8a);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px dashed var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
 }
 
-/* --- Stage Area --- */
+/* Scan Thumbnails (Batch / Page reel items) */
+.scan-thumbnail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--transition-fast, 100ms);
+}
+
+.scan-thumbnail:hover {
+  border-color: var(--color-muted, #616161);
+  background-color: var(--color-card-hover, #f5f5f5);
+}
+
+.scan-thumbnail.is-active {
+  border-color: var(--color-primary, #0078d4);
+  box-shadow: 0 0 0 1px var(--color-primary, #0078d4);
+}
+
+.scan-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================================================
+   Scan Stage & Preview Area
+   ========================================================================== */
 .scan-stage {
   display: flex;
   flex-direction: column;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-space, #f5f5f5);
   position: relative;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 .scan-quick-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-md);
-  background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  flex-wrap: wrap;
-  gap: var(--space-sm);
+  height: 40px;
+  padding: 0 var(--space-md, 16px);
+  background-color: var(--color-surface, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e0e0e0);
+  flex-shrink: 0;
 }
 
 .scan-quick-group {
   display: flex;
-  gap: var(--space-xs);
   align-items: center;
+  gap: var(--space-xs, 4px);
 }
 
-.scan-button {
-  font-family: var(--font-base);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
-  cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+.scan-preview-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl, 32px);
+  background-image: 
+    linear-gradient(45deg, var(--color-border-light, #f0f0f0) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-border-light, #f0f0f0) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-border-light, #f0f0f0) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-border-light, #f0f0f0) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+  overflow: hidden;
+}
+
+.scan-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xl, 32px);
+  text-align: center;
+  background-color: var(--color-card-bg, #ffffff);
+  border: 1px dashed var(--color-border, #e0e0e0);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-elev-1, 0 2px 4px rgba(0, 0, 0, 0.04));
+  max-width: 380px;
+}
+
+.scan-dropzone-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--space-sm, 8px);
+  color: var(--color-primary, #0078d4);
+}
+
+.scan-dropzone-title {
+  margin: 0 0 var(--space-xxs, 2px);
+  font-size: var(--font-size-base, 1rem);
+  font-weight: var(--font-weight-medium, 600);
+  color: var(--color-fg, #242424);
+}
+
+.scan-dropzone-description {
+  margin: 0 0 var(--space-md, 16px);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-muted, #616161);
+}
+
+.scan-camera-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm, 8px);
+  height: 48px;
+  padding: 0 var(--space-md, 16px);
+  background-color: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--color-border, #e0e0e0);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Buttons & Inputs
+   ========================================================================== */
+.scan-button,
+.fluent-ui-btn {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast, 100ms), border-color var(--transition-fast, 100ms);
 }
 
 .scan-button-muted {
-  background-color: var(--color-surface);
-  color: var(--color-fg);
-  border: 1px solid var(--color-border);
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-fg, #242424);
+  border: 1px solid var(--color-border, #e0e0e0);
 }
 
-.scan-button-muted:hover {
-  background-color: var(--color-bg-tertiary);
+.scan-button-muted:hover:not(:disabled) {
+  background-color: var(--color-card-hover, #f5f5f5);
+  border-color: var(--color-muted, #616161);
 }
 
-.scan-button-primary, .fluent-ui-btn-primary {
-  background-color: var(--color-btn-bg);
-  color: var(--color-btn-fg);
-  border: none;
+.scan-button-primary,
+.fluent-ui-btn-primary {
+  background-color: var(--color-primary, #0078d4);
+  color: var(--color-primary-fg, #ffffff);
+  border: 1px solid var(--color-primary, #0078d4);
 }
 
-.scan-button-primary:hover, .fluent-ui-btn-primary:hover {
-  background-color: var(--color-btn-hover-bg);
+.scan-button-primary:hover:not(:disabled),
+.fluent-ui-btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover, #106ebe);
+  border-color: var(--color-primary-hover, #106ebe);
+}
+
+.scan-button:disabled {
+  background-color: var(--color-btn-disabled-bg, #f3f2f1);
+  color: var(--color-btn-disabled-fg, #a19f9d);
+  border-color: var(--color-border-light, #f0f0f0);
+  cursor: not-allowed;
+}
+
+.scan-button-block {
+  width: 100%;
 }
 
 .scan-upload-button {
@@ -246,156 +406,204 @@
 
 .scan-file-input {
   position: absolute;
-  top: 0;
-  right: 0;
-  margin: 0;
-  padding: 0;
-  font-size: 20px;
-  cursor: pointer;
+  inset: 0;
   opacity: 0;
-  filter: alpha(opacity=0);
+  cursor: pointer;
 }
 
-/* Dropzone */
-.scan-preview-frame {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-xl);
-}
-
-.scan-dropzone {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: var(--space-xxl);
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface);
-  max-width: 420px;
-  width: 100%;
-}
-
-.scan-dropzone-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--color-primary);
-  margin-bottom: var(--space-md);
-}
-
-.scan-dropzone-title {
-  margin: 0 0 var(--space-xs) 0;
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-fg);
-}
-
-.scan-dropzone-description {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-muted);
-}
-
-/* Camera Toolbar */
-.scan-camera-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
-  background-color: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-}
-
-/* --- Inspector Sidebar Content --- */
+/* ==========================================================================
+   Inspector Panels & Tool Content
+   ========================================================================== */
 .scan-tool-content {
-  padding: var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  overflow-y: auto;
+  gap: var(--space-md, 16px);
+  height: 100%;
 }
 
 .scan-section-title {
-  margin: 0 0 var(--space-xs) 0;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-fg);
+  margin: 0 0 var(--space-xs, 4px);
+  font-family: var(--font-heading, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #616161);
 }
 
+.scan-control-card,
+.scan-info-card,
+.scan-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm, 8px);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-md, 16px);
+}
+
+.scan-info-card p {
+  margin: 0;
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-muted, #616161);
+  line-height: 1.4;
+}
+
+.scan-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-fg, #242424);
+}
+
+.scan-text-input {
+  height: 30px;
+  padding: 0 var(--space-sm, 8px);
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-fg, #242424);
+  background-color: var(--color-input-bg, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
+  outline: none;
+}
+
+.scan-text-input:focus {
+  border-color: var(--color-input-focus, #0078d4);
+  box-shadow: inset 0 -1px 0 var(--color-input-focus, #0078d4);
+}
+
+/* Preset Grids */
 .scan-preset-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-xs);
+  gap: var(--space-xs, 4px);
+}
+
+.scan-format-grid {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .scan-preset {
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
-  font-size: var(--font-size-xs);
-  color: var(--color-fg);
-  text-align: center;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 var(--space-sm, 8px);
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  color: var(--color-fg, #242424);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-fast, 100ms);
 }
 
 .scan-preset:hover {
-  background-color: var(--color-bg-tertiary);
+  background-color: var(--color-card-hover, #f5f5f5);
+  border-color: var(--color-muted, #616161);
 }
 
 .scan-preset.is-selected {
-  background-color: var(--color-primary);
-  color: var(--color-primary-fg);
-  border-color: var(--color-primary);
+  background-color: var(--color-primary, #0078d4);
+  color: var(--color-primary-fg, #ffffff);
+  border-color: var(--color-primary, #0078d4);
 }
 
+/* Sliders */
+.fluent-scan-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs, 4px);
+}
+
+.fluent-slider-heading {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs, 0.75rem);
+}
+
+.fluent-slider-label {
+  color: var(--color-fg, #242424);
+}
+
+.fluent-slider-value {
+  font-family: var(--font-mono, 'Consolas', monospace);
+  color: var(--color-muted, #616161);
+}
+
+.fluent-slider-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--color-border, #e0e0e0);
+  border-radius: var(--radius-full, 9999px);
+  outline: none;
+  cursor: pointer;
+}
+
+.fluent-slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-circle, 50%);
+  background: var(--color-primary, #0078d4);
+  border: 2px solid var(--color-surface, #ffffff);
+  box-shadow: 0 0 0 1px var(--color-border, #e0e0e0), var(--shadow-elev-1, 0 2px 4px rgba(0, 0, 0, 0.04));
+  cursor: pointer;
+  transition: transform var(--transition-fast, 100ms);
+}
+
+.fluent-slider-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: var(--color-primary-hover, #106ebe);
+}
+
+/* Inspector Footer & Session Info */
 .scan-inspector-footer {
+  margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  margin-top: var(--space-sm);
-  border-top: 1px solid var(--color-border-light);
-  padding-top: var(--space-md);
-}
-
-.scan-status-card {
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-sm, 8px);
+  padding-top: var(--space-md, 16px);
+  border-top: 1px solid var(--color-border, #e0e0e0);
 }
 
 .scan-info-item {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-xs, 0.75rem);
+  padding: 2px 0;
 }
 
 .scan-info-label {
-  color: var(--color-muted);
+  color: var(--color-muted, #616161);
 }
 
-.scan-status-mode, .scan-status-message, .scan-status-count, .scan-info-value {
-  color: var(--color-fg);
-  font-weight: var(--font-weight-medium);
+.scan-status-mode,
+.scan-status-message,
+.scan-status-count,
+.scan-info-value {
+  font-family: var(--font-mono, 'Consolas', monospace);
+  color: var(--color-fg, #242424);
 }
 
 .scan-info-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm);
+  gap: var(--space-xs, 4px);
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-sm, 8px);
   text-align: center;
-  gap: var(--space-xs);
 }
 
 .scan-info-grid .scan-info-item {
@@ -403,46 +611,185 @@
   align-items: center;
 }
 
-/* --- Editor Footer --- */
+/* OCR Output */
+.scan-ocr-heading {
+  font-family: var(--font-heading, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #616161);
+}
+
+.scan-ocr-output {
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-md, 16px);
+  font-family: var(--font-mono, 'Consolas', monospace);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-muted, #616161);
+  min-height: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* ==========================================================================
+   Footer Action Bar
+   ========================================================================== */
 .editor-footer-root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-md) var(--space-lg);
-  border-top: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  height: 52px;
+  padding: 0 var(--space-md, 16px);
+  background-color: var(--color-surface, #ffffff);
+  border-top: 1px solid var(--color-border, #e0e0e0);
+  flex-shrink: 0;
 }
 
 .editor-footer-right {
   display: flex;
-  gap: var(--space-sm);
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  margin-left: auto;
 }
 
 .editor-cancel-btn {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-fg);
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-fg, #242424);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: var(--radius-sm, 4px);
   cursor: pointer;
+  transition: all var(--transition-fast, 100ms);
 }
 
 .editor-cancel-btn:hover {
-  background-color: var(--color-bg-tertiary);
+  background-color: var(--color-card-hover, #f5f5f5);
+  color: var(--color-danger, #a80000);
+  border-color: var(--color-danger, #a80000);
 }
 
 .editor-save-btn {
-  background-color: var(--color-primary);
-  color: var(--color-primary-fg);
-  border: none;
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  font-family: var(--font-base, 'Segoe UI', sans-serif);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 600);
+  background-color: var(--color-primary, #0078d4);
+  color: var(--color-primary-fg, #ffffff);
+  border: 1px solid var(--color-primary, #0078d4);
+  border-radius: var(--radius-sm, 4px);
   cursor: pointer;
+  transition: all var(--transition-fast, 100ms);
 }
 
 .editor-save-btn:hover {
-  background-color: var(--color-primary-hover);
+  background-color: var(--color-primary-hover, #106ebe);
+  border-color: var(--color-primary-hover, #106ebe);
+}
+
+/* ==========================================================================
+   Document Studio — Crop Overlay Stylesheet
+   ========================================================================== */
+
+/* SVG Crop Overlay Container */
+.scan-crop-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  touch-action: none;
+  z-index: 10;
+}
+
+/* Crop Polygon Boundary */
+.scan-crop-polygon {
+  fill: rgba(0, 120, 212, 0.12);
+  stroke: var(--color-primary, #0078d4);
+  stroke-width: 2;
+  stroke-dasharray: 6, 4;
+  pointer-events: none;
+}
+
+/* Base Interactive Handle */
+.scan-crop-handle {
+  fill: var(--color-surface, #ffffff);
+  stroke: var(--color-primary, #0078d4);
+  stroke-width: 2.5;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  transition: transform var(--transition-fast, 100ms), fill var(--transition-fast, 100ms);
+}
+
+.scan-crop-handle:hover {
+  fill: var(--color-primary, #0078d4);
+  /* transform: scale(1.15); */
+}
+
+.scan-crop-handle:active {
+  fill: var(--color-primary-hover, #106ebe);
+  /* transform: scale(1.25); */
+}
+
+/* Corner Handles (Larger for precise touch/mouse target) */
+.scan-corner-handle {
+  r: 10;
+}
+
+/* Side Midpoint Handles (Distinct styling for edge dragging) */
+.scan-side-handle {
+  r: 8;
+  fill: var(--color-bg-secondary, #fafafa);
+  stroke-width: 2;
+}
+
+.scan-side-handle:hover {
+  fill: var(--color-primary, #0078d4);
+}
+
+
+/* ==========================================================================
+   Responsive Media Queries
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .scan-workspace {
+    grid-template-columns: 200px 1fr 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .scan-editor-modal {
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+
+  .scan-workspace {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .scan-sidebar-pages,
+  .scan-sidebar-inspector {
+    border-right: none;
+    border-left: none;
+    border-bottom: 1px solid var(--color-border, #e0e0e0);
+  }
 }

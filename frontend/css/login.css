@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Microsoft Fluent Login Card Component Styles
+   ========================================================================== */
+
+.fluent-login-card {
+    background-color: var(--color-card-bg);
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-elev-2);
+    padding: var(--space-xl);
+    width: 100%;
+    max-width: var(--max-width-sm);
+    margin: 0 auto;
+    transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.fluent-login-title {
+    font-family: var(--font-heading);
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-heading);
+    color: var(--color-fg);
+    margin-top: 0;
+    margin-bottom: var(--space-lg);
+}
+
+.fluent-login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.fluent-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.fluent-field-label {
+    font-family: var(--font-base);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-muted);
+}
+
+.fluent-input {
+    font-family: var(--font-base);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    background-color: var(--color-input-bg);
+    color: var(--color-fg);
+    border: 1px solid var(--color-input-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
+}
+
+.fluent-input:hover {
+    border-color: var(--color-fg);
+}
+
+.fluent-input:focus {
+    border-color: var(--color-input-focus);
+    box-shadow: 0 0 0 1px var(--color-input-focus);
+}
+
+/* Primary Button (Sign In) */
+.fluent-primary-button {
+    font-family: var(--font-base);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    background-color: var(--color-btn-bg);
+    color: var(--color-btn-fg);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    transition: background-color var(--transition), opacity var(--transition);
+}
+
+.fluent-primary-button:hover {
+    background-color: var(--color-btn-hover-bg);
+}
+
+.fluent-primary-button:disabled {
+    background-color: var(--color-btn-disabled-bg);
+    color: var(--color-btn-disabled-fg);
+    cursor: not-allowed;
+}
+
+/* Guest Button */
+.fluent-guest-button {
+    font-family: var(--font-base);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    background-color: transparent;
+    color: var(--color-fg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    cursor: pointer;
+    transition: background-color var(--transition), border-color var(--transition);
+}
+
+.fluent-guest-button:hover {
+    background-color: var(--color-card-hover);
+    border-color: var(--color-muted);
+}
+
+/* Utility modifier */
+.full-width {
+    width: 100%;
+}
+
+/* Form Error Notification */
+.fluent-form-error {
+    font-family: var(--font-base);
+    font-size: var(--font-size-xs);
+    color: var(--color-error);
+    margin-top: var(--space-xxs);
+    min-height: 1rem;
+}

@@ -1,19 +1,25 @@
-
 /* --- PixelForge Studio - Fluent UI Component Styles --- */
+
+
+body {
+  margin: 0;
+  font-family: var(--font-base);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-selection-bg);
+  color: var(--color-selection-fg);
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  font-family: var(--font-base);
-  font-size: var(--font-size-base);
-  line-height: var(--line-height-base);
-  color: var(--color-fg);
-  background-color: var(--color-bg-secondary);
-  -webkit-font-smoothing: antialiased;
-}
 
 /* App Shell Layout */
 .app-shell {
@@ -204,7 +210,7 @@ body {
 /* --- Main Page Shell & Content --- */
 .app-main {
   flex: 1;
-  padding: var(--space-lg);
+  /* padding: var(--space-lg); */
   background-color: var(--color-space);
 }
 
