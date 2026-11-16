@@ -1,6 +1,5 @@
 import '../../css/pdf.css';
 import {
-  button,
   createButton,
   div,
   input,
@@ -8,11 +7,7 @@ import {
   p,
   span,
   strong,
-  svgElement,
 } from '../components/ui/dom';
-
-import { appStore } from '../appState';
-import { processMediaOnServer } from '../api';
 
 import {
   createEditorFooter,
@@ -21,48 +16,29 @@ import {
   createPresetButton,
   createSliderControl,
 } from './shared';
-
-interface ScannerPageItem {
-  id: string;
-  title: string;
-  rotation: number;
-  isBlank?: boolean;
-}
-
-interface MergeQueueItem {
-  id: string;
-  name: string;
-  sizeMB: string;
-  estimatedPages: number;
-  file: File;
-}
-
-type ScanTab = 'pages' | 'enhance' | 'ocr' | 'deskew' | 'merge' | 'export';
-type ExportFormat = 'pdf' | 'jpg' | 'txt';
-type ScanPreset = 'original' | 'magic' | 'bw';
-
-const TABS: { id: ScanTab; label: string }[] = [
-  { id: 'pages', label: 'Pages' },
-  { id: 'enhance', label: 'Enhance' },
-  { id: 'ocr', label: 'OCR' },
-  { id: 'deskew', label: 'Deskew' },
-  { id: 'merge', label: 'Merge' },
-  { id: 'export', label: 'Export' },
-];
-
-const OCR_LANGUAGES = [
-  { value: 'eng', label: 'English' },
-  { value: 'spa', label: 'Spanish' },
-  { value: 'fra', label: 'French' },
-  { value: 'deu', label: 'German' },
-];
-
-const INITIAL_PAGES: ScannerPageItem[] = [
-  { id: 'p-1', title: 'Page 1 (Cover)', rotation: 0 },
-  { id: 'p-2', title: 'Page 2 (Invoice Details)', rotation: 0 },
-  { id: 'p-3', title: 'Page 3 (Line Items)', rotation: 0 },
-  { id: 'p-4', title: 'Page 4 (Terms & Signatures)', rotation: 0 },
-];
+import {
+  INITIAL_PAGES,
+  OCR_LANGUAGES,
+  TABS,
+  type ExportFormat,
+  type MergeQueueItem,
+  type ScanPreset,
+  type ScanTab,
+  type ScannerPageItem,
+} from './pdf/types';
+import { createPdfExporter } from './pdf/export';
+import {
+  createPdfQuickActions,
+  createPdfStageHud,
+} from './pdf/controls';
+import { createControlGroup, createSectionTitle } from './pdf/helpers';
+import { applyPdfToolPanel } from './pdf/panels';
+import {
+  createMergeQueueEntry,
+  createPageThumbnailItem,
+  createSummaryPanel,
+} from './pdf/ui';
+import { createIcon, createId, getFileType } from './pdf/utils';
 
 export async function createPdfScannerPage(): Promise<HTMLElement> {
   let activeTab: ScanTab = 'pages';
@@ -96,10 +72,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // Utilities
   // --------------------------------------------------
 
-  function createId(prefix = 'pdf') {
-    return `${prefix}-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
-  }
-
   function showToast(
     message: string,
     variant: 'info' | 'success' = 'info',
@@ -132,39 +104,23 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     return (uploadedFileName || 'scanned-document').replace(/\.[^/.]+$/, '');
   }
 
-  function getFileType(file: File): 'pdf' | 'image' {
-    return file.type === 'application/pdf' ||
-      file.name.toLowerCase().endsWith('.pdf')
-      ? 'pdf'
-      : 'image';
-  }
+  const pdfExporter = createPdfExporter({
+    getBaseName,
+    getUploadedFile: () => uploadedFile,
+    getUploadedFileType: () => uploadedFileType,
+    getPages: () => pages,
+    getOcrEnabled: () => ocrEnabled,
+    getOcrLanguage: () => ocrLanguage,
+    getDeskewAngle: () => deskewAngle,
+    getBrightness: () => brightness,
+    getContrast: () => contrast,
+    getGrayscale: () => grayscale,
+    getExtractedText: () => extractedText,
+    showToast,
+  });
 
-  function createIcon(name: string) {
-    const paths: Record<string, string> = {
-      upload: 'M12 16V4m0 0L7 9m5-5 5 5M4 16v4h16v-4',
-      file: 'M7 3h7l5 5v13H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm7 0v5h5',
-      zoomIn: 'M11 5v12m-6-6h12M21 21l-4.35-4.35',
-      zoomOut: 'M5 11h12m4 10-4.35-4.35',
-      rotate: 'M20 11a8 8 0 1 1-2.34-5.66L20 8m0-5v5h-5',
-      close: 'M18 6 6 18M6 6l12 12',
-      download: 'M12 3v12m0 0 5-5m-5 5-5-5M4 17v4h16v-4',
-    };
-
-    return svgElement(
-      'svg',
-      {
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-width': '1.7',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-        class: 'pdf-icon',
-        'aria-hidden': 'true',
-      },
-      svgElement('path', { d: paths[name] || paths.file }),
-    );
-  }
+  const triggerExport = (format: ExportFormat) =>
+    pdfExporter.triggerExport(format);
 
   // --------------------------------------------------
   // Notifications
@@ -239,39 +195,12 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
     'No document loaded',
   );
 
-  const uploadButton = createButton(
-    'secondary',
-    {
-      type: 'button',
-      className: 'pdf-button pdf-button-secondary',
-      onclick: () => fileInput.click(),
-    },
-    'Upload document',
-  );
-
-  const exportButton = createButton(
-    'primary',
-    {
-      type: 'button',
-      className: 'pdf-button pdf-button-primary',
-      onclick: () => triggerExport('pdf'),
-    },
-    'Export PDF',
-  );
-
-  const quickActions = div(
-    { className: 'pdf-quick-actions' },
-    div(
-      { className: 'pdf-document-info' },
-      pageCounter,
-      documentName,
-    ),
-    div(
-      { className: 'pdf-quick-buttons' },
-      uploadButton,
-      exportButton,
-    ),
-  );
+  const quickActions = createPdfQuickActions({
+    pageCounter,
+    documentName,
+    onUpload: () => fileInput.click(),
+    onExport: () => triggerExport('pdf'),
+  });
 
   // --------------------------------------------------
   // Navigation
@@ -427,85 +356,34 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // Viewport controls
   // --------------------------------------------------
 
-  const zoomOutBtn = button(
-    {
-      type: 'button',
-      className: 'pdf-icon-button',
-      title: 'Zoom out',
-      'aria-label': 'Zoom out',
+  const { root: stageHud, zoomLabel } = createPdfStageHud({
+    onZoomOut: () => {
+      zoomLevel = Math.max(50, zoomLevel - 15);
+      applyVisualTransforms();
     },
-    createIcon('zoomOut'),
-  );
-
-  const zoomLabel = span(
-    { className: 'pdf-zoom-label' },
-    '100%',
-  );
-
-  const zoomInBtn = button(
-    {
-      type: 'button',
-      className: 'pdf-icon-button',
-      title: 'Zoom in',
-      'aria-label': 'Zoom in',
+    onZoomIn: () => {
+      zoomLevel = Math.min(220, zoomLevel + 15);
+      applyVisualTransforms();
     },
-    createIcon('zoomIn'),
-  );
+    onDeskewLeft: () => {
+      deskewAngle = Math.max(-15, deskewAngle - 1);
+      applyVisualTransforms();
 
-  const deskewLeftBtn = button(
-    {
-      type: 'button',
-      className: 'pdf-hud-button',
-      title: 'Rotate counterclockwise',
+      if (activeTab === 'deskew') {
+        renderToolControls();
+      }
     },
-    '−1°',
-  );
+    onDeskewRight: () => {
+      deskewAngle = Math.min(15, deskewAngle + 1);
+      applyVisualTransforms();
 
-  const deskewRightBtn = button(
-    {
-      type: 'button',
-      className: 'pdf-hud-button',
-      title: 'Rotate clockwise',
+      if (activeTab === 'deskew') {
+        renderToolControls();
+      }
     },
-    '+1°',
-  );
-
-  const rotate90Btn = button(
-    {
-      type: 'button',
-      className: 'pdf-hud-button',
-      title: 'Rotate 90 degrees',
-    },
-    createIcon('rotate'),
-    '90°',
-  );
-
-  const ocrRunBtn = createButton(
-    'primary',
-    {
-      type: 'button',
-      className: 'pdf-button pdf-button-primary pdf-ocr-button',
-      onclick: runOCR,
-    },
-    'Run OCR',
-  );
-
-  const stageHud = div(
-    { className: 'pdf-stage-hud' },
-    div(
-      { className: 'pdf-zoom-controls' },
-      zoomOutBtn,
-      zoomLabel,
-      zoomInBtn,
-    ),
-    div(
-      { className: 'pdf-hud-divider' },
-    ),
-    deskewLeftBtn,
-    deskewRightBtn,
-    rotate90Btn,
-    ocrRunBtn,
-  );
+    onRotate90: rotateActivePage,
+    onRunOCR: runOCR,
+  });
 
   // --------------------------------------------------
   // Stage
@@ -668,89 +546,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // Page thumbnails
   // --------------------------------------------------
 
-  function createPageThumbnailItem(
-    pageItem: ScannerPageItem,
-    index: number,
-  ) {
-    const isSelected = index === selectedPageIndex;
-
-    const thumbnail = div({
-      className: `pdf-thumbnail ${isSelected ? 'is-selected' : ''}`,
-      role: 'button',
-      tabindex: 0,
-      'aria-label': `Select ${pageItem.title}`,
-      onclick: () => selectPage(index),
-    });
-
-    const pagePreview = div(
-      { className: 'pdf-thumbnail-preview' },
-      div({ className: 'pdf-thumbnail-lines' }),
-      div({ className: 'pdf-thumbnail-lines short' }),
-      div({ className: 'pdf-thumbnail-lines' }),
-      div({ className: 'pdf-thumbnail-lines medium' }),
-    );
-
-    const pageNumber = span(
-      { className: 'pdf-thumbnail-number' },
-      `${index + 1}`,
-    );
-
-    const pageName = span(
-      { className: 'pdf-thumbnail-name' },
-      pageItem.title,
-    );
-
-    const actions = div(
-      { className: 'pdf-thumbnail-actions' },
-      button(
-        {
-          type: 'button',
-          title: 'Move up',
-          disabled: index === 0,
-          onclick: (event: Event) => {
-            event.stopPropagation();
-            movePage(index, -1);
-          },
-        },
-        '↑',
-      ),
-      button(
-        {
-          type: 'button',
-          title: 'Move down',
-          disabled: index === pages.length - 1,
-          onclick: (event: Event) => {
-            event.stopPropagation();
-            movePage(index, 1);
-          },
-        },
-        '↓',
-      ),
-      button(
-        {
-          type: 'button',
-          title: 'Delete page',
-          onclick: (event: Event) => {
-            event.stopPropagation();
-            deletePage(index);
-          },
-        },
-        '×',
-      ),
-    );
-
-    thumbnail.append(pagePreview, pageNumber, pageName, actions);
-
-    thumbnail.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        selectPage(index);
-      }
-    });
-
-    return thumbnail;
-  }
-
   function selectPage(index: number) {
     if (index < 0 || index >= pages.length) {
       return;
@@ -839,59 +634,32 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   // --------------------------------------------------
 
   function renderToolControls() {
-    toolContainer.replaceChildren();
-
-    switch (activeTab) {
-      case 'pages':
-        renderPagesControls();
-        break;
-
-      case 'enhance':
-        renderEnhanceControls();
-        break;
-
-      case 'ocr':
-        renderOCRControls();
-        break;
-
-      case 'deskew':
-        renderDeskewControls();
-        break;
-
-      case 'merge':
-        renderMergeControls();
-        break;
-
-      case 'export':
-        renderExportControls();
-        break;
-    }
-
-    renderSummary();
-  }
-
-  function createSectionTitle(title: string, description?: string) {
-    return div(
-      { className: 'pdf-section-heading' },
-      p({ className: 'pdf-section-title' }, title),
-      description
-        ? p({ className: 'pdf-section-description' }, description)
-        : '',
-    );
-  }
-
-  function createControlGroup(...children: HTMLElement[]) {
-    return div(
-      { className: 'pdf-control-group' },
-      ...children,
-    );
+    applyPdfToolPanel({
+      toolContainer,
+      activeTab,
+      renderPagesControls,
+      renderEnhanceControls,
+      renderOCRControls,
+      renderDeskewControls,
+      renderMergeControls,
+      renderExportControls,
+      renderSummary,
+    });
   }
 
   function renderPagesControls() {
     const pageList = div(
       { className: 'pdf-page-list' },
       ...pages.map((page, index) =>
-        createPageThumbnailItem(page, index),
+        createPageThumbnailItem({
+          pageItem: page,
+          index,
+          selectedPageIndex,
+          pages,
+          onSelect: selectPage,
+          onMove: movePage,
+          onDelete: deletePage,
+        }),
       ),
     );
 
@@ -1125,38 +893,16 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
       );
     } else {
       mergeQueue.forEach((item, index) => {
-        const row = div(
-          { className: 'pdf-merge-item' },
-          div(
-            { className: 'pdf-merge-file-info' },
-            span({ className: 'pdf-merge-number' }, `${index + 1}`),
-            div(
-              { className: 'pdf-merge-file-details' },
-              span({ className: 'pdf-merge-file-name' }, item.name),
-              span(
-                { className: 'pdf-merge-file-size' },
-                `${item.sizeMB} MB`,
-              ),
-            ),
-          ),
-          button(
-            {
-              type: 'button',
-              className: 'pdf-remove-button',
-              title: 'Remove file',
-              onclick: () => {
-                mergeQueue = mergeQueue.filter(
-                  (entry) => entry.id !== item.id,
-                );
-
-                renderToolControls();
-              },
+        queueList.append(
+          createMergeQueueEntry({
+            item,
+            index,
+            onRemove: (itemId) => {
+              mergeQueue = mergeQueue.filter((entry) => entry.id !== itemId);
+              renderToolControls();
             },
-            createIcon('close'),
-          ),
+          }),
         );
-
-        queueList.append(row);
       });
     }
 
@@ -1227,35 +973,14 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   function renderSummary() {
     const page = getActivePage();
 
-    const summary = div(
-      { className: 'pdf-summary' },
-      p({ className: 'pdf-summary-title' }, 'Document summary'),
-      div(
-        { className: 'pdf-summary-row' },
-        span({}, 'File'),
-        strong({}, uploadedFileName || 'No document'),
-      ),
-      div(
-        { className: 'pdf-summary-row' },
-        span({}, 'Pages'),
-        strong({}, `${pages.length}`),
-      ),
-      div(
-        { className: 'pdf-summary-row' },
-        span({}, 'Rotation'),
-        strong(
-          {},
-          `${(page?.rotation ?? 0) + deskewAngle}°`,
-        ),
-      ),
-      div(
-        { className: 'pdf-summary-row' },
-        span({}, 'OCR'),
-        strong({}, ocrEnabled ? 'Enabled' : 'Disabled'),
-      ),
+    toolContainer.append(
+      createSummaryPanel({
+        uploadedFileName,
+        pages,
+        rotation: (page?.rotation ?? 0) + deskewAngle,
+        ocrEnabled,
+      }),
     );
-
-    toolContainer.append(summary);
   }
 
   // --------------------------------------------------
@@ -1351,139 +1076,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
   }
 
   // --------------------------------------------------
-  // Export
-  // --------------------------------------------------
-
-  async function triggerExport(format: ExportFormat) {
-    if (!uploadedFile) {
-      showToast('Upload a document before exporting');
-      return;
-    }
-
-    const baseName = getBaseName();
-
-    if (format === 'txt') {
-      const blob = new Blob(
-        [extractedText],
-        { type: 'text/plain;charset=utf-8' },
-      );
-
-      downloadBlob(blob, `${baseName}-ocr.txt`);
-
-      showToast('Text file exported', 'success');
-      return;
-    }
-
-    const processingMode =
-      appStore.getState().mediaProcessingMode ?? 'browser';
-
-    if (processingMode === 'server') {
-      try {
-        const dataUrl = await fileToDataUrl(uploadedFile);
-
-        const result = await processMediaOnServer({
-          operation: 'pdf-export',
-          mediaType: 'pdf',
-          fileName: `${baseName}-edited.${format}`,
-          dataUrl,
-          mode: 'server',
-          metadata: {
-            format,
-            pageCount: pages.length,
-            ocrEnabled,
-            language: ocrLanguage,
-            deskewAngle,
-            brightness,
-            contrast,
-            grayscale,
-            pages: pages.map((page) => ({
-              id: page.id,
-              title: page.title,
-              rotation: page.rotation,
-              isBlank: page.isBlank ?? false,
-            })),
-          },
-        });
-
-        console.info('PDF export response:', result);
-
-        showToast('Document sent for server processing', 'success');
-        return;
-      } catch (error) {
-        console.error('PDF processing failed:', error);
-        showToast('Server processing failed');
-        return;
-      }
-    }
-
-    if (format === 'pdf' && uploadedFileType === 'pdf') {
-      downloadBlob(
-        uploadedFile,
-        `${baseName}-edited.pdf`,
-      );
-
-      showToast(
-        'Original PDF downloaded. Preview adjustments are not embedded in browser export.',
-        'success',
-      );
-
-      return;
-    }
-
-    if (format === 'jpg' && uploadedFileType === 'image') {
-      downloadBlob(
-        uploadedFile,
-        `${baseName}-edited.jpg`,
-      );
-
-      showToast(
-        'Original image downloaded. Preview adjustments are not embedded in browser export.',
-        'success',
-      );
-
-      return;
-    }
-
-    showToast(
-      'This export format requires server-side document conversion.',
-    );
-  }
-
-  function downloadBlob(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-
-    anchor.href = url;
-    anchor.download = filename;
-
-    document.body.append(anchor);
-    anchor.click();
-    anchor.remove();
-
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function fileToDataUrl(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-        } else {
-          reject(new Error('Unable to read document'));
-        }
-      };
-
-      reader.onerror = () => reject(
-        reader.error || new Error('File read failed'),
-      );
-
-      reader.readAsDataURL(file);
-    });
-  }
-
-  // --------------------------------------------------
   // Tab navigation
   // --------------------------------------------------
 
@@ -1504,42 +1096,6 @@ export async function createPdfScannerPage(): Promise<HTMLElement> {
 
     renderToolControls();
   }
-
-  // --------------------------------------------------
-  // HUD event listeners
-  // --------------------------------------------------
-
-  zoomOutBtn.addEventListener('click', () => {
-    zoomLevel = Math.max(50, zoomLevel - 15);
-    applyVisualTransforms();
-  });
-
-  zoomInBtn.addEventListener('click', () => {
-    zoomLevel = Math.min(220, zoomLevel + 15);
-    applyVisualTransforms();
-  });
-
-  deskewLeftBtn.addEventListener('click', () => {
-    deskewAngle = Math.max(-15, deskewAngle - 1);
-    applyVisualTransforms();
-
-    if (activeTab === 'deskew') {
-      renderToolControls();
-    }
-  });
-
-  deskewRightBtn.addEventListener('click', () => {
-    deskewAngle = Math.min(15, deskewAngle + 1);
-    applyVisualTransforms();
-
-    if (activeTab === 'deskew') {
-      renderToolControls();
-    }
-  });
-
-  rotate90Btn.addEventListener('click', rotateActivePage);
-
-  ocrRunBtn.addEventListener('click', runOCR);
 
   // --------------------------------------------------
   // Reset
