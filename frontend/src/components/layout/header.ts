@@ -1,7 +1,8 @@
+import "../../../css/header.css";
 import { button, div, h1, header, p, span } from '../ui/dom';
 import { appStore, authActions } from '../../appState';
 import { router } from '../../main';
-import { APP_THEMES, AppTheme } from '../../theme';
+import { APP_THEMES, EDITOR_THEMES, type AppTheme, type EditorThemeName } from '../../config/config';
 import { createNavElement } from './NavBar';
 
 export function createHeaderActions(): HTMLElement {
@@ -9,9 +10,8 @@ export function createHeaderActions(): HTMLElement {
   const isLoggedIn = Boolean(state.token);
   const userName = isLoggedIn ? state.handle || 'Creator' : 'Guest';
 
-  const selectedTheme: AppTheme = (APP_THEMES as readonly string[]).includes(state.theme)
-    ? (state.theme as AppTheme)
-    : (state.editorTheme as AppTheme) || 'dark';
+  // Determine current active theme, defaulting safely
+  const selectedTheme: string = state.theme || state.editorTheme || 'dark';
 
   const themeSelect = document.createElement('select');
   themeSelect.className = 'header-theme-select';
@@ -20,32 +20,16 @@ export function createHeaderActions(): HTMLElement {
 
   themeSelect.onchange = (event) => {
     const value = (event.target as HTMLSelectElement).value;
-    const appTheme = APP_THEMES.includes(value as AppTheme) ? (value as AppTheme) : 'dark';
-    authActions.setTheme(appTheme);
 
-    const editorThemes = [
-      'aurora',
-      'catppuccin',
-      'cyberpunk',
-      'dark',
-      'dimmed',
-      'dracula',
-      'forest',
-      'light',
-      'midnight',
-      'nord',
-      'sunset',
-      'tokyo-night'
-    ] as const;
-
-    if (editorThemes.includes(value as (typeof editorThemes)[number])) {
-      authActions.setEditorTheme(value as (typeof editorThemes)[number]);
-      return;
+    if ((APP_THEMES as readonly string[]).includes(value)) {
+      authActions.setTheme(value as AppTheme);
     }
-
-    authActions.setEditorTheme('dark');
+    if ((EDITOR_THEMES as readonly string[]).includes(value as EditorThemeName)) {
+      authActions.setEditorTheme(value as EditorThemeName);
+    }
   };
 
+  // Populate App Themes options (or combine with Editor themes if needed)
   APP_THEMES.forEach((theme) => {
     const option = document.createElement('option');
     option.value = theme;
@@ -55,6 +39,11 @@ export function createHeaderActions(): HTMLElement {
       .join(' ');
     themeSelect.appendChild(option);
   });
+
+  // Ensure select value matches option list if state was an editor theme
+  if (themeSelect.querySelector(`option[value="${selectedTheme}"]`)) {
+    themeSelect.value = selectedTheme;
+  }
 
   return div(
     { className: 'header-meta' },

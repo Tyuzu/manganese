@@ -114,50 +114,6 @@ body {
   color: var(--color-error, #d13438);
 }
 
-/* ==========================================================================
-   PDF Tab List
-   ========================================================================== */
-.pdf-tablist {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xxs, 2px);
-  height: 40px;
-  padding: 0 var(--space-md, 16px);
-  background-color: var(--color-bg-secondary, #fafafa);
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-  overflow-x: auto;
-  flex-shrink: 0;
-}
-
-.pdf-tab-active,
-.pdf-tab-inactive {
-  appearance: none;
-  border: none;
-  background: transparent;
-  height: 100%;
-  padding: 0 var(--space-md, 16px);
-  font-family: var(--font-base, 'Segoe UI', sans-serif);
-  font-size: var(--font-size-xs, 0.75rem);
-  font-weight: var(--font-weight-medium, 600);
-  cursor: pointer;
-  transition: all var(--transition-fast, 100ms);
-  white-space: nowrap;
-}
-
-.pdf-tab-inactive {
-  color: var(--color-muted, #616161);
-}
-
-.pdf-tab-inactive:hover {
-  color: var(--color-fg, #242424);
-  background-color: var(--color-card-hover, #f5f5f5);
-}
-
-.pdf-tab-active {
-  color: var(--color-primary, #0078d4);
-  background-color: var(--color-surface, #ffffff);
-  border-bottom: 2px solid var(--color-primary, #0078d4);
-}
 
 /* ==========================================================================
    PDF Workspace Layout (Stage + Inspector)

@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Base Tablist Container
+   ================================================================---------- */
+.editor-tablist,
+.scan-tab-list,
+.pdf-tablist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 4px;
+  background-color: var(--tablist-bg, #f3f4f6);
+  border-radius: 8px;
+  width: 100%;
+}
+
+.editor-tablist::-webkit-scrollbar,
+.scan-tab-list::-webkit-scrollbar,
+.pdf-tablist::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* ==========================================================================
+   Base Tab Button
+   ================================================================---------- */
+.editor-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--tab-text, #4b5563);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease-in-out;
+}
+
+.editor-tab:hover {
+  color: var(--tab-hover-text, #111827);
+  background-color: var(--tab-hover-bg, rgba(0, 0, 0, 0.04));
+}
+
+.editor-tab:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Active States (Covers active, is-active, aria-selected="true", and variant active classes)
+   ================================================================---------- */
+.editor-tab[aria-selected="true"],
+.editor-tab.active,
+.editor-tab.is-active,
+.editor-tab.pdf-tab-active {
+  color: var(--tab-active-text, #ffffff);
+  background-color: var(--tab-active-bg, #2563eb);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+/* Specific variant tweaks if needed */
+.pdf-tab-inactive,
+.tab-item.inactive {
+  color: var(--tab-inactive-text, #6b7280);
+}

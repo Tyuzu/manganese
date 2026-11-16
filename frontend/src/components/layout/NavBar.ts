@@ -1,3 +1,4 @@
+import "../../../css/nav.css";
 import { a, button, div, nav, span } from '../ui/dom';
 
 /** Compute normalized active link state matching subpaths properly */
@@ -23,21 +24,21 @@ export function createNavElement(): HTMLElement {
     a({ href: '/pdf', className: getNavLinkClass(currentPath, '/pdf'), 'data-link': '' }, 'PDF Workspace')
   ];
 
+  // For mobile top row: Show primary quick-access links or keep all items accessible inside the dropdown sheet
   const previewItems = navItems.slice(0, 2).map((item) => {
     const clone = item.cloneNode(true) as HTMLElement;
     clone.classList.add('nav-preview-link');
     return clone;
   });
 
-  const overflowItems = navItems.slice(2);
-
   const navEl = nav({
-    className: 'nav-bar',
+    className: 'nav-bar mobile-optimized',
     role: 'navigation',
   });
 
   const navPreview = div({ className: 'nav-preview' }, ...previewItems);
 
+  // Full list used for desktop view & expanded mobile drawer
   const navList = div({
     className: 'nav-links',
     'data-nav-list': ''
@@ -59,9 +60,12 @@ export function createNavElement(): HTMLElement {
       }
 
       navList.classList.toggle('is-open', nextOpen);
+      
+      // Toggle body or container lock class if desired for full overlay
+      navEl.classList.toggle('menu-expanded', nextOpen);
     }
   },
-    `More (${overflowItems.length})`,
+    span({ className: 'nav-toggle-label' }, 'Menu'),
     span({ className: 'nav-toggle-caret' }, '▾')
   );
 
