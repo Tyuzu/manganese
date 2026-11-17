@@ -24,7 +24,6 @@ export type VideoEditorLayoutDeps = {
   startVideoExport: () => void;
 };
 
-// Helper factory to keep element creation clean and declarative
 function createElement<K extends keyof HTMLElementTagNameMap>(
   tagName: K,
   className: string,
@@ -116,7 +115,24 @@ export function createVideoEditorLayout(deps: VideoEditorLayoutDeps) {
   stage.append(quickActionsWrapper, videoContainer, zoomControls, playerHud, timelineContainer);
 
   const workspace = createElement('div', 'editor-workspace');
-  workspace.append(sidePanel, stage);
+
+  // Responsive arrangement: Check mobile viewport vs desktop layout
+  const mql = window.matchMedia('(max-width: 768px)');
+  const updateWorkspaceLayout = (isMobile: MediaQueryListEvent | MediaQueryList) => {
+    workspace.innerHTML = '';
+    if (isMobile.matches) {
+      // Mobile layout: Stacked sequence (Stage first, then Navigation/Tabs, then Side Panel)
+      workspace.append(stage, sidePanelNav, sidePanel);
+      workspace.classList.add('is-mobile-layout');
+    } else {
+      // Desktop layout: Side-by-side workspace
+      workspace.append(stage, sidePanel);
+      workspace.classList.remove('is-mobile-layout');
+    }
+  };
+
+  mql.addEventListener('change', updateWorkspaceLayout);
+  updateWorkspaceLayout(mql);
 
   // --- 6. Shell & Fullscreen Binding ---
   const modalFooter = createEditorFooter(resetEditor, startVideoExport);
@@ -139,7 +155,6 @@ export function createVideoEditorLayout(deps: VideoEditorLayoutDeps) {
 
   fullscreenButton.onclick = toggleFullscreen;
 
-  // Clean approach: Delegate layout changes to a CSS modifier class rather than inline overrides
   const syncFullscreenLayout = () => {
     const isFullscreen = document.fullscreenElement === modal;
     modal.classList.toggle('is-fullscreen', isFullscreen);

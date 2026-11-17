@@ -11,6 +11,7 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
   padding: var(--space-xs);
+  margin: var(--space-xs);
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-md);
@@ -26,7 +27,7 @@
 /* ==========================================================================
    Base Tab Button (Fluent Controls)
    ========================================================================== */
-.editor-tab {
+.editor-tab, .tab-button-unselected {
   display: inline-flex;
   align-items: center;
   justify-content: center;

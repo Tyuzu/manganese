@@ -160,7 +160,7 @@ body {
    ========================================================================== */
 .editor-workspace {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 1fr 320px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -919,11 +919,11 @@ body {
 }
 
 /* ==========================================================================
-   Responsive Media Queries
+   Responsive Media Queries & Mobile Stack
    ========================================================================== */
 @media (max-width: 1024px) {
   .editor-workspace {
-    grid-template-columns: 280px 1fr;
+    grid-template-columns: 1fr 280px;
   }
 }
 
@@ -935,14 +935,25 @@ body {
     border: none;
   }
 
-  .editor-workspace {
-    grid-template-columns: 1fr;
+  /* Mobile stacked workspace layout */
+  .editor-workspace.is-mobile-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
     overflow-y: auto;
+    max-height: calc(100vh - 100px);
   }
 
-  .editor-side-panel {
-    border-right: none;
-    border-bottom: 1px solid var(--color-border, #e0e0e0);
+  .editor-workspace.is-mobile-layout .editor-stage {
+    width: 100%;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .editor-workspace.is-mobile-layout .editor-side-panel {
+    width: 100%;
     max-height: none !important;
+    border-right: none;
+    border-top: 1px solid var(--color-border, #e0e0e0);
   }
 }
