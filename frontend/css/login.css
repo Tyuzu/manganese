@@ -5,8 +5,8 @@
 .fluent-login-card {
     background-color: var(--color-card-bg);
     color: var(--color-fg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    /* border: 1px solid var(--color-border); */
+    /* border-radius: var(--radius-md); */
     box-shadow: var(--shadow-elev-2);
     padding: var(--space-xl);
     width: 100%;

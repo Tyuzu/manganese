@@ -24,6 +24,20 @@ export type VideoEditorLayoutDeps = {
   startVideoExport: () => void;
 };
 
+// Helper factory to keep element creation clean and declarative
+function createElement<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+  className: string,
+  options?: { title?: string; type?: HTMLButtonElement['type']; textContent?: string }
+): HTMLElementTagNameMap[K] {
+  const el = document.createElement(tagName);
+  el.className = className;
+  if (options?.title) el.title = options.title;
+  if (options?.type && 'type' in el) (el as HTMLButtonElement).type = options.type;
+  if (options?.textContent) el.textContent = options.textContent;
+  return el;
+}
+
 export function createVideoEditorLayout(deps: VideoEditorLayoutDeps) {
   const {
     fileInput,
@@ -44,108 +58,67 @@ export function createVideoEditorLayout(deps: VideoEditorLayoutDeps) {
     startVideoExport,
   } = deps;
 
-  const undoBtn = document.createElement('button');
-  undoBtn.type = 'button';
-  undoBtn.className = 'editor-action-btn';
-  undoBtn.title = 'Undo (Ctrl+Z)';
+  // --- 1. History & Quick Actions ---
+  const undoBtn = createElement('button', 'editor-action-btn', { type: 'button', title: 'Undo (Ctrl+Z)', textContent: '↶' });
   undoBtn.onclick = onUndo;
-  undoBtn.textContent = '↶';
 
-  const redoBtn = document.createElement('button');
-  redoBtn.type = 'button';
-  redoBtn.className = 'editor-action-btn';
-  redoBtn.title = 'Redo (Ctrl+Y)';
+  const redoBtn = createElement('button', 'editor-action-btn', { type: 'button', title: 'Redo (Ctrl+Y)', textContent: '↷' });
   redoBtn.onclick = onRedo;
-  redoBtn.textContent = '↷';
 
-  const historyGroup = document.createElement('div');
-  historyGroup.className = 'editor-history-group';
+  const historyGroup = createElement('div', 'editor-history-group');
   historyGroup.append(undoBtn, redoBtn);
 
-  const importLabel = document.createElement('label');
-  importLabel.className = 'editor-import-label';
+  const importLabel = createElement('label', 'editor-import-label');
   importLabel.textContent = 'Import Video';
   importLabel.append(fileInput);
 
-  const flushBtn = document.createElement('button');
-  flushBtn.type = 'button';
-  flushBtn.className = 'editor-flush-btn';
+  const flushBtn = createElement('button', 'editor-flush-btn', { type: 'button', textContent: 'Flush All' });
   flushBtn.onclick = onFlushVideo;
-  flushBtn.textContent = 'Flush All';
 
-  const renderVideoBtn = document.createElement('button');
-  renderVideoBtn.type = 'button';
-  renderVideoBtn.className = 'editor-render-btn';
+  const renderVideoBtn = createElement('button', 'editor-render-btn', { type: 'button', textContent: 'Render Video' });
   renderVideoBtn.onclick = () => onRenderVideo();
-  renderVideoBtn.textContent = 'Render Video';
 
-  const quickActions = document.createElement('div');
-  quickActions.className = 'editor-quick-actions';
-  quickActions.append(
-    historyGroup,
-    interactionToggleButton,
-    importLabel,
-    flushBtn,
-    renderVideoBtn,
-  );
+  const quickActions = createElement('div', 'editor-quick-actions');
+  quickActions.append(historyGroup, interactionToggleButton, importLabel, flushBtn, renderVideoBtn);
 
-  const editorTopBar = document.createElement('div');
-  editorTopBar.className = 'editor-top-bar';
+  const quickActionsWrapper = createElement('div', 'editor-quick-actions-wrapper');
+  quickActionsWrapper.append(quickActions);
+
+  // --- 2. Top Bar & Navigation ---
+  const editorTopBar = createElement('div', 'editor-top-bar');
   editorTopBar.append(
     sidePanelNav,
     createMediaProcessingModeSelector({
       label: 'Edit location',
       className: 'editor-processing-selector',
-    }),
+    })
   );
 
-  const sidePanel = document.createElement('div');
-  sidePanel.className = 'editor-side-panel';
+  // --- 3. Side Panel & Tools ---
+  const sidePanel = createElement('div', 'editor-side-panel');
   sidePanel.append(toolContainer);
 
-  const zoomInButton = document.createElement('button');
-  zoomInButton.type = 'button';
-  zoomInButton.className = 'editor-zoom-btn';
-  zoomInButton.title = 'Zoom in';
+  // --- 4. Zoom Controls ---
+  const zoomInButton = createElement('button', 'editor-zoom-btn', { type: 'button', title: 'Zoom in', textContent: '+' });
   zoomInButton.onclick = zoomIn;
-  zoomInButton.textContent = '+';
 
-  const zoomOutButton = document.createElement('button');
-  zoomOutButton.type = 'button';
-  zoomOutButton.className = 'editor-zoom-btn';
-  zoomOutButton.title = 'Zoom out';
+  const zoomOutButton = createElement('button', 'editor-zoom-btn', { type: 'button', title: 'Zoom out', textContent: '−' });
   zoomOutButton.onclick = zoomOut;
-  zoomOutButton.textContent = '−';
 
-  const resetZoomButton = document.createElement('button');
-  resetZoomButton.type = 'button';
-  resetZoomButton.className = 'editor-zoom-btn editor-zoom-reset';
-  resetZoomButton.title = 'Reset zoom';
+  const resetZoomButton = createElement('button', 'editor-zoom-btn editor-zoom-reset', { type: 'button', title: 'Reset zoom', textContent: '1:1' });
   resetZoomButton.onclick = resetZoom;
-  resetZoomButton.textContent = '1:1';
 
-  const zoomControls = document.createElement('div');
-  zoomControls.className = 'editor-zoom-controls';
+  const zoomControls = createElement('div', 'editor-zoom-controls');
   zoomControls.append(zoomInButton, zoomOutButton, resetZoomButton);
 
-  const quickActionsWrapper = document.createElement('div');
-  quickActionsWrapper.className = 'editor-quick-actions-wrapper';
-  quickActionsWrapper.append(quickActions);
+  // --- 5. Main Stage & Workspace ---
+  const stage = createElement('div', 'editor-stage');
+  stage.append(quickActionsWrapper, videoContainer, zoomControls, playerHud, timelineContainer);
 
-  const stage = document.createElement('div');
-  stage.className = 'editor-stage';
-  stage.append(
-    quickActionsWrapper,
-    videoContainer,
-    zoomControls,
-    playerHud,
-    timelineContainer,
-  );
-
-  const workspace = document.createElement('div');
-  workspace.className = 'editor-workspace';
+  const workspace = createElement('div', 'editor-workspace');
   workspace.append(sidePanel, stage);
 
+  // --- 6. Shell & Fullscreen Binding ---
   const modalFooter = createEditorFooter(resetEditor, startVideoExport);
 
   const { root, modal, fullscreenButton } = createEditorShell({
@@ -166,52 +139,10 @@ export function createVideoEditorLayout(deps: VideoEditorLayoutDeps) {
 
   fullscreenButton.onclick = toggleFullscreen;
 
+  // Clean approach: Delegate layout changes to a CSS modifier class rather than inline overrides
   const syncFullscreenLayout = () => {
     const isFullscreen = document.fullscreenElement === modal;
-
-    modal.style.maxWidth = isFullscreen ? '100vw' : '';
-    modal.style.width = isFullscreen ? '100vw' : '';
-    modal.style.height = isFullscreen ? '100vh' : '';
-    modal.style.borderRadius = isFullscreen ? '0' : '';
-
-    sidePanel.style.minHeight = isFullscreen ? '0' : '';
-    sidePanel.style.height = isFullscreen ? 'calc(100vh - 180px)' : '';
-    sidePanel.style.maxHeight = isFullscreen ? 'calc(100vh - 180px)' : '540px';
-    sidePanel.style.overflowY = 'auto';
-    sidePanel.style.overflowX = 'hidden';
-
-    stage.style.minHeight = isFullscreen ? 'calc(100vh - 180px)' : '';
-    stage.style.height = isFullscreen ? 'calc(100vh - 180px)' : '';
-    stage.style.maxHeight = isFullscreen ? 'calc(100vh - 180px)' : '';
-    stage.style.overflowY = 'auto';
-    stage.style.overflowX = 'hidden';
-
-    videoContainer.style.minHeight = isFullscreen ? 'min(68vh, 70vh)' : '';
-    videoContainer.style.height = isFullscreen ? 'calc(100vh - 235px)' : '';
-    videoContainer.style.maxHeight = isFullscreen ? '100%' : '';
-    videoContainer.style.width = isFullscreen ? '100%' : '';
-    videoContainer.style.overflow = 'hidden';
-
-    const videoElement = videoContainer.querySelector('video');
-    if (videoElement instanceof HTMLVideoElement) {
-      if (isFullscreen) {
-        videoElement.style.maxWidth = '100%';
-        videoElement.style.maxHeight = '100%';
-        videoElement.style.width = 'auto';
-        videoElement.style.height = '100%';
-        videoElement.style.objectFit = 'contain';
-        videoElement.style.margin = '0 auto';
-        videoElement.style.display = 'block';
-      } else {
-        videoElement.style.maxWidth = '';
-        videoElement.style.maxHeight = '';
-        videoElement.style.width = '';
-        videoElement.style.height = '';
-        videoElement.style.objectFit = '';
-        videoElement.style.margin = '';
-        videoElement.style.display = '';
-      }
-    }
+    modal.classList.toggle('is-fullscreen', isFullscreen);
   };
 
   const updateFullscreenButton = () => {
